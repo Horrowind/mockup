@@ -1,0 +1,1 @@
+./Debug/pcaddress.o ./Debug/snesaddress.o ./Debug/smw_level.o
