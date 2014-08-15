@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 Mockup_old
 Mockup_old/*
 
@@ -15,7 +14,6 @@ bsnes
 bsnes/*
 
 *~
-=======
 # Compiled Object files
 *.slo
 *.lo
@@ -29,4 +27,3 @@ bsnes/*
 *.lai
 *.la
 *.a
->>>>>>> 93ed9c2392002ae8df46b93d0d7108c84b592fa3
