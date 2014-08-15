@@ -10,9 +10,6 @@ Makefile
 cmake_install.cmake
 install_manifest.txt
 
-bsnes
-bsnes/*
-
 *~
 # Compiled Object files
 *.slo

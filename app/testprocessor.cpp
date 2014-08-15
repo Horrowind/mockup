@@ -5,8 +5,8 @@
 TestCPU::TestCPU(const char* path) {
     std::ifstream rom_file(path, std::ios::in | std::ios::binary | std::ios::ate);
     if(rom_file.is_open()) {
-        m_size = rom_file.tellg() - 512;
-        m_rom = new uint8_t[m_size];
+	m_size = (unsigned int) rom_file.tellg() - 512;
+	m_rom = new uint8_t[m_size];
         rom_file.seekg(512, std::ios::beg);
         rom_file.read((char*)m_rom, m_size);
     }
