@@ -1,0 +1,16 @@
+Mockup_old
+Mockup_old/*
+
+build
+build/*
+
+CMakeCache.txt
+CMakeFiles
+Makefile
+cmake_install.cmake
+install_manifest.txt
+
+bsnes
+bsnes/*
+
+*~
