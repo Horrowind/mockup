@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Mockup_old
 Mockup_old/*
 
@@ -14,3 +15,18 @@ bsnes
 bsnes/*
 
 *~
+=======
+# Compiled Object files
+*.slo
+*.lo
+*.o
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+>>>>>>> 93ed9c2392002ae8df46b93d0d7108c84b592fa3
