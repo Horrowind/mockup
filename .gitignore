@@ -10,8 +10,8 @@ Makefile
 cmake_install.cmake
 install_manifest.txt
 
-bsnes
-bsnes/*
+#bsnes
+#bsnes/*
 
 *~
 # Compiled Object files
