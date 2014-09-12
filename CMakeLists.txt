@@ -1,5 +1,7 @@
 #set(CMAKE_VERBOSE_MAKEFILE ON)
 cmake_minimum_required (VERSION 2.8.9)
+include(ExternalProject)
+
 project(mockup)
 
 # TinyXML

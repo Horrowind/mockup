@@ -1,5 +1,6 @@
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <iostream>
 
 #include <QFileDialog>
@@ -18,6 +19,8 @@ namespace Mockup {
         setDockOptions(QMainWindow::AnimatedDocks | QMainWindow::AllowNestedDocks | QMainWindow::AllowTabbedDocks);
         view = new QGraphicsView(&scene);
         
+	uint16_t palette[256];
+        load_map16(filePath.toLatin1().data(), 0x105, palette);
 
         for(int i = 0; i < 0x14 * 27 * 16; i++) {
             layer1low[i] = 0x25;
@@ -56,15 +59,14 @@ namespace Mockup {
                 draw_normal_object(filePath.toLatin1().data(), obj, output3, pos, layer1low + addr,  layer1high + addr);
             }
         }
-        load_map16(filePath.toLatin1().data(), 0x105);
+	
         
         for(int i = 0; i < 27; i++) {
             for(int j = 0; j < 0x14; j++) {
                 for(int k = 0; k < 16; k++) {
                     if(!(layer1low[j * 16 * 27 + i * 16 + k] == 0x25 &&  layer1high[j * 16 * 27 + i * 16 + k] == 0)) {
-                        scene.addRect((j*16+k)*16, i*16, 16, 16);
-                        QGraphicsSimpleTextItem * item = scene.addSimpleText(
-                            QString::number(layer1low[j * 16 * 27 + i * 16 + k], 16));
+                        
+			QGraphicsSimpleTextItem * item = scene.addSimpleText(QString::number(layer1low[j * 16 * 27 + i * 16 + k], 16));
                         item->setPos((j*16+k)*16, i*16+2);
                         //std::cout << std::hex << (int)(layer1low[j * 16 * 27 + i * 16 + k] % 0x10);
                     } else {
@@ -73,8 +75,19 @@ namespace Mockup {
                 }
             }
         }
+
+	for(int i = 0; i < 16; i++) {
+	    for(int j = 0; j < 16; j++) {
+		uint16_t color = palette[16*i+j];
+		int r = ((color & 0x1F) << 3);   r |= (r >> 5);
+		int g = ((color & 0x3E0) >> 2);  g |= (g >> 5);
+		int b = ((color & 0x7C00) >> 7); b |= (b >> 5);
+		scene.addRect(j*8, i*8, 8, 8, QPen(), QBrush(QColor(r, g, b), Qt::SolidPattern));
+	    }
+	}
+
+
         MainWindow::setCentralWidget(view);
-        
         
     }
     
@@ -86,7 +99,7 @@ namespace Mockup {
 
 
  
-    void MainWindow::load_map16(const char* path, int level) {
+    void MainWindow::load_map16(const char* path, int level, uint16_t* palette) {
         TestCPU cpu(path);
         cpu.m_object_low = NULL;
         cpu.m_object_high = NULL;
@@ -117,6 +130,8 @@ namespace Mockup {
         while(cpu.filled_stack()) {
             cpu.step();
         }
+	memcpy(palette, cpu.m_ram + 0x0703, 512);
+
     }
 
     void MainWindow::draw_normal_object(const char* path, uint8_t object, uint8_t size, uint8_t pos, uint8_t* subscreen_low_ptr, uint8_t* subscreen_high_ptr) {

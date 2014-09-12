@@ -19,7 +19,7 @@ namespace Mockup {
     private:
         void draw_normal_object(const char* path, uint8_t object, uint8_t size, uint8_t pos, uint8_t* subscreen_low_ptr, uint8_t* subscreen_high_ptr);
         void draw_extended_object(const char* path, uint8_t object, uint8_t pos, uint8_t* subscreen_low_ptr, uint8_t* subscreen_high_ptr);
-        void load_map16(const char* path, int level);
+        void load_map16(const char* path, int level, uint16_t* palette);
         
         
         QGraphicsView* view;
