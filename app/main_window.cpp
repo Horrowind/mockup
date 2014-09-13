@@ -110,6 +110,7 @@ namespace Mockup {
         worldlib::decompressGraphicsFile(romStart, romEnd, std::back_inserter(fg1Chr), fg1);
         worldlib::decompressGraphicsFile(romStart, romEnd, std::back_inserter(fg2Chr), fg2);
 
+        indexedImageToBitmap(graphicsStart, graphicsEnd, paletteStart, paletteEnd, int bpp, bool flipX, bool flipY, int paletteNumber, outputIteratorType out);
 
         for(int i = 0; i < 16; i++) {
             for(int j = 0; j < 16; j++) {
