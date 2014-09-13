@@ -4,31 +4,49 @@
 #include <iostream>
 
 #include <QFileDialog>
+#include <QInputDialog>
 #include <QGraphicsItem>
-
+#include <QKeyEvent>
 
 #include "testprocessor.hpp"
 #include "main_window.hpp"
 
+#define WORLDLIB_IGNORE_DLL_FUNCTIONS
+#include "WorldLib.hpp"
+
+
 namespace Mockup {
-   
- 
+    
+
     MainWindow::MainWindow() {
-        QString filePath = QFileDialog::getOpenFileName(this, "Open ROM", QString(), "*.smc");
+        filePath = QFileDialog::getOpenFileName(nullptr, "Open ROM", QString(), "*.smc");
         setDocumentMode(true);
         setDockOptions(QMainWindow::AnimatedDocks | QMainWindow::AllowNestedDocks | QMainWindow::AllowTabbedDocks);
         view = new QGraphicsView(&scene);
+        grabKeyboard();
+        MainWindow::setCentralWidget(view);
+        draw_level(filePath.toLatin1().data(), cur_level);
+    }
+    
+    MainWindow::~MainWindow() {
         
-	uint16_t palette[256];
-        load_map16(filePath.toLatin1().data(), 0x105, palette);
+    }
+    
+    void MainWindow::draw_level(const char* path, int level) {
+        scene.clear();
+        uint16_t palette[256];
+        load_map16(path, level, palette);
 
         for(int i = 0; i < 0x14 * 27 * 16; i++) {
             layer1low[i] = 0x25;
             layer1high[i] = 0;
         }
         FILE* fp;
-        fp = fopen(filePath.toLatin1().data(), "r");
-        fseek(fp, 0x30add+5, SEEK_SET);
+        fp = fopen(path, "r");
+        fseek(fp, 0x02E200 + 3 * level, SEEK_SET);
+        unsigned int levelloc = getc(fp) | (getc(fp) << 8) | (getc(fp) << 16);
+        std::cout << "Level location: " <<  std::hex << levelloc << std::endl;
+        fseek(fp, ((levelloc & 0x7f0000) >> 1) + (levelloc & 0x7fff) + 517, SEEK_SET);
         uint8_t output, output2, output3;
         int screen = 0;
         while((output = getc(fp)) != 0xFF || output == -1) {
@@ -48,7 +66,7 @@ namespace Mockup {
                     if(output3 == 1) {
                         screen = output;
                     } else {
-                         draw_extended_object(filePath.toLatin1().data(), output3, pos, layer1low + addr,  layer1high + addr);
+                        draw_extended_object(path, output3, pos, layer1low + addr,  layer1high + addr);
                     }
                 } else {
                     int output4 = fgetc(fp);
@@ -56,7 +74,7 @@ namespace Mockup {
             } else {
                 int addr = 27 * 16 * screen + 256 * subscreen;
                 uint8_t pos = (y << 4) | x;
-                draw_normal_object(filePath.toLatin1().data(), obj, output3, pos, layer1low + addr,  layer1high + addr);
+                draw_normal_object(path, obj, output3, pos, layer1low + addr,  layer1high + addr);
             }
         }
 	
@@ -65,8 +83,7 @@ namespace Mockup {
             for(int j = 0; j < 0x14; j++) {
                 for(int k = 0; k < 16; k++) {
                     if(!(layer1low[j * 16 * 27 + i * 16 + k] == 0x25 &&  layer1high[j * 16 * 27 + i * 16 + k] == 0)) {
-                        
-			QGraphicsSimpleTextItem * item = scene.addSimpleText(QString::number(layer1low[j * 16 * 27 + i * 16 + k], 16));
+                        QGraphicsSimpleTextItem * item = scene.addSimpleText(QString::number(layer1low[j * 16 * 27 + i * 16 + k], 16));
                         item->setPos((j*16+k)*16, i*16+2);
                         //std::cout << std::hex << (int)(layer1low[j * 16 * 27 + i * 16 + k] % 0x10);
                     } else {
@@ -76,28 +93,54 @@ namespace Mockup {
             }
         }
 
-	for(int i = 0; i < 16; i++) {
-	    for(int j = 0; j < 16; j++) {
-		uint16_t color = palette[16*i+j];
-		int r = ((color & 0x1F) << 3);   r |= (r >> 5);
-		int g = ((color & 0x3E0) >> 2);  g |= (g >> 5);
-		int b = ((color & 0x7C00) >> 7); b |= (b >> 5);
-		scene.addRect(j*8, i*8, 8, 8, QPen(), QBrush(QColor(r, g, b), Qt::SolidPattern));
-	    }
-	}
+        std::ifstream in(path, std::ios::in | std::ios::binary);
+        if (in) rom = std::vector<unsigned char>((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        else return 0;
+ 
+        auto romStart = rom.begin() + 0x200;
+        auto romEnd = rom.end();
+        std::vector<uint32_t> palette;
+        worldlib::getLevelPalette(romStart, romEnd, std::back_inserter(palette), cur_level);
+        std::vector<uint8_t> spriteBitmap;
+
+        int fg1 = worldlib::getLevelSingleGraphicsSlot(romStart, romEnd, 0x105, worldlib::GfxSlots::FG1);
+        int fg2 = worldlib::getLevelSingleGraphicsSlot(romStart, romEnd, 0x105, worldlib::GfxSlots::FG2);
+
+        uint8_t fg1Chr, fg2Chr;
+        worldlib::decompressGraphicsFile(romStart, romEnd, std::back_inserter(fg1Chr), fg1);
+        worldlib::decompressGraphicsFile(romStart, romEnd, std::back_inserter(fg2Chr), fg2);
 
 
-        MainWindow::setCentralWidget(view);
-        
+        for(int i = 0; i < 16; i++) {
+            for(int j = 0; j < 16; j++) {
+                uint16_t color = palette[16*i+j];
+                int r = ((color & 0x1F) << 3);   r |= (r >> 5);
+                int g = ((color & 0x3E0) >> 2);  g |= (g >> 5);
+                int b = ((color & 0x7C00) >> 7); b |= (b >> 5);
+                scene.addRect(j*8, i*8, 8, 8, QPen(), QBrush(QColor(r, g, b), Qt::SolidPattern));
+            }
+        }
+
     }
-    
-    MainWindow::~MainWindow() {
-        
-    }
-    
+ 
+
     //void MainWindow::load_map8(const char* path, );
 
 
+
+    void MainWindow::keyPressEvent(QKeyEvent* event) {
+        std::cout<<"huhu";
+        if(event->key() == Qt::Key_PageUp && cur_level < 512) {
+            cur_level++;
+        } else if(event->key() == Qt::Key_PageDown && cur_level >= 0) {
+            cur_level--;
+        } else {
+            event->ignore();
+            return;
+        }
+        event->accept();
+        draw_level(filePath.toLatin1().data(), cur_level);
+    }
  
     void MainWindow::load_map16(const char* path, int level, uint16_t* palette) {
         TestCPU cpu(path);
@@ -130,7 +173,7 @@ namespace Mockup {
         while(cpu.filled_stack()) {
             cpu.step();
         }
-	memcpy(palette, cpu.m_ram + 0x0703, 512);
+        memcpy(palette, cpu.m_ram + 0x0703, 512);
 
     }
 

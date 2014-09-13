@@ -7,6 +7,7 @@
 #include "testprocessor.hpp"
 
 class TestCPU;
+class QKeyEvent;
 
 namespace Mockup {
     
@@ -15,8 +16,14 @@ namespace Mockup {
     public:
         MainWindow();
         ~MainWindow();
+
+    protected:
+        virtual void keyPressEvent(QKeyEvent* event);
     
     private:
+
+        void draw_level(const char* path, int level);
+
         void draw_normal_object(const char* path, uint8_t object, uint8_t size, uint8_t pos, uint8_t* subscreen_low_ptr, uint8_t* subscreen_high_ptr);
         void draw_extended_object(const char* path, uint8_t object, uint8_t pos, uint8_t* subscreen_low_ptr, uint8_t* subscreen_high_ptr);
         void load_map16(const char* path, int level, uint16_t* palette);
@@ -28,6 +35,8 @@ namespace Mockup {
         
         uint8_t* layer1low = new uint8_t[27 * 16 * 0x14];
         uint8_t* layer1high = new uint8_t[27 * 16 * 0x14];
+        int cur_level = 0x105;
+        QString filePath;
     };
 }
 #endif //MOCKUP_MAIN_WINDOW_HPP

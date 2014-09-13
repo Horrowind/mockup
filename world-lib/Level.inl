@@ -1,5 +1,8 @@
+#include <iterator>
+
 #include "Internal.hpp"
 #include "Compression.hpp"
+
 
 namespace worldlib
 {
@@ -296,9 +299,9 @@ namespace worldlib
 	template <typename inputIteratorType>
 	std::uint16_t getLevelSingleGraphicsSlot(inputIteratorType romStart, inputIteratorType romEnd, int level, GFXSlots slotToGet)
 	{
-		std::vector<std::uint16_t> slots;
-		getLevelGraphicsSlots(romStart, romEnd, std::back_inserter(slots), level);
-		return slots[(int)slotToGet];
+		std::vector<std::uint16_t> gfxSlots;
+		getLevelGraphicsSlots(romStart, romEnd, std::back_inserter(gfxSlots), level);
+		return gfxSlots[(int)slotToGet];
 	}
 
 	template <typename inputIteratorType>

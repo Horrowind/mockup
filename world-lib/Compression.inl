@@ -6,7 +6,7 @@
 #include <algorithm>
 #include "Internal.hpp"
 
-#define _SFCLIB_INTEGER_ITERATOR_ASSERT(type) static_assert(std::numeric_limits<std::iterator_traits<type>::value_type>::is_integer == true, "The iterator type must have a value_type that is an integer.  8-bit integers recommended.")
+//#define _SFCLIB_INTEGER_ITERATOR_ASSERT(T) static_assert(std::numeric_limits<std::iterator_traits<T>::value_type>::is_integer == true, "The iterator type must have a value_type that is an integer.  8-bit integers recommended.")
 
 namespace worldlib
 {
@@ -41,7 +41,7 @@ namespace worldlib
 template <typename inputIteratorType, typename outputIteratorType>
 outputIteratorType decompressLZ2(inputIteratorType start, inputIteratorType end, outputIteratorType out, int *compressedSize, int *decompressedSize)
 {
-	_SFCLIB_INTEGER_ITERATOR_ASSERT(inputIteratorType);
+	//_SFCLIB_INTEGER_ITERATOR_ASSERT(inputIteratorType);
 
 	enum CommandType
 	{
@@ -158,7 +158,7 @@ outputIteratorType decompressLZ2(inputIteratorType start, inputIteratorType end,
 template <typename inputIteratorType, typename outputIteratorType>
 outputIteratorType decompressLZ3(inputIteratorType start, inputIteratorType end, outputIteratorType out, int *compressedSize, int *decompressedSize)
 {
-	_SFCLIB_INTEGER_ITERATOR_ASSERT(inputIteratorType);
+	//_SFCLIB_INTEGER_ITERATOR_ASSERT(inputIteratorType);
 
 	enum CommandType
 	{
@@ -301,7 +301,7 @@ outputIteratorType decompressData(romIteratorType romStart, romIteratorType romE
 	else if (compressionType == 2)
 		return decompressLZ3(compressedDataStart, compressedDataEnd, out, compressedSize, decompressedSize);
 	else
-		throw UnrecognizedCompressionFormat();
+       	throw UnrecognizedCompressionFormat();
 }
 
 #ifndef WORLDLIB_IGNORE_DLL_FUNCTIONS

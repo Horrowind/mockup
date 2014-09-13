@@ -39,7 +39,7 @@ uint8_t TestCPU::op_read(uint32_t addr) {
 void TestCPU::op_write(uint32_t addr, uint8_t data) {
     
     if(addr & 0xFF8000) {
-        std::cerr<<"Wrote: " << std::hex<<addr <<std::endl;
+        //std::cerr<<"Wrote: " << std::hex<<addr <<std::endl;
         //Todo: ERROR
     } else {
         if(addr >= 0x002000) {
