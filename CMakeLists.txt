@@ -20,8 +20,8 @@ project(mockup)
 #endif()
 
 
-
-SET ( CMAKE_CXX_FLAGS "-std=c++11" )
+#SET ( CMAKE_CXX_COMPILER  "/usr/bin/clang++" )
+SET ( CMAKE_CXX_FLAGS     "-std=c++11" )
 
 #add_subdirectory(libsmw)
 
@@ -36,6 +36,8 @@ add_custom_target(
     DEPENDS ${CMAKE_SOURCE_DIR}/bsnes/obj/processor-r65816.o
 )
 #export(TARGETS bsnes-r65816 FILE bsnes-exports.cmake)
+
+include_directories(world-lib)
 
 add_subdirectory(app)
 add_dependencies(mockup bsnes-r65816)

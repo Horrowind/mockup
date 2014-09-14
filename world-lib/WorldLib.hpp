@@ -48,10 +48,9 @@
 /// Module for UberASM functions.  These help with getting specific code to run in specific levels without worrying about hijack conflicts.
 //////////////////////////////////////////////////////////////////////////////
 
-
+#include "SFC.hpp"
 #include "Level.hpp"
 #include "LunarMagic.hpp"
-#include "SFC.hpp"
 #include "UberASM.hpp"
 
 #include "Patch.hpp"
