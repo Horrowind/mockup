@@ -8,7 +8,7 @@
 
 struct TestCPU : Processor::R65816 {
 public:
-    TestCPU(const char* path);
+    TestCPU(const char* path, bool debug = false);
     ~TestCPU();
     void step();
     void init();
@@ -28,6 +28,7 @@ private:
     uint8_t op_read(uint32_t addr);
     void op_write(uint32_t addr, uint8_t data);
     uint8 disassembler_read(uint32 addr);
+    bool m_debug;
 };
 
 #endif //TESTPROCESSOR_H

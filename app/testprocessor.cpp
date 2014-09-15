@@ -2,7 +2,8 @@
 #include <iostream>
 #include "testprocessor.hpp"
 
-TestCPU::TestCPU(const char* path) {
+TestCPU::TestCPU(const char* path, bool debug) {
+    m_debug = debug;
     std::ifstream rom_file(path, std::ios::in | std::ios::binary | std::ios::ate);
     if(rom_file.is_open()) {
 	m_size = (unsigned int) rom_file.tellg() - 512;
@@ -22,7 +23,9 @@ TestCPU::~TestCPU() {
 
 
 uint8_t TestCPU::op_read(uint32_t addr) {
-//    std::cout<<"Read: " << std::hex<<addr <<std::endl;
+    
+    if(m_debug) std::cout<<"Read: " << std::hex<<addr <<std::endl;
+
     if(addr & 0xFF8000)
         return m_rom[((addr & 0x7f0000) >> 1) + (addr & 0x7fff)];
     if(addr >= 0x002000) {
@@ -39,7 +42,7 @@ uint8_t TestCPU::op_read(uint32_t addr) {
 void TestCPU::op_write(uint32_t addr, uint8_t data) {
     
     if(addr & 0xFF8000) {
-        //std::cerr<<"Wrote: " << std::hex<<addr <<std::endl;
+        std::cerr<<"Err: Wrote: " << std::hex<<addr <<std::endl;
         //Todo: ERROR
     } else {
         if(addr >= 0x002000) {
@@ -54,8 +57,7 @@ void TestCPU::op_write(uint32_t addr, uint8_t data) {
             m_ram[addr & 0x1FFF] = data;
         }
     }
-//    std::cout<<"Write: " << std::hex<<addr << ": " << data << std::endl;
-    
+    if(m_debug) std::cout<<"Write: " << std::hex<<addr << ": " << std::hex <<(int)data << std::endl;
 }
 
 void TestCPU::step() {

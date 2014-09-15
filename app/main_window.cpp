@@ -1,6 +1,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+
 #include <iostream>
 #include <fstream>
 #include <QFileDialog>
@@ -8,10 +9,13 @@
 #include <QGraphicsItem>
 #include <QKeyEvent>
 
+
+#define WORLDLIB_IGNORE_DLL_FUNCTIONS
+
 #include "testprocessor.hpp"
 #include "main_window.hpp"
 
-#define WORLDLIB_IGNORE_DLL_FUNCTIONS
+
 #include "WorldLib.hpp"
 
 
@@ -21,12 +25,24 @@ namespace Mockup {
     MainWindow::MainWindow() {
         filePath = QFileDialog::getOpenFileName(nullptr, "Open ROM", QString(), "*.smc");
         if(filePath == "") exit(0);
+        
+TestCPU cpu(filePath.toLatin1().data(), true);
+        cpu.set_cur_pos(0x0095B5);
+        cpu.step();    
+        while(cpu.filled_stack()) {
+            cpu.step();
+        }
+
         setDocumentMode(true);
         setDockOptions(QMainWindow::AnimatedDocks | QMainWindow::AllowNestedDocks | QMainWindow::AllowTabbedDocks);
         view = new QGraphicsView(&scene);
         grabKeyboard();
         MainWindow::setCentralWidget(view);
         draw_level(filePath.toLatin1().data(), cur_level);
+
+        
+        
+
     }
     
     MainWindow::~MainWindow() {
@@ -127,11 +143,6 @@ namespace Mockup {
 
     }
  
-
-    //void MainWindow::load_map8(const char* path, );
-
-
-
     void MainWindow::keyPressEvent(QKeyEvent* event) {
         std::cout<<"huhu";
         if(event->key() == Qt::Key_PageUp && cur_level < 511) {
@@ -164,22 +175,14 @@ namespace Mockup {
         worldlib::getLevelPalette(romStart, romEnd, std::back_inserter(palettePC), level);
 #else
         std::vector<uint32_t> palettePC(256, 0);
-        TestCPU cpu(path);
         
-        cpu.m_ram[0x1933] = 0; //Object
+        // Load CPU and specify, which level we want to open.
+        TestCPU cpu(path);
         cpu.m_ram[0x65] = cpu.m_rom[0x02E200 + 3 * level]; 
         cpu.m_ram[0x66] = cpu.m_rom[0x02E200 + 3 * level + 1];
         cpu.m_ram[0x67] = cpu.m_rom[0x02E200 + 3 * level + 2];
         
-        cpu.set_cur_pos(0x0583B2);
-        cpu.step();    
-        while(cpu.filled_stack()) {
-            cpu.step();
-        }
-        cpu.step();
-        while(cpu.filled_stack()) {
-            cpu.step();
-        }
+        // Run the palette loading routine.
         cpu.set_cur_pos(0x00A5BC);
         cpu.step();
         while(cpu.filled_stack()) {
@@ -187,6 +190,8 @@ namespace Mockup {
         }
         uint16_t paletteSNES[256];
         memcpy(paletteSNES, cpu.m_ram + 0x0703, 512);
+
+        // Convert SNES colors to ARGB colors
         for(int i = 0; i < 256; i++) {
             int r = ((paletteSNES[i] & 0x1F) << 3);   r |= (r >> 5);
             int g = ((paletteSNES[i] & 0x3E0) >> 2);  g |= (g >> 5);
@@ -198,12 +203,10 @@ namespace Mockup {
 
     }
 
-
     std::vector<QImage> MainWindow::load_map8(const char* path, int level) {
         TestCPU cpu(path);
         cpu.m_object_low = NULL;
         cpu.m_object_high = NULL;
-        // uint16_t palette[256];
 
         cpu.m_ram[0x1933] = 0; //Object
         cpu.m_ram[0x65] = cpu.m_rom[0x02E200 + 3 * level]; 
@@ -214,22 +217,11 @@ namespace Mockup {
         cpu.step();    
         while(cpu.filled_stack()) {
             cpu.step();
-            //std::cout<<"Position1: " << std::hex<<cpu.get_cur_pos() <<std::endl;
         }
         cpu.step();
-        //std::cout<<"Position2: " << std::hex<<cpu.get_cur_pos() << std::endl;
         while(cpu.filled_stack()) {
             cpu.step();
-            //std::cout<<"Position3: " << std::hex<<cpu.get_cur_pos() << std::endl;
         }
-
-
-        // cpu.set_cur_pos(0x00A5BC);
-        // cpu.step();
-        // while(cpu.filled_stack()) {
-        //      cpu.step();
-        // }
-        // memcpy(palette, cpu.m_ram + 0x0703, 512);
 
         std::ifstream in(path, std::ios::in | std::ios::binary);
         std::vector<unsigned char> rom;
@@ -251,45 +243,34 @@ namespace Mockup {
         std::vector<QImage> map8(512, QImage(8, 8, QImage::Format_Indexed8));
         for(int tile = 0; tile < 512; tile++) {
             int tilemap = tile >> 7;
-            //std::cout<< tilemap << std::endl;
-
+            std::vector<uint8_t>* usedChr;
+            switch(tilemap) {
+            case 0b000:
+                usedChr = &fg1Chr;
+                break;
+            case 0b001:
+                usedChr = &fg2Chr;
+                break;
+            case 0b010:
+                usedChr = &bg1Chr;
+                break;
+            case 0b011:
+                usedChr = &fg3Chr;
+                break;
+            }
 
             for(int k = 0; k < 8; k++) map8[tile].setColor(k, 0xFF000000 + 0x222222 * k);
             for(int k = 0; k < 8; k++) {
+ 
                 unsigned char bp1, bp2, bp3;
-                switch(tilemap) {
-                case 0b00:
-                    bp1 = fg1Chr[24 * (tile % 128) + 2 * k];
-                    bp2 = fg1Chr[24 * (tile % 128) + 2 * k + 1];
-                    bp3 = fg1Chr[24 * (tile % 128) + 16 + k];
-                    break;
-                case 0b01:
-                    bp1 = fg2Chr[24 * (tile % 128) + 2 * k];
-                    bp2 = fg2Chr[24 * (tile % 128) + 2 * k + 1];
-                    bp3 = fg2Chr[24 * (tile % 128) + 16 + k]; 
-                    break;
-                case 0b10:
-                    bp1 = bg1Chr[24 * (tile % 128) + 2 * k];
-                    bp2 = bg1Chr[24 * (tile % 128) + 2 * k + 1];
-                    bp3 = bg1Chr[24 * (tile % 128) + 16 + k];
-                    break;
-                case 0b11:
-                    bp1 = fg3Chr[24 * (tile % 128) + 2 * k];
-                    bp2 = fg3Chr[24 * (tile % 128) + 2 * k + 1];
-                    bp3 = fg3Chr[24 * (tile % 128) + 16 + k];
-                    break;
-                }
+                bp1 = usedChr->at(24 * (tile % 128) + 2 * k);
+                bp2 = usedChr->at(24 * (tile % 128) + 2 * k + 1);
+                bp3 = usedChr->at(24 * (tile % 128) + 16 + k);
 
                 for(int l = 0; l < 8; l++) {
                     int index = ((bp1 & (1 << (7 - l))) ? 1 : 0)
                         + ((bp2 & (1 << (7 - l))) ? 2 : 0)
                         + ((bp3 & (1 << (7 - l))) ? 4 : 0);
-                    // uint16_t colorSNES = palette[ 16 * paletteNumber + index];
-                    // int r = ((colorSNES & 0x1F) << 3);   r |= (r >> 5);
-                    // int g = ((colorSNES & 0x3E0) >> 2);  g |= (g >> 5);
-                    // int b = ((colorSNES & 0x7C00) >> 7); b |= (b >> 5);
-                    // int colorPC = index == 0 ? 0 : 0xFF000000 + (r << 16) + (g << 8) + b;
-                    // std::cout << index << "," << std::hex << colorPC << ", ";
                     
                     map8[tile].setPixel(l, k, index);
                 }
@@ -301,9 +282,8 @@ namespace Mockup {
         TestCPU cpu(path);
         cpu.m_object_low = NULL;
         cpu.m_object_high = NULL;
-//        uint16_t palette[256];
 
-        cpu.m_ram[0x1933] = 0; //Object
+        cpu.m_ram[0x1933] = 0; //We want to load Layer 1 Objects
         cpu.m_ram[0x65] = 0xDD; 
         cpu.m_ram[0x66] = 0x88;
         cpu.m_ram[0x67] = 0x06;
@@ -319,86 +299,31 @@ namespace Mockup {
         
 
 
-        std::ifstream in(path, std::ios::in | std::ios::binary);
-        std::vector<unsigned char> rom;
-        if (in) rom = std::vector<unsigned char>((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        // std::ifstream in(path, std::ios::in | std::ios::binary);
+        // std::vector<unsigned char> rom;
+        // if (in) rom = std::vector<unsigned char>((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
  
-        auto romStart = rom.begin() + 0x200;
-        auto romEnd = rom.end();
-
-        // int fg1 = worldlib::getLevelSingleGraphicsSlot(romStart, romEnd, level, worldlib::GFXSlots::FG1);
-        // int fg2 = worldlib::getLevelSingleGraphicsSlot(romStart, romEnd, level, worldlib::GFXSlots::FG2);
-        // int bg1 = worldlib::getLevelSingleGraphicsSlot(romStart, romEnd, level, worldlib::GFXSlots::BG1);
-        // int fg3 = worldlib::getLevelSingleGraphicsSlot(romStart, romEnd, level, worldlib::GFXSlots::FG3);
-        // std::cout << std::hex << fg1 << ", " << fg2 << ", " << bg1 << ", " << fg3 << std::endl;
-        // std::vector<uint8_t> fg1Chr, fg2Chr, bg1Chr, fg3Chr;
-        // worldlib::decompressGraphicsFile(romStart, romEnd, std::back_inserter(fg1Chr), fg1);
-        // worldlib::decompressGraphicsFile(romStart, romEnd, std::back_inserter(fg2Chr), fg2);
-        // worldlib::decompressGraphicsFile(romStart, romEnd, std::back_inserter(bg1Chr), bg1);
-        // worldlib::decompressGraphicsFile(romStart, romEnd, std::back_inserter(fg3Chr), fg3);
+        // auto romStart = rom.begin() + 0x200;
+        // auto romEnd = rom.end();
         
         std::vector<QPixmap> map16(512, QPixmap(16, 16));
       
         for(int i = 0; i < 512; i++) {
             int map16lookupSNES = 0x0D0000 + cpu.m_ram[2 * i + 0x0FBF] * 256 + cpu.m_ram[2 * i + 0x0FBE];
-            int map16lookupPC   = ((map16lookupSNES & 0x7f0000) >> 1) + (map16lookupSNES & 0x7fff) + 512;
+            int map16lookupPC   = ((map16lookupSNES & 0x7f0000) >> 1) + (map16lookupSNES & 0x7fff);
             
             std::vector<QImage> tiles(4, QImage(8, 8, QImage::Format_ARGB32));
             //std::cout<<"Map16 Tile: " << std::hex << i;
             for(int j = 0; j < 4; j++) {
                 tiles[j].fill(0xFFFFFFFF);
                 
-                bool flipX         =   rom[map16lookupPC + j * 2 + 1] & 0b01000000;
-                bool flipY         =   rom[map16lookupPC + j * 2 + 1] & 0b10000000;
-                int  paletteNumber =  (rom[map16lookupPC + j * 2 + 1] & 0b00011100) >> 2;
-                //int  tilemap       = ((rom[map16lookupPC + j * 2 + 1] & 0b00000011) << 1) + (rom[map16lookupPC + j * 2] >> 7);
-                //int  tile          =   rom[map16lookupPC + j * 2];
-                int tile           =   rom[map16lookupPC + j * 2] | ((rom[map16lookupPC + j * 2 + 1] & 0b00000011) << 8);
+                bool flipX         =   cpu.m_rom[map16lookupPC + j * 2 + 1] & 0b01000000;
+                bool flipY         =   cpu.m_rom[map16lookupPC + j * 2 + 1] & 0b10000000;
+                int  paletteNumber =  (cpu.m_rom[map16lookupPC + j * 2 + 1] & 0b00011100) >> 2;
+                int  tile          =   cpu.m_rom[map16lookupPC + j * 2] | ((cpu.m_rom[map16lookupPC + j * 2 + 1] & 0b00000011) << 8);
                 
                 tiles[j] = map8[tile].mirrored(flipX, flipY);
                 for(int k = 0; k < 8; k++) tiles[j].setColor(k, palette[16 * paletteNumber + k]);
-                //std::cout << "(" <<tilemap<< "," << tile << ") ";
-                
-                
-                
-                // std::vector<uint8_t>* usedChr;
-                // switch(tilemap) {
-                // case 0b000:
-                //     usedChr = &fg1Chr;
-                //     break;
-                // case 0b001:
-                //     usedChr = &fg2Chr;
-                //     break;
-                // case 0b010:
-                //     usedChr = &bg1Chr;
-                //     break;
-                // case 0b011:
-                //     usedChr = &fg3Chr;
-                //     break;
-                // }
-
-                // for(int k = 0; k < 8; k++) {
-                //     unsigned char bp1 = (*usedChr)[24 * (tile % 128) + 2 * k];
-                //     unsigned char bp2 = (*usedChr)[24 * (tile % 128) + 2 * k + 1];
-                //     unsigned char bp3 = (*usedChr)[24 * (tile % 128) + 16 + k];
-                //     for(int l = 0; l < 8; l++) {
-                //         int index = ((bp1 & (1 << (7 - l))) ? 1 : 0)
-                //             + ((bp2 & (1 << (7 - l))) ? 2 : 0)
-                //             + ((bp3 & (1 << (7 - l))) ? 4 : 0);
-                //         //int colorPC = index == 0 ? 0 : 0xFF000000 + (r << 16) + (g << 8) + b;
-                //         uint32_t colorPC = palette[16 * paletteNumber + index];
-                //         //std::cout << index << "," << std::hex << colorPC << ", ";
-                //         tiles[j].setPixel(
-                //             flipX ? 7 - l : l,
-                //             flipY ? 7 - k : k,
-                //             colorPC);
-                //    }
-                // }
-
-
-                
-                //tiles.push_back(QImage(&bitmap[0], 8, 8, QImage::Format_ARGB32).copy(0, 0, 8, 8));
-                //memcpy(tiles[j].scanline(0), &bitmap[0], 256);
             }
             QPainter painter;
             painter.begin(&map16[i]);
