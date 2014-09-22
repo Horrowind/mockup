@@ -11,7 +11,7 @@ TestCPU::TestCPU(const char* path, bool debug) {
         rom_file.seekg(512, std::ios::beg);
         rom_file.read((char*)m_rom, m_size);
     }
-    m_ram = new uint8_t[0x2000];
+    m_ram = new uint8_t[0x20000];
     for(int i = 0; i < 0x2000; i++) m_ram[i] = 0;
     init();
 };
@@ -26,35 +26,32 @@ uint8_t TestCPU::op_read(uint32_t addr) {
     
     if(m_debug) std::cout<<"Read: " << std::hex<<addr <<std::endl;
 
-    if(addr & 0xFF8000)
+    if(addr & 0xFF8000) {
+        if(addr >= 0x7E0000 && addr < 0x800000)
+            return m_ram[addr-0x7E0000];
         return m_rom[((addr & 0x7f0000) >> 1) + (addr & 0x7fff)];
-    if(addr >= 0x002000) {
-        if(addr < 0x005000) {
-            return m_object_low[addr - 0x2000];
-        } else {
-            return m_object_high[addr - 0x5000];
-        }
     }
-    return m_ram[addr & 0x1FFF];
+    if(addr >= 0x002000) {
+        std::cerr<<"Err: Read: " << std::hex<<addr <<std::endl;
+    }
+    return m_ram[addr];
     
 }
 
 void TestCPU::op_write(uint32_t addr, uint8_t data) {
     
     if(addr & 0xFF8000) {
-        std::cerr<<"Err: Wrote: " << std::hex<<addr <<std::endl;
+        if(addr >= 0x7E0000 && addr < 0x800000) {
+            m_ram[addr-0x7E0000] = data;
+        } else {
+            std::cerr<<"Err: Wrote: " << std::hex<<addr <<std::endl;
         //Todo: ERROR
+        }
     } else {
         if(addr >= 0x002000) {
-            if(addr < 0x005000) {
-//                std::cout<<"huhu"<<std::endl;
-                m_object_low[addr - 0x2000] = data;
-//                std::cout<<"huhu"<<std::endl;
-            } else {
-                m_object_high[addr - 0x5000] = data;
-            }
+            std::cerr<<"Err: Wrote: " << std::hex<<addr <<std::endl;
         } else {
-            m_ram[addr & 0x1FFF] = data;
+            m_ram[addr] = data;
         }
     }
     if(m_debug) std::cout<<"Write: " << std::hex<<addr << ": " << std::hex <<(int)data << std::endl;

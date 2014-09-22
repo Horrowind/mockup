@@ -26,12 +26,12 @@ namespace Mockup {
         filePath = QFileDialog::getOpenFileName(nullptr, "Open ROM", QString(), "*.smc");
         if(filePath == "") exit(0);
         
-TestCPU cpu(filePath.toLatin1().data(), true);
-        cpu.set_cur_pos(0x0095B5);
-        cpu.step();    
-        while(cpu.filled_stack()) {
-            cpu.step();
-        }
+        // TestCPU cpu(filePath.toLatin1().data(), true);
+        // cpu.set_cur_pos(0x0095B5);
+        // cpu.step();    
+        // while(cpu.filled_stack()) {
+        //     cpu.step();
+        // }
 
         setDocumentMode(true);
         setDockOptions(QMainWindow::AnimatedDocks | QMainWindow::AllowNestedDocks | QMainWindow::AllowTabbedDocks);
@@ -48,7 +48,8 @@ TestCPU cpu(filePath.toLatin1().data(), true);
     MainWindow::~MainWindow() {
         
     }
-    
+
+
     void MainWindow::draw_level(const char* path, int level) {
         scene.clear();
         
@@ -56,92 +57,177 @@ TestCPU cpu(filePath.toLatin1().data(), true);
         //for(int i = 0; i < 256; i++) std::cout << std::hex << palette[i] << std::endl;
         
         std::vector<QImage> map8 = load_map8(path, level);
-               
-        std::vector<QPixmap> map16 = load_map16(path, level, map8, palette);
-
-        for(int i = 0; i < 0x14 * 27 * 16; i++) {
-            layer1low[i] = 0x25;
-            layer1high[i] = 0;
-        }
-        FILE* fp;
-        fp = fopen(path, "r");
-        fseek(fp, 0x02E200 + 3 * level, SEEK_SET);
-        unsigned int levelloc = getc(fp) | (getc(fp) << 8) | (getc(fp) << 16);
-        std::cout << "Level location: " <<  std::hex << levelloc << std::endl;
-        fseek(fp, ((levelloc & 0x7f0000) >> 1) + (levelloc & 0x7fff) + 517, SEEK_SET);
-        uint8_t output, output2, output3;
-        int screen = 0;
-        while((output = getc(fp)) != 0xFF || output == -1) {
-            output2 = getc(fp);
-            output3 = getc(fp);
-            if(output & 0x80) {
-                screen++;               
-            }
-            uint8_t obj = ((output & 0x60) / 2) | (output2 / 16);
-            uint8_t x = output2 & 0x0F;
-            uint8_t y = output & 0x0F;
-            uint8_t subscreen = !!(output & 0x10);
-            if(obj == 0) {
-                if(output3 != 0) {
-                    int addr = 27 * 16 * screen + 256 * subscreen;
-                    uint8_t pos = (y << 4) | x;
-                    if(output3 == 1) {
-                        screen = output;
-                    } else {
-                        draw_extended_object(path, output3, pos, layer1low + addr,  layer1high + addr);
-                    }
-                } else {
-                    int output4 = fgetc(fp);
-                }
-            } else {
-                int addr = 27 * 16 * screen + 256 * subscreen;
-                uint8_t pos = (y << 4) | x;
-                draw_normal_object(path, obj, output3, pos, layer1low + addr,  layer1high + addr);
-            }
-        }
-	
         
+        std::vector<QPixmap> map16 = load_map16(path, level, map8, palette);
+        TestCPU cpu(path, true);
+        for(int i = 0; i < 0x14 * 27 * 16; i++) {
+            cpu.m_ram[0x0C800 + i] = 0x25;
+            cpu.m_ram[0x1C800 + i] = 0;
+        }
+
+        
+
+
+        cpu.m_ram[0x1933] = 0; //Object
+
+        cpu.m_ram[0x65] = cpu.m_rom[0x02E200 + 3 * level + 0]; // TODO: This is wrong (2E200 -> 2E000)
+        cpu.m_ram[0x66] = cpu.m_rom[0x02E200 + 3 * level + 1];
+        cpu.m_ram[0x67] = cpu.m_rom[0x02E200 + 3 * level + 2];
+        std::cerr<<"0x" << std::hex<<(int)(cpu.m_ram[0x65])<<std::endl;
+        std::cerr<<"0x" << std::hex<<(int)(cpu.m_ram[0x66])<<std::endl;
+        std::cerr<<"0x" << std::hex<<(int)(cpu.m_ram[0x67])<<std::endl;
+        cpu.m_ram[0x6b] = 0x7E; 
+        cpu.m_ram[0x6c] = 0xC8;
+        cpu.m_ram[0x6d] = 0x00;
+        cpu.m_ram[0x6e] = 0x7F;
+        cpu.m_ram[0x6f] = 0xC8;
+        cpu.m_ram[0x70] = 0x00;
+
+
+        cpu.set_cur_pos(0x0583B2);
+        cpu.step();    
+        while(cpu.filled_stack()) {
+            cpu.step();
+        }
+        cpu.step();
+        while(cpu.filled_stack()) {
+            cpu.step();
+        }
+
+        int addr = cpu.m_rom[0x02E000 + 3 * level + 2];
+        addr = (addr << 8) | cpu.m_rom[0x02E000 + 3 * level + 1];
+        addr = (addr << 8) | cpu.m_rom[0x02E000 + 3 * level];
+        addr += 5;
+        std::cerr<<"0x" << std::hex<<addr<<std::endl;
+
+        cpu.m_ram[0x67] = (addr & 0xFF0000) >> 16; 
+        cpu.m_ram[0x66] = (addr & 0x00FF00) >>  8;
+        cpu.m_ram[0x65] = addr & 0x0000FF;
+
+        cpu.set_cur_pos(0x0583CF);
+        cpu.step();    
+        while(cpu.filled_stack()) {
+            cpu.step();
+        }
+
         for(int i = 0; i < 27; i++) {
             for(int j = 0; j < 0x14; j++) {
                 for(int k = 0; k < 16; k++) {
                     //QGraphicsSimpleTextItem * item = scene.addSimpleText(QString::number(layer1low[j * 16 * 27 + i * 16 + k], 16));
                     //std::cout<<"Added: " << (int)layer1low[j * 16 * 27 + i * 16 + k] <<std::endl;
-                    QGraphicsItem* item = scene.addPixmap(map16[ layer1high[j * 16 * 27 + i * 16 + k] * 256 + layer1low[j * 16 * 27 + i * 16 + k]]);
+                    QGraphicsItem* item = 
+                        scene.addPixmap(map16[
+                                            cpu.m_ram[0x1C800 + j * 16 * 27 + i * 16 + k] * 256 
+                                            + cpu.m_ram[0x0C800 + j * 16 * 27 + i * 16 + k]
+                                            ]);
                     item->setPos((j*16+k)*16, i*16);
-                    
-                    // QGraphicsSimpleTextItem * itemText = scene.addSimpleText(
-                    //     QString::number(layer1low[j * 16 * 27 + i * 16 + k], 16),
-                    //     QFont("Arial", -1, -1, (bool)layer1high[j * 16 * 27 + i * 16 + k]));
-                    // itemText->setPos((j*16+k)*16, i*16 + 2);
 
                 }
             }
         }
-        for(int i = 0; i < 512; i++) {
-            QGraphicsItem* item = scene.addPixmap(map16[i]);
-            item->setPos(512 + (i % 16) * 16, (i >> 4) * 16);
-        }
-        
-        // for(int i = 0; i < 16; i++) {
-        //     for(int j = 0; j < 16; j++) {
-        //         uint16_t color = palette[16*i+j];
-        //         int r = ((color & 0x1F) << 3);   r |= (r >> 5);
-        //         int g = ((color & 0x3E0) >> 2);  g |= (g >> 5);
-        //         int b = ((color & 0x7C00) >> 7); b |= (b >> 5);
-        //         scene.addRect(j*8, i*8, 8, 8, QPen(), QBrush(QColor(r, g, b), Qt::SolidPattern));
-        //     }
+        // for(int i = 0; i < 512; i++) {
+        //     QGraphicsItem* item = scene.addPixmap(map16[i]);
+        //     item->setPos(512 + (i % 16) * 16, (i >> 4) * 16);
         // }
 
-        for(int i = 0; i < 16; i++) {
-            for(int j = 0; j < 32; j++) {
-                QImage img = map8[j*16+i];
-                for(int k = 0; k < 8; k++) img.setColor(k, palette[16 * cur_palette + k]);
-                QGraphicsItem* item = scene.addPixmap(QPixmap::fromImage(img));
-                item->setPos(8*i, 8*j);
-            }
-        }
-
     }
+    
+    // void MainWindow::draw_level(const char* path, int level) {
+    //     scene.clear();
+        
+    //     std::vector<uint32_t> palette = load_palette(path, level);
+    //     //for(int i = 0; i < 256; i++) std::cout << std::hex << palette[i] << std::endl;
+        
+    //     std::vector<QImage> map8 = load_map8(path, level);
+               
+    //     std::vector<QPixmap> map16 = load_map16(path, level, map8, palette);
+
+    //     for(int i = 0; i < 0x14 * 27 * 16; i++) {
+    //         layer1low[i] = 0x25;
+    //         layer1high[i] = 0;
+    //     }
+    //     FILE* fp;
+    //     fp = fopen(path, "r");
+    //     fseek(fp, 0x02E200 + 3 * level, SEEK_SET);
+    //     unsigned int levelloc = getc(fp) | (getc(fp) << 8) | (getc(fp) << 16);
+    //     fseek(fp, ((levelloc & 0x7f0000) >> 1) + (levelloc & 0x7fff) + 517, SEEK_SET);
+    //     uint8_t output, output2, output3;
+    //     int screen = 0;
+    //     while((output = getc(fp)) != 0xFF || output == -1) {
+    //         output2 = getc(fp);
+    //         output3 = getc(fp);
+    //         if(output & 0x80) {
+    //             screen++;               
+    //         }
+    //         uint8_t obj = ((output & 0x60) / 2) | (output2 / 16);
+    //         uint8_t x = output2 & 0x0F;
+    //         uint8_t y = output & 0x0F;
+    //         uint8_t subscreen = !!(output & 0x10);
+    //         if(obj == 0) {
+    //             if(output3 != 0) {
+    //                 int addr = 27 * 16 * screen + 256 * subscreen;
+    //                 uint8_t pos = (y << 4) | x;
+    //                 if(output3 == 1) {
+    //                     screen = output;
+    //                 } else {
+    //                     draw_extended_object(path, output3, pos, layer1low + addr,  layer1high + addr);
+    //                 }
+    //             } else {
+    //                 int output4 = fgetc(fp);
+    //             }
+    //         } else {
+    //             int addr = 27 * 16 * screen + 256 * subscreen;
+    //             uint8_t pos = (y << 4) | x;
+    //             draw_normal_object(path, obj, output3, pos, layer1low + addr,  layer1high + addr);
+    //         }
+    //     }
+	
+        
+    //     for(int i = 0; i < 27; i++) {
+    //         for(int j = 0; j < 0x14; j++) {
+    //             for(int k = 0; k < 16; k++) {
+    //                 //QGraphicsSimpleTextItem * item = scene.addSimpleText(QString::number(layer1low[j * 16 * 27 + i * 16 + k], 16));
+    //                 //std::cout<<"Added: " << (int)layer1low[j * 16 * 27 + i * 16 + k] <<std::endl;
+    //                 QGraphicsItem* item = 
+    //                     scene.addPixmap(map16[
+    //                                         layer1high[j * 16 * 27 + i * 16 + k] * 256 
+    //                                         + layer1low[j * 16 * 27 + i * 16 + k]
+    //                                         ]);
+    //                 item->setPos((j*16+k)*16, i*16);
+                    
+    //                 // QGraphicsSimpleTextItem * itemText = scene.addSimpleText(
+    //                 //     QString::number(layer1low[j * 16 * 27 + i * 16 + k], 16),
+    //                 //     QFont("Arial", -1, -1, (bool)layer1high[j * 16 * 27 + i * 16 + k]));
+    //                 // itemText->setPos((j*16+k)*16, i*16 + 2);
+
+    //             }
+    //         }
+    //     }
+    //     for(int i = 0; i < 512; i++) {
+    //         QGraphicsItem* item = scene.addPixmap(map16[i]);
+    //         item->setPos(512 + (i % 16) * 16, (i >> 4) * 16);
+    //     }
+        
+    //     // for(int i = 0; i < 16; i++) {
+    //     //     for(int j = 0; j < 16; j++) {
+    //     //         uint16_t color = palette[16*i+j];
+    //     //         int r = ((color & 0x1F) << 3);   r |= (r >> 5);
+    //     //         int g = ((color & 0x3E0) >> 2);  g |= (g >> 5);
+    //     //         int b = ((color & 0x7C00) >> 7); b |= (b >> 5);
+    //     //         scene.addRect(j*8, i*8, 8, 8, QPen(), QBrush(QColor(r, g, b), Qt::SolidPattern));
+    //     //     }
+    //     // }
+
+    //     for(int i = 0; i < 16; i++) {
+    //         for(int j = 0; j < 32; j++) {
+    //             QImage img = map8[j*16+i];
+    //             for(int k = 0; k < 8; k++) img.setColor(k, palette[16 * cur_palette + k]);
+    //             QGraphicsItem* item = scene.addPixmap(QPixmap::fromImage(img));
+    //             item->setPos(8*i, 8*j);
+    //         }
+    //     }
+
+    // }
  
     void MainWindow::keyPressEvent(QKeyEvent* event) {
         std::cout<<"huhu";
@@ -284,9 +370,9 @@ TestCPU cpu(filePath.toLatin1().data(), true);
         cpu.m_object_high = NULL;
 
         cpu.m_ram[0x1933] = 0; //We want to load Layer 1 Objects
-        cpu.m_ram[0x65] = 0xDD; 
-        cpu.m_ram[0x66] = 0x88;
-        cpu.m_ram[0x67] = 0x06;
+        cpu.m_ram[0x65] = cpu.m_rom[0x02E200 + 3 * level]; 
+        cpu.m_ram[0x66] = cpu.m_rom[0x02E200 + 3 * level + 1];
+        cpu.m_ram[0x67] = cpu.m_rom[0x02E200 + 3 * level + 2];
 
         cpu.set_cur_pos(0x0583B2);
         cpu.step();    
@@ -339,6 +425,11 @@ TestCPU cpu(filePath.toLatin1().data(), true);
 
     void MainWindow::draw_normal_object(const char* path, uint8_t object, uint8_t size, uint8_t pos, uint8_t* subscreen_low_ptr, uint8_t* subscreen_high_ptr) {
         TestCPU cpu(path);
+        cpu.set_cur_pos(0x0583B2);
+        cpu.step();    
+        while(cpu.filled_stack()) {
+            cpu.step();
+        }
         cpu.m_object_low = subscreen_low_ptr;
         cpu.m_object_high = subscreen_high_ptr;
         cpu.m_ram[0x5a] = object; //Object
@@ -361,6 +452,11 @@ TestCPU cpu(filePath.toLatin1().data(), true);
 
     void  MainWindow::draw_extended_object(const char* path, uint8_t object, uint8_t pos, uint8* subscreen_low_ptr, uint8* subscreen_high_ptr) {
         TestCPU cpu(path);
+        cpu.set_cur_pos(0x0583B2);
+        cpu.step();    
+        while(cpu.filled_stack()) {
+            cpu.step();
+        }
         cpu.m_object_low = subscreen_low_ptr;
         cpu.m_object_high = subscreen_high_ptr;
 //    cpu.m_ram[0x5a] = ; //Object
