@@ -38,7 +38,7 @@ namespace Mockup {
         
         uint8_t* layer1low = new uint8_t[27 * 16 * 0x14];
         uint8_t* layer1high = new uint8_t[27 * 16 * 0x14];
-        int cur_level = 0x105;
+        int cur_level = 0x0;
         int cur_palette = 0;
         QString filePath;
     };

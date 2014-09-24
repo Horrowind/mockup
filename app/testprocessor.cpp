@@ -1,6 +1,10 @@
+#include <cstdio>
+
 #include <fstream>
 #include <iostream>
 #include "testprocessor.hpp"
+
+
 
 TestCPU::TestCPU(const char* path, bool debug) {
     m_debug = debug;
@@ -21,6 +25,17 @@ TestCPU::~TestCPU() {
     delete[] m_ram;
 };
 
+void TestCPU::run(uint32_t addrFrom, uint32_t addrTo) {
+    regs.pc = addrFrom;
+    while(regs.pc != addrTo) {
+        if(m_debug) {
+            char output[256];
+            disassemble_opcode(output, regs.pc);
+            std::cout<< output<< std::endl;
+        }
+        step();
+    }
+}
 
 uint8_t TestCPU::op_read(uint32_t addr) {
     
@@ -32,7 +47,8 @@ uint8_t TestCPU::op_read(uint32_t addr) {
         return m_rom[((addr & 0x7f0000) >> 1) + (addr & 0x7fff)];
     }
     if(addr >= 0x002000) {
-        std::cerr<<"Err: Read: " << std::hex<<addr <<std::endl;
+        std::cerr << std::hex <<"Err: " << regs.pc  << " Read: " << addr <<std::endl;
+        getchar();
     }
     return m_ram[addr];
     
@@ -44,12 +60,14 @@ void TestCPU::op_write(uint32_t addr, uint8_t data) {
         if(addr >= 0x7E0000 && addr < 0x800000) {
             m_ram[addr-0x7E0000] = data;
         } else {
-            std::cerr<<"Err: Wrote: " << std::hex<<addr <<std::endl;
+            std::cerr << std::hex <<"Err: " << regs.pc << " Wrote: " << addr <<std::endl;
+            getchar();
         //Todo: ERROR
         }
     } else {
         if(addr >= 0x002000) {
-            std::cerr<<"Err: Wrote: " << std::hex<<addr <<std::endl;
+            std::cerr << std::hex <<"Err: " << regs.pc << " Wrote: " << addr <<std::endl;
+            getchar();
         } else {
             m_ram[addr] = data;
         }

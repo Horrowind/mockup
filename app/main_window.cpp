@@ -8,6 +8,7 @@
 #include <QInputDialog>
 #include <QGraphicsItem>
 #include <QKeyEvent>
+#include <QPainter>
 
 
 #define WORLDLIB_IGNORE_DLL_FUNCTIONS
@@ -38,6 +39,15 @@ namespace Mockup {
         view = new QGraphicsView(&scene);
         grabKeyboard();
         MainWindow::setCentralWidget(view);
+        // for(int i = 0; i < 512; i++) {
+        //     draw_level(filePath.toLatin1().data(), i);
+        //     QImage image(scene.sceneRect().size().toSize(), QImage::Format_ARGB32);
+        //     QPainter painter(&image);
+        //     painter.setRenderHint(QPainter::SmoothPixmapTransform);
+        //     scene.render(&painter, QRectF(0, 0, 256*screens, 432));
+        //     image.save("png/" + QString::number(i, 16) + ".png");
+        // }
+        cur_level = 0;
         draw_level(filePath.toLatin1().data(), cur_level);
 
         
@@ -54,76 +64,54 @@ namespace Mockup {
         scene.clear();
         
         std::vector<uint32_t> palette = load_palette(path, level);
-        //for(int i = 0; i < 256; i++) std::cout << std::hex << palette[i] << std::endl;
-        
+       
         std::vector<QImage> map8 = load_map8(path, level);
         
         std::vector<QPixmap> map16 = load_map16(path, level, map8, palette);
-        TestCPU cpu(path, true);
+        TestCPU cpu(path);
         for(int i = 0; i < 0x14 * 27 * 16; i++) {
             cpu.m_ram[0x0C800 + i] = 0x25;
             cpu.m_ram[0x1C800 + i] = 0;
         }
 
-        
-
-
         cpu.m_ram[0x1933] = 0; //Object
 
-        cpu.m_ram[0x65] = cpu.m_rom[0x02E200 + 3 * level + 0]; // TODO: This is wrong (2E200 -> 2E000)
-        cpu.m_ram[0x66] = cpu.m_rom[0x02E200 + 3 * level + 1];
-        cpu.m_ram[0x67] = cpu.m_rom[0x02E200 + 3 * level + 2];
-        std::cerr<<"0x" << std::hex<<(int)(cpu.m_ram[0x65])<<std::endl;
-        std::cerr<<"0x" << std::hex<<(int)(cpu.m_ram[0x66])<<std::endl;
-        std::cerr<<"0x" << std::hex<<(int)(cpu.m_ram[0x67])<<std::endl;
-        cpu.m_ram[0x6b] = 0x7E; 
-        cpu.m_ram[0x6c] = 0xC8;
-        cpu.m_ram[0x6d] = 0x00;
-        cpu.m_ram[0x6e] = 0x7F;
-        cpu.m_ram[0x6f] = 0xC8;
-        cpu.m_ram[0x70] = 0x00;
+        cpu.m_ram[0x65] = cpu.op_read(0x05E000 + 3 * level + 0);
+        cpu.m_ram[0x66] = cpu.op_read(0x05E000 + 3 * level + 1);
+        cpu.m_ram[0x67] = cpu.op_read(0x05E000 + 3 * level + 2);
 
+        cpu.run(0x0583AC, 0x0583B8);
+        cpu.run(0x0583CF, 0x0583D2);
 
-        cpu.set_cur_pos(0x0583B2);
-        cpu.step();    
-        while(cpu.filled_stack()) {
-            cpu.step();
-        }
-        cpu.step();
-        while(cpu.filled_stack()) {
-            cpu.step();
-        }
+        bool isVertical = cpu.m_ram[0x5B] & 0x01;
+        int screens = cpu.m_ram[0x5D] < 20 ? cpu.m_ram[0x5D] : 20;
+        if(isVertical) {
+            for(int i = 0; i < 512*screens; i++) {
+                int xy = i % 256; int x = xy % 16; int y = xy >> 4;
+                int sc = i >> 8;  int left = sc&1; int h = sc >> 1;
 
-        int addr = cpu.m_rom[0x02E000 + 3 * level + 2];
-        addr = (addr << 8) | cpu.m_rom[0x02E000 + 3 * level + 1];
-        addr = (addr << 8) | cpu.m_rom[0x02E000 + 3 * level];
-        addr += 5;
-        std::cerr<<"0x" << std::hex<<addr<<std::endl;
-
-        cpu.m_ram[0x67] = (addr & 0xFF0000) >> 16; 
-        cpu.m_ram[0x66] = (addr & 0x00FF00) >>  8;
-        cpu.m_ram[0x65] = addr & 0x0000FF;
-
-        cpu.set_cur_pos(0x0583CF);
-        cpu.step();    
-        while(cpu.filled_stack()) {
-            cpu.step();
-        }
-
-        for(int i = 0; i < 27; i++) {
-            for(int j = 0; j < 0x14; j++) {
-                for(int k = 0; k < 16; k++) {
-                    //QGraphicsSimpleTextItem * item = scene.addSimpleText(QString::number(layer1low[j * 16 * 27 + i * 16 + k], 16));
-                    //std::cout<<"Added: " << (int)layer1low[j * 16 * 27 + i * 16 + k] <<std::endl;
-                    QGraphicsItem* item = 
-                        scene.addPixmap(map16[
-                                            cpu.m_ram[0x1C800 + j * 16 * 27 + i * 16 + k] * 256 
-                                            + cpu.m_ram[0x0C800 + j * 16 * 27 + i * 16 + k]
-                                            ]);
-                    item->setPos((j*16+k)*16, i*16);
-
+                int cx = (left * 16 + x) * 16;
+                int cy = (h * 16 + y) * 16;
+                
+                QGraphicsItem* item = scene.addPixmap(map16[cpu.m_ram[0x1C800 + i] * 256 + cpu.m_ram[0x0C800 + i]]);
+                item->setPos(cx, cy);
+            }
+            view->setSceneRect(0, 0, 512, 256*screens);
+        } else {
+            for(int i = 0; i < 27; i++) {
+                for(int j = 0; j < screens; j++) {
+                    for(int k = 0; k < 16; k++) {
+                        QGraphicsItem* item = 
+                            scene.addPixmap(map16[
+                                                cpu.m_ram[0x1C800 + j * 16 * 27 + i * 16 + k] * 256 
+                                                + cpu.m_ram[0x0C800 + j * 16 * 27 + i * 16 + k]
+                                                ]);
+                        item->setPos((j*16+k)*16, i*16);
+                        
+                    }
                 }
             }
+            view->setSceneRect(0, 0, 256*screens, 432);
         }
         // for(int i = 0; i < 512; i++) {
         //     QGraphicsItem* item = scene.addPixmap(map16[i]);
@@ -230,7 +218,6 @@ namespace Mockup {
     // }
  
     void MainWindow::keyPressEvent(QKeyEvent* event) {
-        std::cout<<"huhu";
         if(event->key() == Qt::Key_PageUp && cur_level < 511) {
             cur_level++;
         } else if(event->key() == Qt::Key_PageDown && cur_level > 0) {
@@ -255,18 +242,19 @@ namespace Mockup {
         std::ifstream in(path, std::ios::in | std::ios::binary);
         std::vector<unsigned char> rom;
         if (in) rom = std::vector<unsigned char>((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-        
+        std::cout<<"huhu"<<std::endl;
         auto romStart = rom.begin() + 0x200;
         auto romEnd = rom.end();
         worldlib::getLevelPalette(romStart, romEnd, std::back_inserter(palettePC), level);
+        return palettePC;
 #else
         std::vector<uint32_t> palettePC(256, 0);
         
         // Load CPU and specify, which level we want to open.
         TestCPU cpu(path);
-        cpu.m_ram[0x65] = cpu.m_rom[0x02E200 + 3 * level]; 
-        cpu.m_ram[0x66] = cpu.m_rom[0x02E200 + 3 * level + 1];
-        cpu.m_ram[0x67] = cpu.m_rom[0x02E200 + 3 * level + 2];
+        cpu.m_ram[0x65] = cpu.m_rom[0x02E000 + 3 * level]; 
+        cpu.m_ram[0x66] = cpu.m_rom[0x02E000 + 3 * level + 1];
+        cpu.m_ram[0x67] = cpu.m_rom[0x02E000 + 3 * level + 2];
         
         // Run the palette loading routine.
         cpu.set_cur_pos(0x00A5BC);
@@ -289,25 +277,21 @@ namespace Mockup {
 
     }
 
+    // void MainWindow::animate(const char* path, unsigned char frame) {
+    //     TestCPU cpu(path);
+    //     cpu.m_ram[0x14] = frame;
+    //     cpu.run(0x00A421, 0x00A435);
+        
+    // }
+
     std::vector<QImage> MainWindow::load_map8(const char* path, int level) {
         TestCPU cpu(path);
-        cpu.m_object_low = NULL;
-        cpu.m_object_high = NULL;
 
         cpu.m_ram[0x1933] = 0; //Object
-        cpu.m_ram[0x65] = cpu.m_rom[0x02E200 + 3 * level]; 
-        cpu.m_ram[0x66] = cpu.m_rom[0x02E200 + 3 * level + 1];
-        cpu.m_ram[0x67] = cpu.m_rom[0x02E200 + 3 * level + 2];
-
-        cpu.set_cur_pos(0x0583B2);
-        cpu.step();    
-        while(cpu.filled_stack()) {
-            cpu.step();
-        }
-        cpu.step();
-        while(cpu.filled_stack()) {
-            cpu.step();
-        }
+        cpu.m_ram[0x65] = cpu.m_rom[0x02E000 + 3 * level]; 
+        cpu.m_ram[0x66] = cpu.m_rom[0x02E000 + 3 * level + 1];
+        cpu.m_ram[0x67] = cpu.m_rom[0x02E000 + 3 * level + 2];
+        cpu.run(0x0583AC, 0x0583B8);
 
         std::ifstream in(path, std::ios::in | std::ios::binary);
         std::vector<unsigned char> rom;
@@ -366,22 +350,13 @@ namespace Mockup {
     }
     std::vector<QPixmap> MainWindow::load_map16(const char* path, int level, std::vector<QImage> map8, std::vector<uint32_t> palette) {
         TestCPU cpu(path);
-        cpu.m_object_low = NULL;
-        cpu.m_object_high = NULL;
 
         cpu.m_ram[0x1933] = 0; //We want to load Layer 1 Objects
-        cpu.m_ram[0x65] = cpu.m_rom[0x02E200 + 3 * level]; 
-        cpu.m_ram[0x66] = cpu.m_rom[0x02E200 + 3 * level + 1];
-        cpu.m_ram[0x67] = cpu.m_rom[0x02E200 + 3 * level + 2];
+        cpu.m_ram[0x65] = cpu.op_read(0x05E000 + 3 * level); 
+        cpu.m_ram[0x66] = cpu.op_read(0x05E000 + 3 * level + 1);
+        cpu.m_ram[0x67] = cpu.op_read(0x05E000 + 3 * level + 2);
 
-        cpu.set_cur_pos(0x0583B2);
-        cpu.step();    
-        while(cpu.filled_stack()) 
-            cpu.step();
-
-        cpu.step();
-        while(cpu.filled_stack())
-            cpu.step();
+        cpu.run(0x0583AC, 0x0583B8);
         
 
 
@@ -407,7 +382,7 @@ namespace Mockup {
                 bool flipY         =   cpu.m_rom[map16lookupPC + j * 2 + 1] & 0b10000000;
                 int  paletteNumber =  (cpu.m_rom[map16lookupPC + j * 2 + 1] & 0b00011100) >> 2;
                 int  tile          =   cpu.m_rom[map16lookupPC + j * 2] | ((cpu.m_rom[map16lookupPC + j * 2 + 1] & 0b00000011) << 8);
-                
+                //std::cout<< paletteNumber;
                 tiles[j] = map8[tile].mirrored(flipX, flipY);
                 for(int k = 0; k < 8; k++) tiles[j].setColor(k, palette[16 * paletteNumber + k]);
             }
@@ -420,62 +395,8 @@ namespace Mockup {
             painter.drawImage(8, 8, tiles[3]); 
             painter.end();
         }
+        //std::cout<<std::endl;
         return map16;
     }
-
-    void MainWindow::draw_normal_object(const char* path, uint8_t object, uint8_t size, uint8_t pos, uint8_t* subscreen_low_ptr, uint8_t* subscreen_high_ptr) {
-        TestCPU cpu(path);
-        cpu.set_cur_pos(0x0583B2);
-        cpu.step();    
-        while(cpu.filled_stack()) {
-            cpu.step();
-        }
-        cpu.m_object_low = subscreen_low_ptr;
-        cpu.m_object_high = subscreen_high_ptr;
-        cpu.m_ram[0x5a] = object; //Object
-        cpu.m_ram[0x59] = size; //Size
-        cpu.m_ram[0x57] = pos;
-        cpu.m_ram[0x6b] = 0x00; 
-        cpu.m_ram[0x6c] = 0x20;
-        cpu.m_ram[0x6d] = 0x00;
-        cpu.m_ram[0x6e] = 0x00;
-        cpu.m_ram[0x6f] = 0x50;
-        cpu.m_ram[0x70] = 0x00;
-
-        cpu.set_cur_pos(0x0DA40F);
-        cpu.step();cpu.step();
-    
-        while(cpu.filled_stack()) {
-            cpu.step();
-        }
-    }
-
-    void  MainWindow::draw_extended_object(const char* path, uint8_t object, uint8_t pos, uint8* subscreen_low_ptr, uint8* subscreen_high_ptr) {
-        TestCPU cpu(path);
-        cpu.set_cur_pos(0x0583B2);
-        cpu.step();    
-        while(cpu.filled_stack()) {
-            cpu.step();
-        }
-        cpu.m_object_low = subscreen_low_ptr;
-        cpu.m_object_high = subscreen_high_ptr;
-//    cpu.m_ram[0x5a] = ; //Object
-        cpu.m_ram[0x59] = object; //Object
-        cpu.m_ram[0x57] = pos;
-        cpu.m_ram[0x6b] = 0x00; 
-        cpu.m_ram[0x6c] = 0x20;
-        cpu.m_ram[0x6d] = 0x00;
-        cpu.m_ram[0x6e] = 0x00;
-        cpu.m_ram[0x6f] = 0x50;
-        cpu.m_ram[0x70] = 0x00;
-
-        cpu.set_cur_pos(0x0da100);
-        cpu.step();cpu.step();
-    
-        while(cpu.filled_stack()) {
-            cpu.step();
-        }
-    }
-
 
 }
