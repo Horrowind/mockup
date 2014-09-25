@@ -13,7 +13,9 @@ set_property(TARGET bsnes-r65816 PROPERTY IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/
 ADD_EXECUTABLE(mockup
   main.cpp
   main_window.cpp
-  testprocessor.cpp
+  cpu.cpp
+  level.cpp
+  tiles.cpp
 )
 target_link_libraries(mockup ${CMAKE_SOURCE_DIR}/bsnes/obj/processor-r65816.o)
 

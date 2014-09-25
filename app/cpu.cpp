@@ -1,12 +1,13 @@
 #include <cstdio>
+#include <cstring>
 
 #include <fstream>
 #include <iostream>
-#include "testprocessor.hpp"
+#include "cpu.hpp"
 
 
 
-TestCPU::TestCPU(const char* path, bool debug) {
+CPU::CPU(const char* path, bool debug) {
     m_debug = debug;
     std::ifstream rom_file(path, std::ios::in | std::ios::binary | std::ios::ate);
     if(rom_file.is_open()) {
@@ -16,16 +17,18 @@ TestCPU::TestCPU(const char* path, bool debug) {
         rom_file.read((char*)m_rom, m_size);
     }
     m_ram = new uint8_t[0x20000];
+    m_sreg = new uint8_t[0x2500];
     for(int i = 0; i < 0x2000; i++) m_ram[i] = 0;
     init();
 };
 
-TestCPU::~TestCPU() {
+CPU::~CPU() {
     delete[] m_rom;
     delete[] m_ram;
+    delete[] m_sreg;
 };
 
-void TestCPU::run(uint32_t addrFrom, uint32_t addrTo) {
+void CPU::run(uint32_t addrFrom, uint32_t addrTo) {
     regs.pc = addrFrom;
     while(regs.pc != addrTo) {
         if(m_debug) {
@@ -37,7 +40,7 @@ void TestCPU::run(uint32_t addrFrom, uint32_t addrTo) {
     }
 }
 
-uint8_t TestCPU::op_read(uint32_t addr) {
+uint8_t CPU::op_read(uint32_t addr) {
     
     if(m_debug) std::cout<<"Read: " << std::hex<<addr <<std::endl;
 
@@ -47,14 +50,18 @@ uint8_t TestCPU::op_read(uint32_t addr) {
         return m_rom[((addr & 0x7f0000) >> 1) + (addr & 0x7fff)];
     }
     if(addr >= 0x002000) {
-        std::cerr << std::hex <<"Err: " << regs.pc  << " Read: " << addr <<std::endl;
-        getchar();
+        if(addr <= 0x004500) {
+            return m_sreg[addr - 0x2000];
+        } else {
+            std::cerr << std::hex <<"Err: " << regs.pc  << " Read: " << addr <<std::endl;
+            getchar();
+        }
     }
     return m_ram[addr];
     
 }
 
-void TestCPU::op_write(uint32_t addr, uint8_t data) {
+void CPU::op_write(uint32_t addr, uint8_t data) {
     
     if(addr & 0xFF8000) {
         if(addr >= 0x7E0000 && addr < 0x800000) {
@@ -66,8 +73,12 @@ void TestCPU::op_write(uint32_t addr, uint8_t data) {
         }
     } else {
         if(addr >= 0x002000) {
-            std::cerr << std::hex <<"Err: " << regs.pc << " Wrote: " << addr <<std::endl;
-            getchar();
+            if(addr <= 0x004500) {
+                m_sreg[addr - 0x2000] = data;
+            } else {
+                std::cerr << std::hex <<"Err: " << regs.pc << " Wrote: " << addr <<std::endl;
+                getchar();
+            }
         } else {
             m_ram[addr] = data;
         }
@@ -75,11 +86,15 @@ void TestCPU::op_write(uint32_t addr, uint8_t data) {
     if(m_debug) std::cout<<"Write: " << std::hex<<addr << ": " << std::hex <<(int)data << std::endl;
 }
 
-void TestCPU::step() {
+void CPU::clear_ram() {
+    memset(m_ram, 0, 20000);
+}
+
+void CPU::step() {
      (this->*opcode_table[op_readpc()])();
 }
 
-void TestCPU::init() {
+void CPU::init() {
     regs.pc = 0x000000;
     regs.x.h = 0x00;
     regs.y.h = 0x00;
@@ -95,22 +110,22 @@ void TestCPU::init() {
 
 }
 
-int TestCPU::get_cur_pos() {
+int CPU::get_cur_pos() {
     return regs.pc;
 }
 
-void TestCPU::set_cur_pos(int addr) {
+void CPU::set_cur_pos(int addr) {
     regs.pc = addr;
 }
 
-bool TestCPU::filled_stack() {
+bool CPU::filled_stack() {
     return regs.s.h != 1 || regs.s.l != 0;
 }
 
-uint8 TestCPU::disassembler_read(uint32 addr) {
+uint8 CPU::disassembler_read(uint32 addr) {
     return op_read(addr);
 }
 
-void TestCPU::op_io() { }
-void TestCPU::last_cycle() { }
-bool TestCPU::interrupt_pending() { return false; }
+void CPU::op_io() { }
+void CPU::last_cycle() { }
+bool CPU::interrupt_pending() { return false; }
