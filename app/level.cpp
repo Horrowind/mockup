@@ -24,9 +24,13 @@ namespace Mockup {
         m_levelnum = levelnum;
         
         load_palette();
+	std::cout<<"palette"<<std::endl;
         load_map8();
+	std::cout<<"map8"<<std::endl;
         load_map16();
+	std::cout<<"map16"<<std::endl;
         load_objects();
+	std::cout<<"objects"<<std::endl;
     }
 
     void Level::load_palette() {
@@ -53,6 +57,21 @@ namespace Mockup {
  
         auto romStart = rom.begin() + 0x200;
         auto romEnd = rom.end();
+
+	// Table of the  low bytes of the locations of GFX00 - GFX31
+	const int originalGraphicsFilesLowByteTableLocation = 0x00B992;
+	// Table of the high bytes of the locations of GFX00 - GFX31
+	const int originalGraphicsFilesHighByteTableLocation = 0x00B9C4;
+	// Table of the bank bytes of the locations of GFX00 - GFX31
+	const int originalGraphicsFilesBankByteTableLocation = 0x00B9F6;
+
+        m_cpu.clear_ram();
+        m_cpu.m_ram[0x65] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum]; 
+        m_cpu.m_ram[0x66] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum + 1];
+        m_cpu.m_ram[0x67] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum + 2];
+
+        m_cpu.run(0x0583AC, 0x0583B8);
+
 
         int fg1 = worldlib::getLevelSingleGraphicsSlot(romStart, romEnd, m_levelnum, worldlib::GFXSlots::FG1);
         int fg2 = worldlib::getLevelSingleGraphicsSlot(romStart, romEnd, m_levelnum, worldlib::GFXSlots::FG2);
@@ -142,8 +161,15 @@ namespace Mockup {
 
 
         m_cpu.run(0x0583AC, 0x0583B8);
+	bool isBoss = (m_cpu.m_ram[0x1925] == 0x09) || (m_cpu.m_ram[0x1925] == 0x0B) || (m_cpu.m_ram[0x1925] == 0x10);
+	if(isBoss) {
+            m_objects    = new uint16_t[1];
+	    m_objects[0] = 0x25;
+            m_width      = 1;
+            m_height     = 1;
+	    return;
+	}
         m_cpu.run(0x0583CF, 0x0583D2);
-
         bool isVertical = m_cpu.m_ram[0x5B] & 0x01;
         int screens = m_cpu.m_ram[0x5D];// < 20 ? cpu.m_ram[0x5D] : 20;
 

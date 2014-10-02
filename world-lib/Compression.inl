@@ -294,8 +294,10 @@ int getROMCompressionType(romIteratorType romStart, romIteratorType romEnd)
 template <typename romIteratorType, typename inputIteratorType, typename outputIteratorType>
 outputIteratorType decompressData(romIteratorType romStart, romIteratorType romEnd, inputIteratorType compressedDataStart, inputIteratorType compressedDataEnd, outputIteratorType out, int *compressedSize, int *decompressedSize)
 {
-	auto compressionType = readByteSFC(romStart, romEnd, internal::decompressionTypeLocation);
 
+	auto compressionType = internal::decompressionTypeLocation > (romStart - romEnd)
+		? 0 
+		: readByteSFC(romStart, romEnd, internal::decompressionTypeLocation);
 	if (compressionType == 0 || compressionType == 1)
 		return decompressLZ2(compressedDataStart, compressedDataEnd, out, compressedSize, decompressedSize);
 	else if (compressionType == 2)
