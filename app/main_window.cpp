@@ -47,9 +47,7 @@ namespace Mockup {
 
         QTimer *timer = new QTimer(this);
         connect(timer, SIGNAL(timeout()), this, SLOT(update()));
-        timer->start(50);
-        for(int i = 0; i < 10; i++) 
-            update();
+	// timer->start(50);
 
     }
     

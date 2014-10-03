@@ -31,6 +31,7 @@ namespace Mockup {
 	std::cout<<"map16"<<std::endl;
         load_objects();
 	std::cout<<"objects"<<std::endl;
+	animate(2);
     }
 
     void Level::load_palette() {
@@ -159,8 +160,8 @@ namespace Mockup {
         m_cpu.m_ram[0x66] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum + 1];
         m_cpu.m_ram[0x67] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum + 2];
 
-
         m_cpu.run(0x0583AC, 0x0583B8);
+
 	bool isBoss = (m_cpu.m_ram[0x1925] == 0x09) || (m_cpu.m_ram[0x1925] == 0x0B) || (m_cpu.m_ram[0x1925] == 0x10);
 	if(isBoss) {
             m_objects    = new uint16_t[1];
@@ -170,6 +171,9 @@ namespace Mockup {
 	    return;
 	}
         m_cpu.run(0x0583CF, 0x0583D2);
+        m_cpu.m_ram[0x1933] = 1; //Object
+        m_cpu.run(0x0583CF, 0x0583D2);
+
         bool isVertical = m_cpu.m_ram[0x5B] & 0x01;
         int screens = m_cpu.m_ram[0x5D];// < 20 ? cpu.m_ram[0x5D] : 20;
 
