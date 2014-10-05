@@ -34,7 +34,9 @@ namespace Mockup {
         void load_palette();
         void load_objects();
 
-        uint16_t* m_objects = NULL;
+        uint16_t* m_layer1 = NULL;
+        uint16_t* m_layer2 = NULL;
+
         int m_height;
         int m_width;
 
