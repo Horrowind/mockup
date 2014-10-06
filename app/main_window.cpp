@@ -64,18 +64,32 @@ namespace Mockup {
 
     void MainWindow::draw_level(int levelnum) {
         scene.clear();
-        QImage img(m_level.getWidth()*16, m_level.getHeight()*16, QImage::Format_Indexed8);
-        img.fill(QColor(0, 0, 0, 0));
-
-        uint32_t palette[256];
+        view->setSceneRect(0, 0, m_level.getWidth() * 16 , m_level.getHeight() * 16);
+        uint32_t palette[256]; 
         memcpy(&palette, m_level.getPalette(), 1024);
-        for(int i = 0; i < 256; i++) img.setColor(i, palette[i]);
+
+        std::cout<<m_level.getWidth() << ", " << m_level.getHeight() << std::endl;
+
+        //Background
+        QImage imgBG(m_level.getWidth()*16, m_level.getHeight()*16, QImage::Format_Indexed8);
+        for(int i = 0; i < 256; i++) imgBG.setColor(i, palette[i]);
+        imgBG.fill(QColor(0, 0, 0, 0));
+           
+        for(int i = 0; i < m_level.getHeight()*16; i++) {
+            m_level.renderLineBG(imgBG.scanLine(i), i); 
+        }
+        QGraphicsItem* itemBG = scene.addPixmap(QPixmap::fromImage(imgBG));
+
+        //Foreground
+        QImage imgFG(m_level.getWidth()*16, m_level.getHeight()*16, QImage::Format_Indexed8);
+        for(int i = 0; i < 256; i++) imgFG.setColor(i, palette[i]);
+        imgFG.fill(QColor(0, 0, 0, 0));
 
         for(int i = 0; i < m_level.getHeight()*16; i++) {
-            m_level.renderLine(img.scanLine(i), i); 
+            m_level.renderLineFG(imgFG.scanLine(i), i); 
         }
         
-        QGraphicsItem* item = scene.addPixmap(QPixmap::fromImage(img));
+        QGraphicsItem* itemFG = scene.addPixmap(QPixmap::fromImage(imgFG));
     }
     
  

@@ -24,16 +24,16 @@ namespace Mockup {
         m_levelnum = levelnum;
         
         load_palette();
-	std::cout<<"palette"<<std::endl;
+        std::cout<<"palette"<<std::endl;
         load_map8();
-	std::cout<<"map8"<<std::endl;
+        std::cout<<"map8"<<std::endl;
         load_map16();
-	std::cout<<"map16"<<std::endl;
+        std::cout<<"map16"<<std::endl;
         load_objects();
-	std::cout<<"objects"<<std::endl;
-	animate(2);
+        std::cout<<"objects"<<std::endl;
+        //animate(1);
     }
-
+    
     void Level::load_palette() {
         m_cpu.clear_ram();
         m_cpu.m_ram[0x65] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum]; 
@@ -61,30 +61,30 @@ namespace Mockup {
 
 
 
-	// Table of the  low bytes of the locations of GFX00 - GFX31
-	const int originalGraphicsFilesLowByteTableLocation = 0x00B992;
-	// Table of the high bytes of the locations of GFX00 - GFX31
-	const int originalGraphicsFilesHighByteTableLocation = 0x00B9C4;
-	// Table of the bank bytes of the locations of GFX00 - GFX31
-	const int originalGraphicsFilesBankByteTableLocation = 0x00B9F6;
-	// List of the FG/BG slots levels can use (4 bytes each, 26 slots)
-	const int backgroundSlotListTableLocation = 0x00A92B;
+        // Table of the  low bytes of the locations of GFX00 - GFX31
+        const int originalGraphicsFilesLowByteTableLocation = 0x00B992;
+        // Table of the high bytes of the locations of GFX00 - GFX31
+        const int originalGraphicsFilesHighByteTableLocation = 0x00B9C4;
+        // Table of the bank bytes of the locations of GFX00 - GFX31
+        const int originalGraphicsFilesBankByteTableLocation = 0x00B9F6;
+        // List of the FG/BG slots levels can use (4 bytes each, 26 slots)
+        const int backgroundSlotListTableLocation = 0x00A92B;
         
-	m_cpu.clear_ram();
+        m_cpu.clear_ram();
         m_cpu.m_ram[0x65] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum]; 
         m_cpu.m_ram[0x66] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum + 1];
         m_cpu.m_ram[0x67] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum + 2];
-
+    
         m_cpu.run(0x0583AC, 0x0583B8);
+        
+        int tileset = m_cpu.m_ram[0x1931];
+        auto address = 0x00292B + tileset * 4;
+        int fg1 = m_cpu.m_rom[address + 0x00];
+        int fg2 = m_cpu.m_rom[address + 0x01];
+        int bg1 = m_cpu.m_rom[address + 0x02];
+        int fg3 = m_cpu.m_rom[address + 0x03];
 
-	int tileset = m_cpu.m_ram[0x1931];
-	auto address = 0x00292B + tileset * 4;
-	int fg1 = m_cpu.m_rom[address + 0x00];
-	int fg2 = m_cpu.m_rom[address + 0x01];
-	int bg1 = m_cpu.m_rom[address + 0x02];
-	int fg3 = m_cpu.m_rom[address + 0x03];
-
-	//TODO: Remove traces of worldlib
+        //TODO: Remove traces of worldlib
         std::vector<uint8_t> fg1Chr, fg2Chr, bg1Chr, fg3Chr;
         worldlib::decompressGraphicsFile(romStart, romEnd, std::back_inserter(fg1Chr), fg1);
         worldlib::decompressGraphicsFile(romStart, romEnd, std::back_inserter(fg2Chr), fg2);
@@ -149,7 +149,26 @@ namespace Mockup {
                 tiles[j]    =  m_map8[tile].mirrored(flipX, flipY);
             }
 
-            m_map16[i] = Tile16::fromTile8(tiles, palettes);
+            m_map16fg[i] = Tile16::fromTile8(tiles, palettes);
+
+        }
+
+        for(int i = 0; i < 512; i++) {
+            int map16lookupSNES = 0x0D9100 + i*8;
+            int map16lookupPC   = ((map16lookupSNES & 0x7f0000) >> 1) + (map16lookupSNES & 0x7fff);
+            
+            Tile8   tiles[4];
+            
+            uint8_t palettes[4];
+            for(int j = 0; j < 4; j++) {
+                bool flipX  =  m_cpu.m_rom[map16lookupPC + j * 2 + 1] & 0b01000000;
+                bool flipY  =  m_cpu.m_rom[map16lookupPC + j * 2 + 1] & 0b10000000;
+                palettes[j] = (m_cpu.m_rom[map16lookupPC + j * 2 + 1] & 0b00011100) >> 2;
+                int  tile   =  m_cpu.m_rom[map16lookupPC + j * 2] | ((m_cpu.m_rom[map16lookupPC + j * 2 + 1] & 0b00000011) << 8);
+                tiles[j]    =  m_map8[tile].mirrored(flipX, flipY);
+            }
+
+            m_map16bg[i] = Tile16::fromTile8(tiles, palettes);
 
         }
     }
@@ -169,59 +188,65 @@ namespace Mockup {
 
         m_cpu.run(0x0583AC, 0x0583B8);
 
-	bool hasLayer2BG;
-	int levelmode = m_cpu.m_ram[0x1925];
-	switch(levelmode) {
-	case 0x00:
-	case 0x0C:
-	case 0x0E:
-	case 0x11:
-	case 0x1E:
-	case 0x0A:
-	case 0x0D:
-	    hasLayer2BG = false;
-	    break;
+        
+        int levelmode = m_cpu.m_ram[0x1925];
+        switch(levelmode) {
+        case 0x00:
+        case 0x0C:
+        case 0x0E:
+        case 0x11:
+        case 0x1E:
+        case 0x0A:
+        case 0x0D:
+            m_hasLayer2Data = true;
+            break;
 	    
-	case 0x09: // \
-	case 0x0B: // | Boss level
-	case 0x10: // /
-	    m_layer1    = new uint16_t[1];
-	    m_layer1[0] = 0x25;
+        case 0x09: // \
+        case 0x0B: // | Boss level
+        case 0x10: // /
+            m_layer1    = new uint16_t[1];
+            m_layer1[0] = 0x25;
             m_width     = 1;
             m_height    = 1;
-	    return;
-	default:
-	    hasLayer2BG = true;
-	}
+            return;
+        default:
+            m_hasLayer2Data = false;
+            break;
+        }
+
         m_cpu.run(0x0583CF, 0x0583D2);
-	
-	m_cpu.run(0x0583AC, 0x0583B8);
-	// m_cpu.m_ram[0x1933] = 1; //Object
+        int screens = m_cpu.m_ram[0x5D];
+        bool isVerticalLevel = m_cpu.m_ram[0x5B] & 0x01;
+
+        m_cpu.run(0x0583AC, 0x0583B8);
+        m_hasLayer2BG = (m_cpu.m_rom[0x02E600 + 3 * m_levelnum + 2] == 0xFF);
+
+        // m_cpu.m_ram[0x1933] = 1; //Object
         // m_cpu.run(0x0583CF, 0x0583D2);
-
-        bool isVertical = m_cpu.m_ram[0x5B] & 0x01;
-        int screens = m_cpu.m_ram[0x5D];// < 20 ? cpu.m_ram[0x5D] : 20;
-
+    
+        
+        
+    
         if(m_layer1) delete[] m_layer1;
         if(m_layer2) delete[] m_layer2;
 
-        if(isVertical) {
+        // Layer 1
+
+        if(isVerticalLevel) {
             m_layer1 = new uint16_t[512 * screens];
             m_width = 32;
             m_height = screens * 16;
             for(int i = 0; i < 512 * screens; i++) {
                 int xy = i % 256; int x = xy % 16; int y = xy >> 4;
                 int sc = i >> 8;  int left = sc&1; int h = sc >> 1;
-
+            
                 int cx = left * 16 + x;
                 int cy = h * 16 + y;
-                
+            
                 m_layer1[cy * 32 + cx] = m_cpu.m_ram[0x1C800 + i] * 256 + m_cpu.m_ram[0x0C800 + i];
             }
         } else {
-            
-	    //Layer 1
-	    m_layer1 = new uint16_t[432 * screens];
+            m_layer1 = new uint16_t[432 * screens];
             m_width = screens * 16;
             m_height = 27;
             for(int i = 0; i < 432 * screens; i++) {
@@ -231,58 +256,67 @@ namespace Mockup {
                 int cy = xy >> 4;
                 m_layer1[(cy * screens + sc) * 16 + cx] = m_cpu.m_ram[0x1C800 + i] * 256 + m_cpu.m_ram[0x0C800 + i];
             }
+        }
 
-	    // Layer 2
-	    if(!hasLayer2BG) {
-		m_layer2 = new uint16_t[432*16];
-		int addr = m_cpu.m_rom[0x02E600 + 3 * m_levelnum + 2];
-		if(addr == 0xFF) addr = 0x0C;
-		addr = (addr << 8) | m_cpu.m_rom[0x02E600 + 3 * m_levelnum + 1];
-		addr = (addr << 8) | m_cpu.m_rom[0x02E600 + 3 * m_levelnum + 0];
-		std::cout << std::hex << addr << std::endl;
-		int pos = 0;
-                while((m_cpu.op_read(addr) != 0xFF || m_cpu.op_read(addr + 1) != 0xFF) && pos < 432 * 2) {
-		    uint8_t cmd = m_cpu.op_read(addr);
-		    uint8_t length = cmd & 0b01111111;
-		    if(cmd & 0x80) {
-			for(int i = 0; i < length; i++) m_layer2[pos + i] = m_cpu.op_read(addr + 1);
-			pos += length;
-			addr += 2;
-		    } else {
-			for(int i = 0; i < length; i++) m_layer2[pos + i] = m_cpu.op_read(addr + i + 1);
-			pos += length;
-			addr += length + 1;
-	      	    }
-		}
-		for(int i = 0; i < 27; i++) {
-		    for(int k = 0; k < 2; k++) {
-			for(int j = 0; j < 16; j++) {
-			    std::cout.width(2);
-			    std::cout << std::hex << (int)m_layer2[k *432+ i*16+j];
-			}
-		    }
-		    std::cout << std::endl;
-		}
-	    }
-	    
+        // Layer 2
+        if(m_hasLayer2BG) {
+            m_layer2 = new uint16_t[432*2];
+            int addr = m_cpu.m_rom[0x02E600 + 3 * m_levelnum + 2];
+            int offset = 0;
+            if(addr == 0xFF) addr = 0x0C;
+            addr = (addr << 8) | m_cpu.m_rom[0x02E600 + 3 * m_levelnum + 1];
+            addr = (addr << 8) | m_cpu.m_rom[0x02E600 + 3 * m_levelnum + 0];
+            if((addr & 0xFFFF) >= 0xE8FF) offset = 0x100;                              //See CODE_058046
+            int pos = 0;
+            while((m_cpu.op_read(addr) != 0xFF || m_cpu.op_read(addr + 1) != 0xFF) && pos < 432 * 2) {
+                uint8_t cmd = m_cpu.op_read(addr);
+                uint8_t length = cmd & 0b01111111;
+                if(cmd & 0x80) {
+                    for(int i = 0; i <= length; i++) m_layer2[pos + i] = offset + m_cpu.op_read(addr + 1);
+                    pos += length + 1;
+                    addr += 2;
+                } else {
+                    for(int i = 0; i <= length; i++) m_layer2[pos + i] = offset + m_cpu.op_read(addr + i + 1);
+                    pos += length + 1;
+                    addr += length + 2;
+                }
+            }
         }
     }
 
-    void Level::renderLine(uint8_t* line, int linenum) {
+    void Level::renderLineFG(uint8_t* line, int linenum) {
         int gy = linenum>>4;
         int by = linenum%16;
+ 
         for(int i = 0; i < m_width * 16; i++) {
             int pos = by * 16 + i % 16;
-            line[i] = m_map16[m_layer1[gy * m_width + (i >> 4)]].pixels[pos];
+            line[i] = m_map16fg[m_layer1[gy * m_width + (i >> 4)]].pixels[pos];
+        }
+ 
+    }
+
+    void Level::renderLineBG(uint8_t* line, int linenum) {
+        if(m_hasLayer2BG) {
+            int gy = (linenum>>4) % 27;
+            int by = linenum%16;
+            if(m_hasLayer2BG) {
+                for(int i = 0; i < m_width * 16; i++) {
+                    int pos = by * 16 + i % 16;
+                    line[i] = m_map16bg[m_layer2[((i & 0x100) >> 4) * 27 + gy * 16 + ((i & 0x0FF) >> 4)]].pixels[pos];
+                }
+            } 
+        } else {
+            for(int i = 0; i < m_width * 16; i++) line[i] = 0;
         }
     }
 
+    //TODO: Method is not updated, see renderLine(F/B)G
     uint8_t Level::renderPixel(int x, int y) {
         int gx = x>>4;
         int bx = x%16;
         int gy = y>>4;
         int by = y%16;
-        return m_map16[m_layer1[gy * m_width + gx]].pixels[by * 16 + bx];
+        return m_map16fg[m_layer1[gy * m_width + gx]].pixels[by * 16 + bx];
     }
 
     int Level::getHeight() {
@@ -293,6 +327,18 @@ namespace Mockup {
         return m_width;
     }
 
+    bool Level::hasLayer2BG() {
+        return m_hasLayer2BG;
+    }
+
+    bool Level::hasLayer2Data() {
+        return m_hasLayer2Data;
+    }
+
+    bool Level::isVerticalLevel() {
+        return m_isVerticalLevel;
+    }
+
     uint32_t* Level::getPalette() {
         return m_palette;
     }
@@ -301,8 +347,12 @@ namespace Mockup {
         return m_map8[i];
     }
 
-    Tile16 Level::getMap16(int i) {
-        return m_map16[i];
+    Tile16 Level::getMap16fg(int i) {
+        return m_map16fg[i];
+    }
+
+    Tile16 Level::getMap16bg(int i) {
+        return m_map16bg[i];
     }
 
     uint16_t Level::getTile16(int x, int y) {
@@ -318,7 +368,6 @@ namespace Mockup {
         m_cpu.step(); m_cpu.step();
         snesColor |= m_cpu.op_read(0x2122);
         m_palette[pos] = convertColor(snesColor);
-        std::cout << std::hex << m_palette[pos] << std::endl;
 
     }
 }
