@@ -9,6 +9,7 @@
 
 #include "misc.hpp"
 #include "level.hpp"
+#include "encryption.hpp"
 
 namespace Mockup {
     
@@ -36,7 +37,7 @@ namespace Mockup {
         m_cpu.m_ram[0x65] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum]; 
         m_cpu.m_ram[0x66] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum + 1];
         m_cpu.m_ram[0x67] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum + 2];
-        
+        m_cpu.run(0x0583AC, 0x0583B8);
         // Run the palette loading routine.
         m_cpu.run(0x00ABED, 0x00ACEC);
         uint16_t paletteSNES[256];
@@ -60,10 +61,16 @@ namespace Mockup {
 
         // Table of the  low bytes of the locations of GFX00 - GFX31
         const int originalGraphicsFilesLowByteTableLocation = 0x00B992;
+        const int originalGraphicsFilesLowByteTableLocationPC = 0x003992;
+
         // Table of the high bytes of the locations of GFX00 - GFX31
         const int originalGraphicsFilesHighByteTableLocation = 0x00B9C4;
+        const int originalGraphicsFilesHighByteTableLocationPC = 0x0039C4;
+
         // Table of the bank bytes of the locations of GFX00 - GFX31
         const int originalGraphicsFilesBankByteTableLocation = 0x00B9F6;
+        const int originalGraphicsFilesBankByteTableLocationPC = 0x0039F6;
+
         // List of the FG/BG slots levels can use (4 bytes each, 26 slots)
         const int backgroundSlotListTableLocation = 0x00A92B;
         
@@ -81,29 +88,55 @@ namespace Mockup {
         int bg1 = m_cpu.m_rom[address + 0x02];
         int fg3 = m_cpu.m_rom[address + 0x03];
 
+        uint8_t fg1Chr[3072], fg2Chr[3072], bg1Chr[3072], fg3Chr[3072];
+
+        int addrFG1 = m_cpu.m_rom[originalGraphicsFilesBankByteTableLocationPC + fg1];
+        addrFG1 = (addrFG1 << 8) | m_cpu.m_rom[originalGraphicsFilesHighByteTableLocationPC + fg1];
+        addrFG1 = (addrFG1 << 8) | m_cpu.m_rom[originalGraphicsFilesLowByteTableLocationPC + fg1];
+        int addrFG1PC = ((addrFG1 & 0x7f0000) >> 1) + (addrFG1 & 0x7fff);
+        decryptLZ2(m_cpu.m_rom + addrFG1PC, fg1Chr);
+
+        int addrFG2 = m_cpu.m_rom[originalGraphicsFilesBankByteTableLocationPC + fg2];
+        addrFG2 = (addrFG2 << 8) | m_cpu.m_rom[originalGraphicsFilesHighByteTableLocationPC + fg2];
+        addrFG2 = (addrFG2 << 8) | m_cpu.m_rom[originalGraphicsFilesLowByteTableLocationPC + fg2];
+        int addrFG2PC = ((addrFG2 & 0x7f0000) >> 1) + (addrFG2 & 0x7fff);
+        decryptLZ2(m_cpu.m_rom + addrFG2PC, fg2Chr);
+
+        int addrBG1 = m_cpu.m_rom[originalGraphicsFilesBankByteTableLocationPC + bg1];
+        addrBG1 = (addrBG1 << 8) | m_cpu.m_rom[originalGraphicsFilesHighByteTableLocationPC + bg1];
+        addrBG1 = (addrBG1 << 8) | m_cpu.m_rom[originalGraphicsFilesLowByteTableLocationPC + bg1];
+        int addrBG1PC = ((addrBG1 & 0x7f0000) >> 1) + (addrBG1 & 0x7fff);
+        decryptLZ2(m_cpu.m_rom + addrBG1PC, bg1Chr);
+
+        int addrFG3 = m_cpu.m_rom[originalGraphicsFilesBankByteTableLocationPC + fg3];
+        addrFG3 = (addrFG3 << 8) | m_cpu.m_rom[originalGraphicsFilesHighByteTableLocationPC + fg3];
+        addrFG3 = (addrFG3 << 8) | m_cpu.m_rom[originalGraphicsFilesLowByteTableLocationPC + fg3];
+        int addrFG3PC = ((addrFG3 & 0x7f0000) >> 1) + (addrFG3 & 0x7fff);
+        decryptLZ2(m_cpu.m_rom + addrFG3PC, fg3Chr);
+
         for(int tile = 0; tile < 512; tile++) {
-            std::vector<uint8_t>* usedChr;
+            uint8_t* usedChr;
             switch(tile >> 7) {
             case 0b000:
-                usedChr = &fg1Chr;
+                usedChr = fg1Chr;
                 break;
             case 0b001:
-                usedChr = &fg2Chr;
+                usedChr = fg2Chr;
                 break;
             case 0b010:
-                usedChr = &bg1Chr;
+                usedChr = bg1Chr;
                 break;
             case 0b011:
-                usedChr = &fg3Chr;
+                usedChr = fg3Chr;
                 break;
             }
 
             for(int k = 0; k < 8; k++) {
  
                 unsigned char bp1, bp2, bp3;
-                bp1 = usedChr->at(24 * (tile % 128) + 2 * k);
-                bp2 = usedChr->at(24 * (tile % 128) + 2 * k + 1);
-                bp3 = usedChr->at(24 * (tile % 128) + 16 + k);
+                bp1 = usedChr[24 * (tile % 128) + 2 * k];
+                bp2 = usedChr[24 * (tile % 128) + 2 * k + 1];
+                bp3 = usedChr[24 * (tile % 128) + 16 + k];
 
                 for(int l = 0; l < 8; l++) {
                     int index = ((bp1 & (1 << (7 - l))) ? 1 : 0)
@@ -123,6 +156,8 @@ namespace Mockup {
         m_cpu.m_ram[0x67] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum + 2];
 
         m_cpu.run(0x0583AC, 0x0583B8);
+
+        int bgPalette = m_cpu.m_ram[0x1930];
               
         for(int i = 0; i < 512; i++) {
             int map16lookupSNES = 0x0D0000 + m_cpu.m_ram[2 * i + 0x0FBF] * 256 + m_cpu.m_ram[2 * i + 0x0FBE];
@@ -153,7 +188,7 @@ namespace Mockup {
             for(int j = 0; j < 4; j++) {
                 bool flipX  =  m_cpu.m_rom[map16lookupPC + j * 2 + 1] & 0b01000000;
                 bool flipY  =  m_cpu.m_rom[map16lookupPC + j * 2 + 1] & 0b10000000;
-                palettes[j] = (m_cpu.m_rom[map16lookupPC + j * 2 + 1] & 0b00011100) >> 2;
+                palettes[j] =  (m_cpu.m_rom[map16lookupPC + j * 2 + 1] & 0b00011100) >> 2;
                 int  tile   =  m_cpu.m_rom[map16lookupPC + j * 2] | ((m_cpu.m_rom[map16lookupPC + j * 2 + 1] & 0b00000011) << 8);
                 tiles[j]    =  m_map8[tile].mirrored(flipX, flipY);
             }

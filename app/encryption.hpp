@@ -39,7 +39,7 @@ namespace Mockup {
         return size;
     }
 
-    void decryptLC2(const uint8_t* data, uint8_t* output) {
+    void decryptLZ2(const uint8_t* data, uint8_t* output) {
         uint8_t cmd; 
         int length;
         int pos = 0, pos_out = 0, copy_pos;
@@ -95,7 +95,7 @@ namespace Mockup {
         }
     }
 
-    int decryptLC2UnknownSize(const uint8_t* data, uint8_t* output) {
+    int decryptLZ2UnknownSize(const uint8_t* data, uint8_t* output) {
         uint8_t cmd, length;
         int pos = 0, size = 0;
         
@@ -129,7 +129,7 @@ namespace Mockup {
             }
         }
         output = new uint8_t[size];
-        decryptLC2(data, output);
+        decryptLZ2(data, output);
         return size;
     }
 

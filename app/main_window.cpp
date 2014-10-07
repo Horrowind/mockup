@@ -17,9 +17,6 @@
 #include "main_window.hpp"
 
 
-#define WORLDLIB_IGNORE_DLL_FUNCTIONS
-#include "WorldLib.hpp"
-
 
 namespace Mockup {
     
