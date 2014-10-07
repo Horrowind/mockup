@@ -7,9 +7,6 @@
 #include <iostream>
 #include <vector>
 
-#define WORLDLIB_IGNORE_DLL_FUNCTIONS
-#include "WorldLib.hpp"
-
 #include "misc.hpp"
 #include "level.hpp"
 
@@ -83,13 +80,6 @@ namespace Mockup {
         int fg2 = m_cpu.m_rom[address + 0x01];
         int bg1 = m_cpu.m_rom[address + 0x02];
         int fg3 = m_cpu.m_rom[address + 0x03];
-
-        //TODO: Remove traces of worldlib
-        std::vector<uint8_t> fg1Chr, fg2Chr, bg1Chr, fg3Chr;
-        worldlib::decompressGraphicsFile(romStart, romEnd, std::back_inserter(fg1Chr), fg1);
-        worldlib::decompressGraphicsFile(romStart, romEnd, std::back_inserter(fg2Chr), fg2);
-        worldlib::decompressGraphicsFile(romStart, romEnd, std::back_inserter(bg1Chr), bg1);
-        worldlib::decompressGraphicsFile(romStart, romEnd, std::back_inserter(fg3Chr), fg3);
 
         for(int tile = 0; tile < 512; tile++) {
             std::vector<uint8_t>* usedChr;
