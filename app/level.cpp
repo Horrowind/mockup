@@ -233,6 +233,7 @@ namespace Mockup {
             m_layer1[0] = 0x25;
             m_width     = 1;
             m_height    = 1;
+	    m_hasLayer2Data = false;
             return;
         default:
             m_hasLayer2Data = false;
@@ -389,9 +390,9 @@ namespace Mockup {
         m_cpu.m_ram[0x14] = frame;
         m_cpu.run(0x00A418, 0x00A42F);
         int pos = m_cpu.op_read(0x2121);
-        uint32_t snesColor = m_cpu.op_read(0x2122) << 8;
+        uint32_t snesColor = m_cpu.op_read(0x2122);
         m_cpu.step(); m_cpu.step();
-        snesColor |= m_cpu.op_read(0x2122);
+        snesColor = snesColor | (m_cpu.op_read(0x2122) << 8);
         m_palette[pos] = convertColor(snesColor);
 
     }
