@@ -1,3 +1,4 @@
+
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -173,13 +174,13 @@ namespace Mockup {
     void Level::load_gfx3233() {
         uint8_t gfx32Chr[23808];
         uint8_t gfx33Chr[12288];
-        int addrGFX32PC = 0x40200;
+        int addrGFX32PC = 0x40000;
         decryptLZ2(m_cpu.m_rom + addrGFX32PC, gfx32Chr);
         int addrGFX33PC = 0x43FC0;
         decryptLZ2(m_cpu.m_rom + addrGFX33PC, gfx33Chr);
   
         for(int i = 0; i < 744; i++) {
-            m_gfx3233[i] = Tile8::from4bpp(gfx33Chr + 24 * i);
+            m_gfx3233[i] = Tile8::from4bpp(gfx32Chr + 32 * i);
         }
         for(int i = 744; i < 744 + 384; i++) {
             m_gfx3233[i] = Tile8::from3bpp(gfx33Chr + 24 * i);
@@ -370,6 +371,11 @@ namespace Mockup {
         return m_map8[i];
     }
 
+    Tile8 Level::getGFX3233(int i) {
+	return m_gfx3233[i];
+    }
+
+
     Tile16 Level::getMap16fg(int i) {
         return m_map16fg[i];
     }
@@ -420,7 +426,7 @@ namespace Mockup {
             if(dest[i] == 0 || ((source[i] & 0xFF00) == 0xFF00)) continue;
             std::cout<<std::hex<<source[i] << "," << dest[i] << std::endl;
             for(int j = 0; j < 4; j++) {
-                m_map8[dest[i] + j] = m_gfx3233[source[i] + j];
+                m_map8[dest[i] + j] = m_gfx3233[/*source[i] + */j];
             }
             //std::cin>>*(new int);
         }

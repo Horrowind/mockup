@@ -48,7 +48,7 @@ namespace Mockup {
             bp1 = data[2 * k];
             bp2 = data[2 * k + 1];
             bp3 = data[16 + 2 * k];
-            bp4 = data[16 + 2 * k];
+            bp4 = data[16 + 2 * k + 1];
 
             for(int l = 0; l < 8; l++) {
                 int index = ((bp1 & (1 << (7 - l))) ? 1 : 0)

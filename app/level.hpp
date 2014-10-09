@@ -23,6 +23,8 @@ namespace Mockup {
         Tile8     getMap8(int i);
         Tile16    getMap16fg(int i);
         Tile16    getMap16bg(int i);
+	Tile8     getGFX3233(int i);
+
         uint32_t* getPalette();
         uint32_t  getBackgroundColor();
 
