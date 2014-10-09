@@ -44,7 +44,7 @@ namespace Mockup {
 
         QTimer *timer = new QTimer(this);
         connect(timer, SIGNAL(timeout()), this, SLOT(update()));
-	timer->start(50);
+	timer->start(1000/60);
 
     }
     
@@ -64,6 +64,9 @@ namespace Mockup {
         view->setSceneRect(0, 0, m_level.getWidth() * 16 , m_level.getHeight() * 16);
         uint32_t palette[256]; 
         memcpy(&palette, m_level.getPalette(), 1024);
+
+	//Background Color
+	scene.setBackgroundBrush(QBrush(QColor::fromRgba(m_level.getBackgroundColor())));
 
         //Background
         QImage imgBG(m_level.getWidth()*16, m_level.getHeight()*16, QImage::Format_Indexed8);

@@ -7,6 +7,7 @@
 #include <iostream>
 #include <vector>
 
+#include "addresses.hpp"
 #include "misc.hpp"
 #include "level.hpp"
 #include "encryption.hpp"
@@ -29,7 +30,7 @@ namespace Mockup {
         std::cout<<"map16"<<std::endl;
         load_objects();
         std::cout<<"objects"<<std::endl;
-        //animate(1);
+        animate(1);
     }
     
     void Level::load_palette() {
@@ -56,23 +57,6 @@ namespace Mockup {
  
         auto romStart = rom.begin() + 0x200;
         auto romEnd = rom.end();
-
-
-
-        // Table of the  low bytes of the locations of GFX00 - GFX31
-        const int originalGraphicsFilesLowByteTableLocation = 0x00B992;
-        const int originalGraphicsFilesLowByteTableLocationPC = 0x003992;
-
-        // Table of the high bytes of the locations of GFX00 - GFX31
-        const int originalGraphicsFilesHighByteTableLocation = 0x00B9C4;
-        const int originalGraphicsFilesHighByteTableLocationPC = 0x0039C4;
-
-        // Table of the bank bytes of the locations of GFX00 - GFX31
-        const int originalGraphicsFilesBankByteTableLocation = 0x00B9F6;
-        const int originalGraphicsFilesBankByteTableLocationPC = 0x0039F6;
-
-        // List of the FG/BG slots levels can use (4 bytes each, 26 slots)
-        const int backgroundSlotListTableLocation = 0x00A92B;
         
         m_cpu.clear_ram();
         m_cpu.m_ram[0x65] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum]; 
@@ -131,21 +115,7 @@ namespace Mockup {
                 break;
             }
 
-            for(int k = 0; k < 8; k++) {
- 
-                unsigned char bp1, bp2, bp3;
-                bp1 = usedChr[24 * (tile % 128) + 2 * k];
-                bp2 = usedChr[24 * (tile % 128) + 2 * k + 1];
-                bp3 = usedChr[24 * (tile % 128) + 16 + k];
-
-                for(int l = 0; l < 8; l++) {
-                    int index = ((bp1 & (1 << (7 - l))) ? 1 : 0)
-                        + ((bp2 & (1 << (7 - l))) ? 2 : 0)
-                        + ((bp3 & (1 << (7 - l))) ? 4 : 0);
-                    
-                    m_map8[tile].pixels[k * 8 + l] = index;
-                }
-            }
+	    m_map8[tile] = Tile8::from3bpp(usedChr + 24 * (tile % 128));
         }
     }
 
@@ -215,6 +185,8 @@ namespace Mockup {
 
         
         int levelmode = m_cpu.m_ram[0x1925];
+	int bgColorAddr = 0x30A0 + m_cpu.m_ram[0x192F];
+	m_backgroundColor = convertColor(m_cpu.m_rom[bgColorAddr] | (m_cpu.m_rom[bgColorAddr + 1] << 8));
         switch(levelmode) {
         case 0x00:
         case 0x0C:
@@ -369,6 +341,11 @@ namespace Mockup {
         return m_palette;
     }
 
+    uint32_t Level::getBackgroundColor() {
+        return m_backgroundColor;
+    }
+
+
     Tile8 Level::getMap8(int i) {
         return m_map8[i];
     }
@@ -385,7 +362,7 @@ namespace Mockup {
         return m_layer1[y * m_width + x];
     }
 
-    void Level::animate(unsigned char frame) {
+    void Level::animate(uint8_t frame) {
         m_cpu.clear_ram();
         m_cpu.m_ram[0x14] = frame;
         m_cpu.run(0x00A418, 0x00A42F);
@@ -394,6 +371,36 @@ namespace Mockup {
         m_cpu.step(); m_cpu.step();
         snesColor = snesColor | (m_cpu.op_read(0x2122) << 8);
         m_palette[pos] = convertColor(snesColor);
+
+	m_cpu.clear_ram();
+	m_cpu.m_ram[0x65] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum]; 
+        m_cpu.m_ram[0x66] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum + 1];
+        m_cpu.m_ram[0x67] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum + 2];
+        m_cpu.run(0x0583AC, 0x0583B8);
+
+        m_cpu.m_ram[0x14] = frame;
+	m_cpu.regs.p = 0;
+	m_cpu.regs.p.x = true;
+	m_cpu.regs.p.m = true;
+
+        m_cpu.run(0x00A5FD, 0x00A601);
+
+	uint16_t source1 = (m_cpu.m_ram[0x0D77] << 8) + m_cpu.m_ram[0x0D76] - 0x7D00; 
+	uint16_t source2 = (m_cpu.m_ram[0x0D79] << 8) + m_cpu.m_ram[0x0D78] - 0x7D00; 
+	uint16_t source3 = (m_cpu.m_ram[0x0D7B] << 8) + m_cpu.m_ram[0x0D7A] - 0x7D00; 
+
+	uint16_t dest1 = (m_cpu.m_ram[0x0D7D] << 8) | m_cpu.m_ram[0x0D7C];
+	uint16_t dest2 = (m_cpu.m_ram[0x0D7F] << 8) | m_cpu.m_ram[0x0D7E]; 
+	uint16_t dest3 = (m_cpu.m_ram[0x0D81] << 8) | m_cpu.m_ram[0x0D80]; 
+	std::cout<<"Frame: " << (int)frame << std::endl;
+	std::cout<<std::hex<<source1 << "," << dest1 << std::endl;
+	std::cout<<std::hex<<source2 << "," << dest2 << std::endl;
+	std::cout<<std::hex<<source3 << "," << dest3 << std::endl;
+
+
+	uint8_t gfx33Chr[12288];
+        int addrGFX33PC = 0x43EC0;
+        decryptLZ2(m_cpu.m_rom + addrGFX33PC, gfx33Chr);
 
     }
 }

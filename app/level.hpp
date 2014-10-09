@@ -11,24 +11,26 @@ namespace Mockup {
     public:
         Level(const char* path, int levelnum);
 
-        void load_level(int level);
+        void      load_level(int level);
 
-        void renderLineFG(uint8_t* line, int linenum);
-        void renderLineBG(uint8_t* line, int linenum);
-        uint8_t renderPixel(int x, int y);
+        void      renderLineFG(uint8_t* line, int linenum);
+        void      renderLineBG(uint8_t* line, int linenum);
+        uint8_t   renderPixel(int x, int y);
 
-        int getHeight();
-        int getWidth();
-        uint16_t getTile16(int x, int y);
-        Tile8 getMap8(int i);
-        Tile16 getMap16fg(int i);
-        Tile16 getMap16bg(int i);
+        int       getHeight();
+        int       getWidth();
+        uint16_t  getTile16(int x, int y);
+        Tile8     getMap8(int i);
+        Tile16    getMap16fg(int i);
+        Tile16    getMap16bg(int i);
         uint32_t* getPalette();
-        void animate(unsigned char frame);
+        uint32_t  getBackgroundColor();
 
-        bool hasLayer2BG();
-        bool hasLayer2Data();
-        bool isVerticalLevel();
+        void      animate(unsigned char frame);
+
+        bool      hasLayer2BG();
+        bool      hasLayer2Data();
+        bool      isVerticalLevel();
         
     private:
         const char* m_path;
@@ -50,6 +52,8 @@ namespace Mockup {
         bool m_hasLayer2BG;
         bool m_hasLayer2Data;
         bool m_isVerticalLevel;
+	uint32_t m_backgroundColor;
+	
 
         uint32_t m_palette[256];
         Tile8    m_map8[512];
