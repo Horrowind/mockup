@@ -389,9 +389,11 @@ namespace Mockup {
 	uint16_t source2 = (m_cpu.m_ram[0x0D79] << 8) + m_cpu.m_ram[0x0D78] - 0x7D00; 
 	uint16_t source3 = (m_cpu.m_ram[0x0D7B] << 8) + m_cpu.m_ram[0x0D7A] - 0x7D00; 
 
-	uint16_t dest1 = (m_cpu.m_ram[0x0D7D] << 8) | m_cpu.m_ram[0x0D7C];
-	uint16_t dest2 = (m_cpu.m_ram[0x0D7F] << 8) | m_cpu.m_ram[0x0D7E]; 
-	uint16_t dest3 = (m_cpu.m_ram[0x0D81] << 8) | m_cpu.m_ram[0x0D80]; 
+	uint16_t dest1 = ((m_cpu.m_ram[0x0D7D] << 8) | m_cpu.m_ram[0x0D7C]) / 16;
+	uint16_t dest2 = ((m_cpu.m_ram[0x0D7F] << 8) | m_cpu.m_ram[0x0D7E]) / 16; 
+	uint16_t dest3 = ((m_cpu.m_ram[0x0D81] << 8) | m_cpu.m_ram[0x0D80]) / 16;
+
+
 	std::cout<<"Frame: " << (int)frame << std::endl;
 	std::cout<<std::hex<<source1 << "," << dest1 << std::endl;
 	std::cout<<std::hex<<source2 << "," << dest2 << std::endl;
@@ -401,6 +403,12 @@ namespace Mockup {
 	uint8_t gfx33Chr[12288];
         int addrGFX33PC = 0x43EC0;
         decryptLZ2(m_cpu.m_rom + addrGFX33PC, gfx33Chr);
+	
+	m_map8[dest1] = Tile8::from3bpp(gfx33Chr + source1);
+	m_map8[dest2] = Tile8::from3bpp(gfx33Chr + source2);
+	m_map8[dest3] = Tile8::from3bpp(gfx33Chr + source3);
 
+	load_map16();
+	
     }
 }
