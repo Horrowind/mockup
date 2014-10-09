@@ -18,7 +18,7 @@ CPU::CPU(const char* path, bool debug) {
     }
     m_ram = new uint8_t[0x20000];
     m_sreg = new uint8_t[0x2500];
-    for(int i = 0; i < 0x2000; i++) m_ram[i] = 0;
+    clear_ram();
     init();
 };
 
@@ -42,7 +42,7 @@ void CPU::run(uint32_t addrFrom, uint32_t addrTo) {
 
 uint8_t CPU::op_read(uint32_t addr) {
     
-    if(m_debug) std::cout<<"Read: " << std::hex<<addr <<std::endl;
+    //    if(m_debug) std::cout<<"Read: " << std::hex<<addr <<std::endl;
 
     if(addr & 0xFF8000) {
         if(addr >= 0x7E0000 && addr < 0x800000)
@@ -67,9 +67,13 @@ void CPU::op_write(uint32_t addr, uint8_t data) {
         if(addr >= 0x7E0000 && addr < 0x800000) {
             m_ram[addr-0x7E0000] = data;
         } else {
-            std::cerr << std::hex <<"Err: " << regs.pc << " Wrote: " << addr <<std::endl;
-            getchar();
-        //Todo: ERROR
+	    if(addr & 0x008000) {
+		std::cerr << std::hex <<"Err: " << regs.pc << " Wrote: " << addr <<std::endl;
+		getchar();
+		//Todo: ERROR
+	    } else {
+		m_ram[addr & 0x007FFF] = data;
+	    }
         }
     } else {
         if(addr >= 0x002000) {
@@ -83,10 +87,11 @@ void CPU::op_write(uint32_t addr, uint8_t data) {
             m_ram[addr] = data;
         }
     }
-    if(m_debug) std::cout<<"Write: " << std::hex<<addr << ": " << std::hex <<(int)data << std::endl;
+    //if(m_debug) std::cout<<"Write: " << std::hex<<addr << ": " << std::hex <<(int)data << std::endl;
 }
 
 void CPU::clear_ram() {
+    regs.s = 0x0100;
     memset(m_ram, 0, 20000);
 }
 
