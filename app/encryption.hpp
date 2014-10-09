@@ -98,36 +98,44 @@ namespace Mockup {
     int decryptLZ2UnknownSize(const uint8_t* data, uint8_t* output) {
         uint8_t cmd, length;
         int pos = 0, size = 0;
-        
         while((cmd = data[pos]) != 0xFF) {
-            length = cmd & 0b00011111;
-            if(cmd & 0xE0 == 0xE0) {
+            if((cmd & 0xE0) == 0xE0) {
                 pos++;
-                length = (cmd & 0x03) << 8 + data[pos];
+                length = ((cmd & 0x03) << 8) + (int)data[pos] + 1;
                 cmd = cmd << 3;
+            } else {
+                length = (cmd & 0b00011111) + 1;
             }
-            size += length + 1;
             switch(cmd & 0xE0) {
+                
             case 0x00:
-                pos += length + 2;
+                pos += length + 1;
                 break;
+
             case 0x20:
                 pos += 2;
                 break;
+
             case 0x40:
                 pos += 3;
                 break;
+
             case 0x60:
                 pos += 2;
                 break;
+
             case 0x80:
                 pos += 3;
                 break;
+
             default:
+                std::cout<<"Error"<<std::endl;
                 //TODO: Error
-                break;
+                return -1;
             }
+            size += length;
         }
+
         output = new uint8_t[size];
         decryptLZ2(data, output);
         return size;

@@ -40,6 +40,7 @@ namespace Mockup {
         void load_map8();
         void load_palette();
         void load_objects();
+        void load_gfx3233();
 
         uint16_t* m_layer1 = NULL;
         uint16_t* m_layer2 = NULL;
@@ -52,11 +53,12 @@ namespace Mockup {
         bool m_hasLayer2BG;
         bool m_hasLayer2Data;
         bool m_isVerticalLevel;
-	uint32_t m_backgroundColor;
+        uint32_t m_backgroundColor;
 	
 
         uint32_t m_palette[256];
         Tile8    m_map8[512];
+        Tile8    m_gfx3233[384];
         Tile16   m_map16fg[512];
         Tile16   m_map16bg[512];
         CPU m_cpu;

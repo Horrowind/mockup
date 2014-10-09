@@ -23,22 +23,43 @@ namespace Mockup {
     }
 
     Tile8 Tile8::from3bpp(uint8_t* data) {
-	Tile8 tile;
-	for(int k = 0; k < 8; k++) {
-	    unsigned char bp1, bp2, bp3;
-	    bp1 = data[2 * k];
-	    bp2 = data[2 * k + 1];
-	    bp3 = data[16 + k];
+        Tile8 tile;
+        for(int k = 0; k < 8; k++) {
+            unsigned char bp1, bp2, bp3;
+            bp1 = data[2 * k];
+            bp2 = data[2 * k + 1];
+            bp3 = data[16 + k];
 
-	    for(int l = 0; l < 8; l++) {
-		int index = ((bp1 & (1 << (7 - l))) ? 1 : 0)
-		    + ((bp2 & (1 << (7 - l))) ? 2 : 0)
-		    + ((bp3 & (1 << (7 - l))) ? 4 : 0);
+            for(int l = 0; l < 8; l++) {
+                int index = ((bp1 & (1 << (7 - l))) ? 1 : 0)
+                    + ((bp2 & (1 << (7 - l))) ? 2 : 0)
+                    + ((bp3 & (1 << (7 - l))) ? 4 : 0);
                     
-		tile.pixels[k * 8 + l] = index;
-	    }
-	}
-	return tile;
+                tile.pixels[k * 8 + l] = index;
+            }
+        }
+        return tile;
+    }
+
+    Tile8 Tile8::from4bpp(uint8_t* data) {
+        Tile8 tile;
+        for(int k = 0; k < 8; k++) {
+            unsigned char bp1, bp2, bp3, bp4;
+            bp1 = data[2 * k];
+            bp2 = data[2 * k + 1];
+            bp3 = data[16 + 2 * k];
+            bp4 = data[16 + 2 * k];
+
+            for(int l = 0; l < 8; l++) {
+                int index = ((bp1 & (1 << (7 - l))) ? 1 : 0)
+                    + ((bp2 & (1 << (7 - l))) ? 2 : 0)
+                    + ((bp3 & (1 << (7 - l))) ? 4 : 0)
+                    + ((bp4 & (1 << (7 - l))) ? 8 : 0);
+
+                tile.pixels[k * 8 + l] = index;
+            }
+        }
+        return tile;
     }
 
     Tile16 Tile16::fromTile8(Tile8 t[4], const uint8_t (&pal)[4]) {

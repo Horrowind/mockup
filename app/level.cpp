@@ -30,6 +30,8 @@ namespace Mockup {
         std::cout<<"map16"<<std::endl;
         load_objects();
         std::cout<<"objects"<<std::endl;
+        load_gfx3233();
+        std::cout<<"gfx3233"<<std::endl;
         animate(1);
     }
     
@@ -168,6 +170,24 @@ namespace Mockup {
         }
     }
 
+    void Level::load_gfx3233() {
+        uint8_t gfx32Chr[23808];
+        uint8_t gfx33Chr[12288];
+        int addrGFX32PC = 0x40200;
+        decryptLZ2(m_cpu.m_rom + addrGFX32PC, gfx32Chr);
+        int addrGFX33PC = 0x43FC0;
+        decryptLZ2(m_cpu.m_rom + addrGFX33PC, gfx33Chr);
+  
+        for(int i = 0; i < 744; i++) {
+            m_gfx3233[i] = Tile8::from4bpp(gfx33Chr + 24 * i);
+        }
+        for(int i = 744; i < 744 + 384; i++) {
+            m_gfx3233[i] = Tile8::from3bpp(gfx33Chr + 24 * i);
+        }
+
+    }
+
+
     void Level::load_objects() {
         m_cpu.clear_ram();
         
@@ -185,8 +205,8 @@ namespace Mockup {
 
         
         int levelmode = m_cpu.m_ram[0x1925];
-	int bgColorAddr = 0x30A0 + m_cpu.m_ram[0x192F];
-	m_backgroundColor = convertColor(m_cpu.m_rom[bgColorAddr] | (m_cpu.m_rom[bgColorAddr + 1] << 8));
+        int bgColorAddr = 0x30A0 + m_cpu.m_ram[0x192F];
+        m_backgroundColor = convertColor(m_cpu.m_rom[bgColorAddr] | (m_cpu.m_rom[bgColorAddr + 1] << 8));
         switch(levelmode) {
         case 0x00:
         case 0x0C:
@@ -362,7 +382,9 @@ namespace Mockup {
         return m_layer1[y * m_width + x];
     }
 
+
     void Level::animate(uint8_t frame) {
+        std::cout<<"Frame: " << (int)frame << std::endl;
         m_cpu.clear_ram();
         m_cpu.m_ram[0x14] = frame;
         m_cpu.run(0x00A418, 0x00A42F);
@@ -372,43 +394,37 @@ namespace Mockup {
         snesColor = snesColor | (m_cpu.op_read(0x2122) << 8);
         m_palette[pos] = convertColor(snesColor);
 
-	m_cpu.clear_ram();
-	m_cpu.m_ram[0x65] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum]; 
+        m_cpu.clear_ram();
+        m_cpu.m_ram[0x65] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum]; 
         m_cpu.m_ram[0x66] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum + 1];
         m_cpu.m_ram[0x67] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum + 2];
         m_cpu.run(0x0583AC, 0x0583B8);
 
         m_cpu.m_ram[0x14] = frame;
-	m_cpu.regs.p = 0;
-	m_cpu.regs.p.x = true;
-	m_cpu.regs.p.m = true;
+        m_cpu.regs.p = 0;
+        m_cpu.regs.p.x = true;
+        m_cpu.regs.p.m = true;
 
         m_cpu.run(0x00A5FD, 0x00A601);
 
-	uint16_t source1 = (m_cpu.m_ram[0x0D77] << 8) + m_cpu.m_ram[0x0D76] - 0x7D00; 
-	uint16_t source2 = (m_cpu.m_ram[0x0D79] << 8) + m_cpu.m_ram[0x0D78] - 0x7D00; 
-	uint16_t source3 = (m_cpu.m_ram[0x0D7B] << 8) + m_cpu.m_ram[0x0D7A] - 0x7D00; 
+        uint16_t source[3], dest[3];
+        source[0] = ((m_cpu.m_ram[0x0D77] << 8) + m_cpu.m_ram[0x0D76] - 0x2000) / 32; 
+        source[1] = ((m_cpu.m_ram[0x0D79] << 8) + m_cpu.m_ram[0x0D78] - 0x2000) / 32; 
+        source[2] = ((m_cpu.m_ram[0x0D7B] << 8) + m_cpu.m_ram[0x0D7A] - 0x2000) / 32; 
 
-	uint16_t dest1 = ((m_cpu.m_ram[0x0D7D] << 8) | m_cpu.m_ram[0x0D7C]) / 16;
-	uint16_t dest2 = ((m_cpu.m_ram[0x0D7F] << 8) | m_cpu.m_ram[0x0D7E]) / 16; 
-	uint16_t dest3 = ((m_cpu.m_ram[0x0D81] << 8) | m_cpu.m_ram[0x0D80]) / 16;
-
-
-	std::cout<<"Frame: " << (int)frame << std::endl;
-	std::cout<<std::hex<<source1 << "," << dest1 << std::endl;
-	std::cout<<std::hex<<source2 << "," << dest2 << std::endl;
-	std::cout<<std::hex<<source3 << "," << dest3 << std::endl;
-
-
-	uint8_t gfx33Chr[12288];
-        int addrGFX33PC = 0x43EC0;
-        decryptLZ2(m_cpu.m_rom + addrGFX33PC, gfx33Chr);
-	
-	m_map8[dest1] = Tile8::from3bpp(gfx33Chr + source1);
-	m_map8[dest2] = Tile8::from3bpp(gfx33Chr + source2);
-	m_map8[dest3] = Tile8::from3bpp(gfx33Chr + source3);
-
-	load_map16();
+        dest[0] = ((m_cpu.m_ram[0x0D7D] << 8) | m_cpu.m_ram[0x0D7C]) / 16;
+        dest[1] = ((m_cpu.m_ram[0x0D7F] << 8) | m_cpu.m_ram[0x0D7E]) / 16; 
+        dest[2] = ((m_cpu.m_ram[0x0D81] << 8) | m_cpu.m_ram[0x0D80]) / 16;
+	       
+        for(int i = 0; i < 3; i++) {
+            if(dest[i] == 0 || ((source[i] & 0xFF00) == 0xFF00)) continue;
+            std::cout<<std::hex<<source[i] << "," << dest[i] << std::endl;
+            for(int j = 0; j < 4; j++) {
+                m_map8[dest[i] + j] = m_gfx3233[source[i] + j];
+            }
+            //std::cin>>*(new int);
+        }
+        load_map16();
 	
     }
 }

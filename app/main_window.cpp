@@ -65,8 +65,8 @@ namespace Mockup {
         uint32_t palette[256]; 
         memcpy(&palette, m_level.getPalette(), 1024);
 
-	//Background Color
-	scene.setBackgroundBrush(QBrush(QColor::fromRgba(m_level.getBackgroundColor())));
+        //Background Color
+        scene.setBackgroundBrush(QBrush(QColor::fromRgba(m_level.getBackgroundColor())));
 
         //Background
         QImage imgBG(m_level.getWidth()*16, m_level.getHeight()*16, QImage::Format_Indexed8);
@@ -88,6 +88,18 @@ namespace Mockup {
         }
         
         QGraphicsItem* itemFG = scene.addPixmap(QPixmap::fromImage(imgFG));
+
+        //Map8
+        QImage imgMap8(128, 256, QImage::Format_Indexed8);
+        for(int i = 0; i < 256; i++) imgMap8.setColor(i, palette[i]);
+        imgBG.fill(QColor(0, 0, 0, 0));
+        for(int i = 0; i < 512; i++) {
+            Tile8 tile = m_level.getMap8(i);
+            for(int j = 0; j < 64; j++) {
+                imgMap8.setPixel((i % 16) * 8 + (j % 8), (i / 16) * 8 + (j / 8), tile.pixels[j]);
+            }
+        }
+        QGraphicsItem* itemMap8 = scene.addPixmap(QPixmap::fromImage(imgMap8));
     }
     
  

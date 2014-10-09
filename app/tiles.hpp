@@ -8,7 +8,8 @@ namespace Mockup {
         uint8_t pixels[64];
 
         Tile8 const mirrored(bool flipX, bool flipY); 
-	static Tile8 from3bpp(uint8_t* data);
+        static Tile8 from3bpp(uint8_t* data);
+        static Tile8 from4bpp(uint8_t* data);
     };
     
     struct Tile16 {
