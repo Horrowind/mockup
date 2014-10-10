@@ -3,10 +3,7 @@
 #include <cstdio>
 #include <cstring>
 
-#include <limits>
-#include <fstream>
 #include <iostream>
-#include <vector>
 
 #include "addresses.hpp"
 #include "misc.hpp"
@@ -54,13 +51,6 @@ namespace Mockup {
 
     void Level::load_map8() {
 
-        std::ifstream in(m_path, std::ios::in | std::ios::binary);
-        std::vector<unsigned char> rom;
-        if (in) rom = std::vector<unsigned char>((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
- 
-        auto romStart = rom.begin() + 0x200;
-        auto romEnd = rom.end();
-        
         m_cpu.clear_ram();
         m_cpu.m_ram[0x65] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum]; 
         m_cpu.m_ram[0x66] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum + 1];
