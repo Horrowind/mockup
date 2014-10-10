@@ -179,11 +179,11 @@ namespace Mockup {
         int addrGFX33PC = 0x43FC0;
         decryptLZ2(m_cpu.m_rom + addrGFX33PC, gfx33Chr);
   
-        for(int i = 0; i < 744; i++) {
+        for(int i = 0; i < m_sizeOfGFX32; i++) {
             m_gfx3233[i] = Tile8::from4bpp(gfx32Chr + 32 * i);
         }
-        for(int i = 744; i < 744 + 384; i++) {
-            m_gfx3233[i] = Tile8::from3bpp(gfx33Chr + 24 * i);
+        for(int i = 0; i < m_sizeOfGFX33; i++) {
+            m_gfx3233[i + m_sizeOfGFX32] = Tile8::from3bpp(gfx33Chr + 24 * i);
         }
 
     }
@@ -372,7 +372,7 @@ namespace Mockup {
     }
 
     Tile8 Level::getGFX3233(int i) {
-	return m_gfx3233[i];
+        return m_gfx3233[i];
     }
 
 
@@ -390,7 +390,7 @@ namespace Mockup {
 
 
     void Level::animate(uint8_t frame) {
-        std::cout<<"Frame: " << (int)frame << std::endl;
+        //std::cout<<"Frame: " << (int)frame << std::endl;
         m_cpu.clear_ram();
         m_cpu.m_ram[0x14] = frame;
         m_cpu.run(0x00A418, 0x00A42F);
@@ -424,9 +424,9 @@ namespace Mockup {
 	       
         for(int i = 0; i < 3; i++) {
             if(dest[i] == 0 || ((source[i] & 0xFF00) == 0xFF00)) continue;
-            std::cout<<std::hex<<source[i] << "," << dest[i] << std::endl;
+            //std::cout<<std::hex<<source[i] << "," << dest[i] << std::endl;
             for(int j = 0; j < 4; j++) {
-                m_map8[dest[i] + j] = m_gfx3233[/*source[i] + */j];
+                m_map8[dest[i] + j] = m_gfx3233[source[i] +j];
             }
             //std::cin>>*(new int);
         }

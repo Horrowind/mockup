@@ -58,9 +58,12 @@ namespace Mockup {
         uint32_t m_backgroundColor;
 	
 
+
+        const static int m_sizeOfGFX32 = 744;
+        const static int m_sizeOfGFX33 = 384;
         uint32_t m_palette[256];
         Tile8    m_map8[512];
-        Tile8    m_gfx3233[384];
+        Tile8    m_gfx3233[m_sizeOfGFX32 + m_sizeOfGFX33];
         Tile16   m_map16fg[512];
         Tile16   m_map16bg[512];
         CPU m_cpu;

@@ -44,7 +44,7 @@ namespace Mockup {
 
         QTimer *timer = new QTimer(this);
         connect(timer, SIGNAL(timeout()), this, SLOT(update()));
-	timer->start(1000/60);
+        timer->start(50);
 
     }
     
@@ -56,6 +56,8 @@ namespace Mockup {
         m_frame++;
         m_level.animate(m_frame);
         draw_level(cur_level);
+        scene.invalidate();
+        
     }
 
 
@@ -94,7 +96,7 @@ namespace Mockup {
         for(int i = 0; i < 256; i++) imgMap8.setColor(i, palette[i]);
         imgBG.fill(QColor(0, 0, 0, 0));
         for(int i = 0; i < 512; i++) {
-            Tile8 tile = m_level.getGFX3233(i);
+            Tile8 tile = m_level.getMap8(i);
             for(int j = 0; j < 64; j++) {
                 imgMap8.setPixel((i % 16) * 8 + (j % 8), (i / 16) * 8 + (j / 8), tile.pixels[j]);
             }
