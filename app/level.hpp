@@ -1,7 +1,6 @@
 #ifndef MOCKUP_LEVEL_HPP
 #define MOCKUP_LEVEL_HPP
 
-//#include <vector>
 #include "cpu.hpp"
 #include "tiles.hpp"
 
