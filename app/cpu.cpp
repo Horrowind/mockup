@@ -28,6 +28,12 @@ CPU::~CPU() {
     delete[] m_sreg;
 };
 
+
+void CPU::setDebug(bool debug) {
+    m_debug = debug;
+}
+
+
 void CPU::run(uint32_t addrFrom, uint32_t addrTo) {
     regs.pc = addrFrom;
     while(regs.pc != addrTo) {
@@ -45,9 +51,13 @@ uint8_t CPU::op_read(uint32_t addr) {
     //    if(m_debug) std::cout<<"Read: " << std::hex<<addr <<std::endl;
 
     if(addr & 0xFF8000) {
-        if(addr >= 0x7E0000 && addr < 0x800000)
+        if(addr >= 0x7E0000 && addr < 0x800000) {
             return m_ram[addr-0x7E0000];
-        return m_rom[((addr & 0x7f0000) >> 1) + (addr & 0x7fff)];
+        } else if(addr & 0x008000) {
+            return m_rom[((addr & 0x7f0000) >> 1) + (addr & 0x7fff)];
+        } else {
+            return m_ram[addr & 0x007FFF];
+        }
     }
     if(addr >= 0x002000) {
         if(addr <= 0x004500) {
@@ -67,13 +77,13 @@ void CPU::op_write(uint32_t addr, uint8_t data) {
         if(addr >= 0x7E0000 && addr < 0x800000) {
             m_ram[addr-0x7E0000] = data;
         } else {
-	    if(addr & 0x008000) {
-		std::cerr << std::hex <<"Err: " << regs.pc << " Wrote: " << addr <<std::endl;
-		getchar();
-		//Todo: ERROR
-	    } else {
-		m_ram[addr & 0x007FFF] = data;
-	    }
+            if(addr & 0x008000) {
+                std::cerr << std::hex <<"Err: " << regs.pc << " Wrote: " << addr <<std::endl;
+                getchar();
+                //Todo: ERROR
+            } else {
+                m_ram[addr & 0x007FFF] = data;
+            }
         }
     } else {
         if(addr >= 0x002000) {

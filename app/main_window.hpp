@@ -29,13 +29,22 @@ namespace Mockup {
         
         void draw_level(int level);
 
-        QGraphicsView* view;
-        QGraphicsScene scene;
-        
-        int cur_level = 0x105;
-        uint8_t m_frame = 0;
-        Level m_level;
-        QString filePath;
+        QGraphicsView* m_view;
+        QGraphicsScene m_scene;
+
+        QDockWidget*   m_dockMap8;
+        QGraphicsView* m_viewMap8;
+        QGraphicsScene m_sceneMap8;
+
+        QDockWidget*   m_dockMap16;
+        QGraphicsView* m_viewMap16;
+        QGraphicsScene m_sceneMap16;
+
+
+        int            m_currentLevel = 0x105;
+        uint8_t        m_frame = 0;
+        Level          m_level;
+        QString        m_filePath;
     };
 }
 #endif //MOCKUP_MAIN_WINDOW_HPP

@@ -19,18 +19,16 @@ namespace Mockup {
 
     void Level::load_level(int levelnum) {
         m_levelnum = levelnum;
-        
+
         load_palette();
-        std::cout<<"palette"<<std::endl;
         load_map8();
-        std::cout<<"map8"<<std::endl;
         load_map16();
-        std::cout<<"map16"<<std::endl;
         load_objects();
-        std::cout<<"objects"<<std::endl;
         load_gfx3233();
-        std::cout<<"gfx3233"<<std::endl;
-        animate(1);
+        animate(255);
+
+
+
     }
     
     void Level::load_palette() {
@@ -395,13 +393,18 @@ namespace Mockup {
         m_cpu.m_ram[0x66] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum + 1];
         m_cpu.m_ram[0x67] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum + 2];
         m_cpu.run(0x0583AC, 0x0583B8);
-
-        m_cpu.m_ram[0x14] = frame;
+        m_cpu.m_ram[0x0014] = frame;
+        m_cpu.m_ram[0x14AD] = 0;
+        m_cpu.m_ram[0x14AE] = 0;
+        m_cpu.m_ram[0x14AF] = 0;
         m_cpu.regs.p = 0;
         m_cpu.regs.p.x = true;
         m_cpu.regs.p.m = true;
+        //m_cpu.regs.d = 0x3000;
 
+//        m_cpu.setDebug(true);
         m_cpu.run(0x00A5FD, 0x00A601);
+//        m_cpu.setDebug(false);
 
         uint16_t source[3], dest[3];
         source[0] = ((m_cpu.m_ram[0x0D77] << 8) + m_cpu.m_ram[0x0D76] - 0x2000) / 32; 
@@ -414,11 +417,16 @@ namespace Mockup {
 	       
         for(int i = 0; i < 3; i++) {
             if(dest[i] == 0 || ((source[i] & 0xFF00) == 0xFF00)) continue;
-            //std::cout<<std::hex<<source[i] << "," << dest[i] << std::endl;
-            for(int j = 0; j < 4; j++) {
-                m_map8[dest[i] + j] = m_gfx3233[source[i] +j];
+            if(dest[i] == 0x80) {                                              //See CODE_00A3DA
+                m_map8[dest[i]] = m_gfx3233[source[i]];
+                m_map8[dest[i] + 1] = m_gfx3233[source[i] + 1];
+                m_map8[dest[i] + 16] = m_gfx3233[source[i] + 2];
+                m_map8[dest[i] + 17] = m_gfx3233[source[i] + 3];
+            } else {
+                for(int j = 0; j < 4; j++) {
+                    m_map8[dest[i] + j] = m_gfx3233[source[i] +j];
+                }
             }
-            //std::cin>>*(new int);
         }
         load_map16();
 	

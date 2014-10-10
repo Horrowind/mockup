@@ -12,6 +12,9 @@ public:
     ~CPU();
     void step();
     void init();
+    
+    void setDebug(bool debug);
+    
     uint8_t* m_rom;
     uint8_t* m_ram;
     uint8_t* m_sreg;
