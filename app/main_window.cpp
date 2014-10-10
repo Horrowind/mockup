@@ -3,7 +3,6 @@
 #include <cstring>
 
 #include <iostream>
-#include <fstream>
 #include <QFileDialog>
 #include <QInputDialog>
 #include <QGraphicsItem>
