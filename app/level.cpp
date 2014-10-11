@@ -273,7 +273,7 @@ namespace Mockup {
             if(addr == 0xFF) addr = 0x0C;
             addr = (addr << 8) | m_cpu.m_rom[0x02E600 + 3 * m_levelnum + 1];
             addr = (addr << 8) | m_cpu.m_rom[0x02E600 + 3 * m_levelnum + 0];
-            if((addr & 0xFFFF) >= 0xE8FF) offset = 0x100;                              //See CODE_058046
+            if((addr & 0xFFFF) >= 0xE8FE) offset = 0x100;                              //See CODE_058046
             int pos = 0;
             while((m_cpu.op_read(addr) != 0xFF || m_cpu.op_read(addr + 1) != 0xFF) && pos < 432 * 2) {
                 uint8_t cmd = m_cpu.op_read(addr);
