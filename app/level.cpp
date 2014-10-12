@@ -232,8 +232,14 @@ namespace Mockup {
         
         
     
-        if(m_layer1) delete[] m_layer1;
-        if(m_layer2) delete[] m_layer2;
+        if(m_layer1) {
+	    delete[] m_layer1;
+	    m_layer1 = NULL;
+	}
+        if(m_layer2) {
+	    delete[] m_layer2;
+	    m_layer2 = NULL;
+	}
 
         // Layer 1
 
