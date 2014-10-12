@@ -1,9 +1,6 @@
-
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
-
-#include <iostream>
 
 #include "addresses.hpp"
 #include "misc.hpp"
@@ -19,17 +16,17 @@ namespace Mockup {
 
     void Level::load_level(int levelnum) {
         m_levelnum = levelnum;
-	m_cpu.init();
+        m_cpu.init();
+
         load_palette();
         load_map8();
         load_map16();
         load_objects();
         load_gfx3233();
+
 	for(int i = 0; i < 8; i++) {
 	    animate(i);
 	}
-
-
     }
     
     void Level::load_palette() {

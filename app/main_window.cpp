@@ -22,10 +22,62 @@
 namespace Mockup {
     
 
+    MainWindow::MainWindow(int level) : m_level("smw.smc", level) {
+        m_currentLevel = level;
+        setDocumentMode(true);
+        grabKeyboard();
+        
+        setDockOptions(QMainWindow::AnimatedDocks | QMainWindow::AllowNestedDocks | QMainWindow::AllowTabbedDocks);
+
+        m_viewMap8 = new QGraphicsView(&m_sceneMap8);
+        m_viewMap8->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        m_viewMap8->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        m_viewMap8->setMinimumSize(128, 256);
+        m_viewMap8->setMaximumSize(128, 256);
+      
+        m_dockMap8 = new QDockWidget("Map 8", this);
+        m_dockMap8->setWidget(m_viewMap8);
+        
+        m_viewMap16 = new QGraphicsView(&m_sceneMap16);
+        m_viewMap16->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        m_viewMap16->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        m_viewMap16->setMinimumSize(256, 256);
+        m_viewMap16->setMaximumSize(256, 256);
+      
+        m_dockMap16 = new QDockWidget("Map 16", this);
+        m_dockMap16->setWidget(m_viewMap16);
+        
+
+        addDockWidget(Qt::BottomDockWidgetArea, m_dockMap8);
+        addDockWidget(Qt::BottomDockWidgetArea, m_dockMap16);
+        m_view = new QGraphicsView(&m_scene);
+        setCentralWidget(m_view);
+        
+
+
+        // for(int i = 0; i < 512; i++) {
+        //     draw_level(filePath.toLatin1().data(), i);
+        //     QImage image(scene.sceneRect().size().toSize(), QImage::Format_ARGB32);
+        //     QPainter painter(&image);
+        //     painter.setRenderHint(QPainter::SmoothPixmapTransform);
+        //     scene.render(&painter, QRectF(0, 0, 256*screens, 432));
+        //     image.save("png/" + QString::number(i, 16) + ".png");
+        // }
+
+        
+        draw_level(m_currentLevel);
+
+        QTimer *timer = new QTimer(this);
+        connect(timer, SIGNAL(timeout()), this, SLOT(update()));
+        timer->start(8000/60);
+
+    }
+
     MainWindow::MainWindow() : m_level("smw.smc", 0x105) {
         // filePath = QFileDialog::getOpenFileName(nullptr, "Open ROM", QString(), "*.smc");
         // if(filePath == "") exit(0);
-        
+        m_currentLevel = 0x105;
+
 
         setDocumentMode(true);
         grabKeyboard();
@@ -95,6 +147,8 @@ namespace Mockup {
 
 
     void MainWindow::draw_level(int levelnum) {
+        setWindowTitle(QString("Mockup - Level 0x%1").arg(levelnum, 0, 16));
+        
         m_scene.clear();
         m_sceneMap8.clear();
         m_sceneMap16.clear();
@@ -144,7 +198,7 @@ namespace Mockup {
         for(int i = 0; i < 256; i++) imgMap16.setColor(i, palette[i]);
         imgBG.fill(QColor(255, 255, 255, 255));
         for(int i = 0; i < 256; i++) {
-            Tile16 tile = m_level.getMap16fg(i);
+            Tile16 tile = m_level.getMap16bg(i);
             for(int j = 0; j < 256; j++) {
                 imgMap16.setPixel((i % 16) * 16 + (j % 16), (i / 16) * 16 + (j / 16), tile.pixels[j]);
             }

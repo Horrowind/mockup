@@ -16,6 +16,7 @@ namespace Mockup {
         Q_OBJECT
     public:
         MainWindow();
+        MainWindow(int level);
         ~MainWindow();
 
     protected:

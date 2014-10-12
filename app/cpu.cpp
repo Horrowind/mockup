@@ -1,21 +1,20 @@
 #include <cstdio>
 #include <cstring>
 
-#include <fstream>
-#include <iostream>
 #include "cpu.hpp"
 
 
 
 CPU::CPU(const char* path, bool debug) {
     m_debug = debug;
-    std::ifstream rom_file(path, std::ios::in | std::ios::binary | std::ios::ate);
-    if(rom_file.is_open()) {
-	m_size = (unsigned int) rom_file.tellg() - 512;
+    FILE* fp = fopen(path, "r");
+    if(!fp) return;
+    fseek(fp, 0, SEEK_END);
+	m_size = (unsigned int) ftell(fp) - 512;
 	m_rom = new uint8_t[m_size];
-        rom_file.seekg(512, std::ios::beg);
-        rom_file.read((char*)m_rom, m_size);
-    }
+    fseek(fp, 512, SEEK_SET);
+    fread((char*)m_rom, 1, m_size, fp);
+    fclose(fp);
     m_ram = new uint8_t[0x20000];
     m_sreg = new uint8_t[0x2500];
     clear_ram();
@@ -40,7 +39,7 @@ void CPU::run(uint32_t addrFrom, uint32_t addrTo) {
         if(m_debug) {
             char output[256];
             disassemble_opcode(output, regs.pc);
-            std::cout<< output<< std::endl;
+            printf(output);
         }
         step();
     }
@@ -48,8 +47,6 @@ void CPU::run(uint32_t addrFrom, uint32_t addrTo) {
 
 uint8_t CPU::op_read(uint32_t addr) {
     
-    //    if(m_debug) std::cout<<"Read: " << std::hex<<addr <<std::endl;
-
     if(addr & 0xFF8000) {
         if(addr >= 0x7E0000 && addr < 0x800000) {
             return m_ram[addr-0x7E0000];
@@ -63,7 +60,7 @@ uint8_t CPU::op_read(uint32_t addr) {
         if(addr <= 0x004500) {
             return m_sreg[addr - 0x2000];
         } else {
-            std::cerr << std::hex <<"Err: " << regs.pc  << " Read: " << addr <<std::endl;
+            fprintf(stderr, "Err: %06x Read: %06x", regs.pc, addr);
             getchar();
         }
     }
@@ -78,7 +75,7 @@ void CPU::op_write(uint32_t addr, uint8_t data) {
             m_ram[addr-0x7E0000] = data;
         } else {
             if(addr & 0x008000) {
-                std::cerr << std::hex <<"Err: " << regs.pc << " Wrote: " << addr <<std::endl;
+                fprintf(stderr, "Err: %06x Wrote: %06x", regs.pc, addr);
                 getchar();
                 //Todo: ERROR
             } else {
@@ -90,14 +87,13 @@ void CPU::op_write(uint32_t addr, uint8_t data) {
             if(addr <= 0x004500) {
                 m_sreg[addr - 0x2000] = data;
             } else {
-                std::cerr << std::hex <<"Err: " << regs.pc << " Wrote: " << addr <<std::endl;
+                fprintf(stderr, "Err: %06x Wrote: %06x", regs.pc, addr);
                 getchar();
             }
         } else {
             m_ram[addr] = data;
         }
     }
-    //if(m_debug) std::cout<<"Write: " << std::hex<<addr << ": " << std::hex <<(int)data << std::endl;
 }
 
 void CPU::clear_ram() {
@@ -122,7 +118,6 @@ void CPU::init() {
     regs.wai = false;
     regs.vector = 0xfffc;
     update_table();
-
 }
 
 int CPU::get_cur_pos() {
