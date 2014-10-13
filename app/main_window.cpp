@@ -47,9 +47,14 @@ namespace Mockup {
         m_dockMap16 = new QDockWidget("Map 16", this);
         m_dockMap16->setWidget(m_viewMap16);
         
-
+        m_dockDebug = new QDockWidget("Debug", this);
+        m_textDebug = new QTextEdit(m_dockDebug);
+        m_textDebug->setReadOnly(true);
+        m_dockDebug->setWidget(m_textDebug);
+        
         addDockWidget(Qt::BottomDockWidgetArea, m_dockMap8);
         addDockWidget(Qt::BottomDockWidgetArea, m_dockMap16);
+        addDockWidget(Qt::BottomDockWidgetArea, m_dockDebug);
         m_view = new QGraphicsView(&m_scene);
         setCentralWidget(m_view);
         
@@ -129,9 +134,9 @@ namespace Mockup {
     }
     
     MainWindow::~MainWindow() {
-        delete m_dockMap8;
-        delete m_viewMap8;
-        delete m_view;        
+        // delete m_dockMap8;
+        // delete m_dockMap16;
+        // delete m_view;
     }
 
     void MainWindow::update() {

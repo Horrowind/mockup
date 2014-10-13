@@ -17,7 +17,6 @@ namespace Mockup {
     Level::~Level() {
         if(m_layer1) delete m_layer1;
         if(m_layer2) delete m_layer2;
-        if(m_path) delete m_path;
     }
 
     void Level::load_level(int levelnum) {
@@ -30,9 +29,9 @@ namespace Mockup {
         load_objects();
         load_gfx3233();
 
-	for(int i = 0; i < 8; i++) {
-	    animate(i);
-	}
+        for(int i = 0; i < 8; i++) {
+            animate(i);
+        }
     }
     
     void Level::load_palette() {
@@ -208,7 +207,7 @@ namespace Mockup {
         case 0x1E:
         case 0x0A:
         case 0x0D:
-            m_hasLayer2Data = true;
+            m_hasLayer2Objects = true;
             break;
 	    
         case 0x09: // \
@@ -218,10 +217,10 @@ namespace Mockup {
             m_layer1[0] = 0x25;
             m_width     = 1;
             m_height    = 1;
-	    m_hasLayer2Data = false;
+            m_hasLayer2Objects = false;
             return;
         default:
-            m_hasLayer2Data = false;
+            m_hasLayer2Objects = false;
             break;
         }
 
@@ -231,7 +230,6 @@ namespace Mockup {
 
         m_cpu.run(0x0583AC, 0x0583B8);
         m_hasLayer2BG = (m_cpu.m_rom[0x02E600 + 3 * m_levelnum + 2] == 0xFF);
-
         // m_cpu.m_ram[0x1933] = 1; //Object
         // m_cpu.run(0x0583CF, 0x0583D2);
     
@@ -239,16 +237,15 @@ namespace Mockup {
         
     
         if(m_layer1) {
-	    delete[] m_layer1;
-	    m_layer1 = NULL;
-	}
+            delete[] m_layer1;
+            m_layer1 = NULL;
+        }
         if(m_layer2) {
-	    delete[] m_layer2;
-	    m_layer2 = NULL;
-	}
+            delete[] m_layer2;
+            m_layer2 = NULL;
+        }
 
         // Layer 1
-
         if(isVerticalLevel) {
             m_layer1 = new uint16_t[512 * screens];
             m_width = 32;
@@ -298,6 +295,32 @@ namespace Mockup {
                     addr += length + 2;
                 }
             }
+        } else if(m_hasLayer2Objects) {
+            int addrLayer2LowTableEntryPC = m_cpu.m_rom[0x003DA8 + 2 * levelmode];
+            int addrLayer2Low = m_cpu.m_rom[addrLayer2LowTableEntryPC] + (m_cpu.m_rom[addrLayer2LowTableEntryPC + 1] << 8);
+            int addrLayer2HighTableEntryPC = m_cpu.m_rom[0x003DA8 + 2 * levelmode];
+            int addrLayer2High = m_cpu.m_rom[addrLayer2LowTableEntryPC] + (m_cpu.m_rom[addrLayer2LowTableEntryPC + 1] << 8); 
+            if(isVerticalLevel) {
+                m_layer2 = new uint16_t[512 * screens];
+                for(int i = 0; i < 512 * screens; i++) {
+                    int xy = i % 256; int x = xy % 16; int y = xy >> 4;
+                    int sc = i >> 8;  int left = sc&1; int h = sc >> 1;
+            
+                    int cx = left * 16 + x;
+                    int cy = h * 16 + y;
+            
+                    m_layer2[cy * 32 + cx] = m_cpu.m_ram[addrLayer2Low + i] * 256 + m_cpu.m_ram[addrLayer2High + i];
+                }
+            } else {
+                m_layer2 = new uint16_t[432 * screens];
+                for(int i = 0; i < 432 * screens; i++) {
+                    int xy = i % 432;
+                    int sc = i / 432; 
+                    int cx = (xy % 16);
+                    int cy = xy >> 4;
+                    m_layer2[(cy * screens + sc) * 16 + cx] = m_cpu.m_ram[addrLayer2Low + i] * 256 + m_cpu.m_ram[addrLayer2High + i];
+                }
+            }
         }
     }
 
@@ -322,6 +345,14 @@ namespace Mockup {
                     line[i] = m_map16bg[m_layer2[((i & 0x100) >> 4) * 27 + gy * 16 + ((i & 0x0FF) >> 4)]].pixels[pos];
                 }
             } 
+        } else if(m_hasLayer2Objects) {
+            int gy = linenum>>4;
+            int by = linenum%16;
+            
+            for(int i = 0; i < m_width * 16; i++) {
+                int pos = by * 16 + i % 16;
+                line[i] = m_map16bg[m_layer2[gy * m_width + (i >> 4)]].pixels[pos];
+            }
         } else {
             for(int i = 0; i < m_width * 16; i++) line[i] = 0;
         }
@@ -348,8 +379,8 @@ namespace Mockup {
         return m_hasLayer2BG;
     }
 
-    bool Level::hasLayer2Data() {
-        return m_hasLayer2Data;
+    bool Level::hasLayer2Objects() {
+        return m_hasLayer2Objects;
     }
 
     bool Level::isVerticalLevel() {

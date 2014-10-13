@@ -1,0 +1,5 @@
+#ifndef MOCKUP_DEBUG_HPP
+#define MOCKUP_DEBUG_HPP
+
+
+#endif //MOCKUP_DEBUG_HPP

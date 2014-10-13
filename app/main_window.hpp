@@ -3,6 +3,8 @@
 
 #include <QMainWindow>
 #include <QGraphicsView>
+#include <QTextEdit>
+
 
 #include "cpu.hpp"
 #include "level.hpp"
@@ -32,6 +34,9 @@ namespace Mockup {
 
         QGraphicsView* m_view;
         QGraphicsScene m_scene;
+
+        QDockWidget*   m_dockDebug;
+        QTextEdit*     m_textDebug;
 
         QDockWidget*   m_dockMap8;
         QGraphicsView* m_viewMap8;

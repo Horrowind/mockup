@@ -31,7 +31,7 @@ namespace Mockup {
         void      animate(unsigned char frame);
 
         bool      hasLayer2BG();
-        bool      hasLayer2Data();
+        bool      hasLayer2Objects();
         bool      isVerticalLevel();
         
     private:
@@ -53,7 +53,7 @@ namespace Mockup {
 
         int m_screens;
         bool m_hasLayer2BG;
-        bool m_hasLayer2Data;
+        bool m_hasLayer2Objects;
         bool m_isVerticalLevel;
         uint32_t m_backgroundColor;
 	
@@ -66,7 +66,7 @@ namespace Mockup {
         Tile8    m_gfx3233[m_sizeOfGFX32 + m_sizeOfGFX33];
         Tile16   m_map16fg[512];
         Tile16   m_map16bg[512];
-        CPU m_cpu;
+        CPU      m_cpu;
         
     };
 
