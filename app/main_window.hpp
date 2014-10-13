@@ -19,7 +19,14 @@ namespace Mockup {
     public:
         MainWindow();
         MainWindow(int level);
+        MainWindow(MainWindow& w);
+
         ~MainWindow();
+        QTextEdit*     m_textDebug;
+
+
+        int getLevelNumber();
+        QString getFilePath();
 
     protected:
         virtual void keyPressEvent(QKeyEvent* event);
@@ -36,7 +43,6 @@ namespace Mockup {
         QGraphicsScene m_scene;
 
         QDockWidget*   m_dockDebug;
-        QTextEdit*     m_textDebug;
 
         QDockWidget*   m_dockMap8;
         QGraphicsView* m_viewMap8;

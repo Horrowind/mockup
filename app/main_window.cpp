@@ -11,8 +11,7 @@
 #include <QKeyEvent>
 #include <QTimer>
 
-
-
+#include "debug.hpp"
 #include "cpu.hpp"
 #include "level.hpp"
 #include "main_window.hpp"
@@ -29,6 +28,13 @@ namespace Mockup {
         
         setDockOptions(QMainWindow::AnimatedDocks | QMainWindow::AllowNestedDocks | QMainWindow::AllowTabbedDocks);
 
+        m_dockDebug = new QDockWidget("Debug", this);
+        m_textDebug = new QTextEdit(m_dockDebug);
+        m_textDebug->setReadOnly(true);
+        m_dockDebug->setWidget(m_textDebug);
+
+        initializeDebug(m_textDebug);
+
         m_viewMap8 = new QGraphicsView(&m_sceneMap8);
         m_viewMap8->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         m_viewMap8->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -46,11 +52,6 @@ namespace Mockup {
       
         m_dockMap16 = new QDockWidget("Map 16", this);
         m_dockMap16->setWidget(m_viewMap16);
-        
-        m_dockDebug = new QDockWidget("Debug", this);
-        m_textDebug = new QTextEdit(m_dockDebug);
-        m_textDebug->setReadOnly(true);
-        m_dockDebug->setWidget(m_textDebug);
         
         addDockWidget(Qt::BottomDockWidgetArea, m_dockMap8);
         addDockWidget(Qt::BottomDockWidgetArea, m_dockMap16);
@@ -58,8 +59,6 @@ namespace Mockup {
         m_view = new QGraphicsView(&m_scene);
         setCentralWidget(m_view);
         
-
-
         // for(int i = 0; i < 512; i++) {
         //     draw_level(filePath.toLatin1().data(), i);
         //     QImage image(scene.sceneRect().size().toSize(), QImage::Format_ARGB32);
@@ -78,61 +77,10 @@ namespace Mockup {
 
     }
 
-    MainWindow::MainWindow() : m_level("smw.smc", 0x105) {
-        // filePath = QFileDialog::getOpenFileName(nullptr, "Open ROM", QString(), "*.smc");
-        // if(filePath == "") exit(0);
-        m_currentLevel = 0x105;
+    MainWindow::MainWindow() : MainWindow(0x105) { }
 
+    MainWindow::MainWindow(MainWindow& w) :  MainWindow(w.getLevelNumber()) { }
 
-        setDocumentMode(true);
-        grabKeyboard();
-        
-        setDockOptions(QMainWindow::AnimatedDocks | QMainWindow::AllowNestedDocks | QMainWindow::AllowTabbedDocks);
-
-        m_viewMap8 = new QGraphicsView(&m_sceneMap8);
-        m_viewMap8->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-        m_viewMap8->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-        m_viewMap8->setMinimumSize(128, 256);
-        m_viewMap8->setMaximumSize(128, 256);
-      
-        m_dockMap8 = new QDockWidget("Map 8", this);
-        m_dockMap8->setWidget(m_viewMap8);
-        
-        m_viewMap16 = new QGraphicsView(&m_sceneMap16);
-        m_viewMap16->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-        m_viewMap16->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-        m_viewMap16->setMinimumSize(256, 256);
-        m_viewMap16->setMaximumSize(256, 256);
-      
-        m_dockMap16 = new QDockWidget("Map 16", this);
-        m_dockMap16->setWidget(m_viewMap16);
-        
-
-        addDockWidget(Qt::BottomDockWidgetArea, m_dockMap8);
-        addDockWidget(Qt::BottomDockWidgetArea, m_dockMap16);
-        m_view = new QGraphicsView(&m_scene);
-        setCentralWidget(m_view);
-        
-
-
-        // for(int i = 0; i < 512; i++) {
-        //     draw_level(filePath.toLatin1().data(), i);
-        //     QImage image(scene.sceneRect().size().toSize(), QImage::Format_ARGB32);
-        //     QPainter painter(&image);
-        //     painter.setRenderHint(QPainter::SmoothPixmapTransform);
-        //     scene.render(&painter, QRectF(0, 0, 256*screens, 432));
-        //     image.save("png/" + QString::number(i, 16) + ".png");
-        // }
-
-        
-        draw_level(m_currentLevel);
-
-        QTimer *timer = new QTimer(this);
-        connect(timer, SIGNAL(timeout()), this, SLOT(update()));
-        timer->start(8000/60);
-
-    }
-    
     MainWindow::~MainWindow() {
         // delete m_dockMap8;
         // delete m_dockMap16;
@@ -140,6 +88,7 @@ namespace Mockup {
     }
 
     void MainWindow::update() {
+
         m_frame += 8;
         for(int i = 0; i < 8; i++) {
             m_level.animate(m_frame + i);
@@ -226,7 +175,16 @@ namespace Mockup {
         m_level.load_level(m_currentLevel);
         draw_level(m_currentLevel);
     }
- 
+
+
+    QString MainWindow::getFilePath() {
+        return m_filePath;
+    }
+
+    int MainWindow::getLevelNumber() {
+        return m_currentLevel;
+    }
+
 
 
 };

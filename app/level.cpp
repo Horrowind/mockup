@@ -6,6 +6,7 @@
 #include "misc.hpp"
 #include "level.hpp"
 #include "encryption.hpp"
+#include "debug.hpp"
 
 namespace Mockup {
     
@@ -24,6 +25,7 @@ namespace Mockup {
         m_cpu.init();
 
         load_palette();
+        qDebug("Loaded Palette");
         load_map8();
         load_map16();
         load_objects();
