@@ -14,6 +14,12 @@ namespace Mockup {
         load_level(levelnum);
     }
 
+    Level::~Level() {
+        if(m_layer1) delete m_layer1;
+        if(m_layer2) delete m_layer2;
+        if(m_path) delete m_path;
+    }
+
     void Level::load_level(int levelnum) {
         m_levelnum = levelnum;
 

@@ -9,6 +9,7 @@ namespace Mockup {
     class Level {
     public:
         Level(const char* path, int levelnum);
+        ~Level();
 
         void      load_level(int level);
 
