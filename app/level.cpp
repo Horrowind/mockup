@@ -22,7 +22,6 @@ namespace Mockup {
 
     void Level::load_level(int levelnum) {
         m_levelnum = levelnum;
-
         m_cpu.init();
 
         load_palette();
@@ -30,10 +29,10 @@ namespace Mockup {
         load_map16();
         load_objects();
         load_gfx3233();
-        for(int i = 0; i < 8; i++) animate(i);
 
-
-
+	for(int i = 0; i < 8; i++) {
+	    animate(i);
+	}
     }
     
     void Level::load_palette() {
@@ -239,8 +238,14 @@ namespace Mockup {
         
         
     
-        if(m_layer1) delete[] m_layer1;
-        if(m_layer2) delete[] m_layer2;
+        if(m_layer1) {
+	    delete[] m_layer1;
+	    m_layer1 = NULL;
+	}
+        if(m_layer2) {
+	    delete[] m_layer2;
+	    m_layer2 = NULL;
+	}
 
         // Layer 1
 
