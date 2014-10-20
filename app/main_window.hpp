@@ -22,8 +22,6 @@ namespace Mockup {
         MainWindow(MainWindow& w);
 
         ~MainWindow();
-        QTextEdit*     m_textDebug;
-
 
         int getLevelNumber();
         QString getFilePath();
@@ -43,6 +41,7 @@ namespace Mockup {
         QGraphicsScene m_scene;
 
         QDockWidget*   m_dockDebug;
+        QTextEdit*     m_textDebug;
 
         QDockWidget*   m_dockMap8;
         QGraphicsView* m_viewMap8;

@@ -35,6 +35,13 @@ add_custom_target(
     bsnes-r65816
     DEPENDS ${CMAKE_SOURCE_DIR}/bsnes/obj/processor-r65816.o
 )
+
+add_custom_target(run
+    COMMAND mockup 0 --geometry -0+0
+    DEPENDS mockup
+    WORKING_DIRECTORY ${CMAKE_PROJECT_DIR/app}
+)
+
 #export(TARGETS bsnes-r65816 FILE bsnes-exports.cmake)
 
 include_directories(world-lib)

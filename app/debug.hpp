@@ -1,20 +1,20 @@
 
 #ifndef MOCKUP_DEBUG_HPP
 #define MOCKUP_DEBUG_HPP
-#pragma "once"
 
 #include "QtDebug"
 #include "QTextEdit"
 
-namespace Mockup {
-    namespace Internal {
-        struct helper {
-        public:
-            static QTextEdit* edit;
-        };
-        QTextEdit* helper::edit;
-    }
+namespace Internal {
+    struct helper {
+        static QTextEdit* edit;
+    };
+    QTextEdit* Internal::helper::edit;
+}
 
+namespace Mockup {
+    
+    
     void initializeDebug(QTextEdit* edit) {
         Internal::helper::edit = edit;
         qInstallMessageHandler([](QtMsgType type, const QMessageLogContext &context, const QString &msg) {

@@ -4,9 +4,9 @@
 
 #include "addresses.hpp"
 #include "misc.hpp"
+#include <Qt>
 #include "level.hpp"
 #include "encryption.hpp"
-#include "debug.hpp"
 
 namespace Mockup {
     
@@ -199,7 +199,7 @@ namespace Mockup {
 
         
         int levelmode = m_cpu.m_ram[0x1925];
-        int bgColorAddr = 0x30A0 + m_cpu.m_ram[0x192F];
+        int bgColorAddr = 0x30A0 + 2 * m_cpu.m_ram[0x192F];
         m_backgroundColor = convertColor(m_cpu.m_rom[bgColorAddr] | (m_cpu.m_rom[bgColorAddr + 1] << 8));
         switch(levelmode) {
         case 0x00:
