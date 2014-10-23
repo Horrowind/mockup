@@ -4,12 +4,11 @@
 
 #include "addresses.hpp"
 #include "misc.hpp"
-#include <Qt>
+#include <QDebug>
+#include <QString>
 #include "level.hpp"
 #include "encryption.hpp"
 
-namespace Mockup {
-    
     Level::Level(const char* path, int levelnum) : m_cpu(path) {
         m_path = path;
         load_level(levelnum);
@@ -25,7 +24,6 @@ namespace Mockup {
         m_cpu.init();
 
         load_palette();
-        qDebug("Loaded Palette");
         load_map8();
         load_map16();
         load_objects();
@@ -209,6 +207,7 @@ namespace Mockup {
         case 0x1E:
         case 0x0A:
         case 0x0D:
+            qDebug("Layer2 Objects");
             m_hasLayer2Objects = true;
             break;
 	    
@@ -298,6 +297,7 @@ namespace Mockup {
                 }
             }
         } else if(m_hasLayer2Objects) {
+            qDebug("Layer2 Objects");
             int addrLayer2LowTableEntryPC = m_cpu.m_rom[0x003DA8 + 2 * levelmode];
             int addrLayer2Low = m_cpu.m_rom[addrLayer2LowTableEntryPC] + (m_cpu.m_rom[addrLayer2LowTableEntryPC + 1] << 8);
             int addrLayer2HighTableEntryPC = m_cpu.m_rom[0x003DA8 + 2 * levelmode];
@@ -312,6 +312,7 @@ namespace Mockup {
                     int cy = h * 16 + y;
             
                     m_layer2[cy * 32 + cx] = m_cpu.m_ram[addrLayer2Low + i] * 256 + m_cpu.m_ram[addrLayer2High + i];
+                    
                 }
             } else {
                 m_layer2 = new uint16_t[432 * screens];
