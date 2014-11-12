@@ -17,6 +17,7 @@ add_custom_target(run
     WORKING_DIRECTORY ${CMAKE_PROJECT_DIR}
 )
 
-add_subdirectory(app)
 add_subdirectory(lib)
+add_subdirectory(app)
+
 
