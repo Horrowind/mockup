@@ -1,7 +1,7 @@
 #ifndef MOCKUP_CPU_ALGORITHMS_H
 #define MOCKUP_CPU_ALGORITHMS_H
 
-#include "rom.h"
+#include "cpu.h"
 
 void op_adc_b(cpu_t* cpu);
 void op_adc_w(cpu_t* cpu);

@@ -3,14 +3,14 @@
 void op_nop(cpu_t* cpu);
 void op_wdm(cpu_t* cpu);
 void op_xba(cpu_t* cpu);
-void op_move_b(int adjust);
+void op_move_b(cpu_t* cpu, int adjust);
 void op_move_w(cpu_t* cpu, int adjust);
 void op_interrupt_e(cpu_t* cpu, int vectorE, int vectorN);
 void op_interrupt_n(cpu_t* cpu, int vectorE, int vectorN);
 void op_stp(cpu_t* cpu);
 void op_wai(cpu_t* cpu);
 void op_xce(cpu_t* cpu);
-void op_flag(cpu_t* cpu, int mask, int value);
+void op_flag(cpu_t* cpu);
 void op_pflag_e(cpu_t* cpu, int mode);
 void op_pflag_n(cpu_t* cpu, int mode);
 void op_transfer_b(cpu_t* cpu, int from, int to);

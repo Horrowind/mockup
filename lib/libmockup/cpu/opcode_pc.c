@@ -1,14 +1,27 @@
+#include "memory.h"
 #include "opcode_pc.h"
 
-inline void op_branch(cpu_t* cpu, int bit, int val) {
-    //if((bool)(cpu->regs.p & bit) != val) {
-    if((cpu->regs.p.b & bit) != val) {
-        cpu->rd.l = op_readpc(cpu);
-    } else {
-        cpu->rd.l = op_readpc(cpu);
-        cpu->regs.pc.w = cpu->regs.pc.d + (int8_t)cpu->rd.l;
-    }
+#define op_branch_gen(name, bit, val)                            \
+inline void op_branch_##name(cpu_t* cpu) {    \
+    /*if((bool)(cpu->regs.p & bit) != val) { */                  \
+    if((cpu->regs.p.b & bit) != val) {                           \
+        cpu->rd.l = op_readpc(cpu);                              \
+    } else {                                                     \
+        cpu->rd.l = op_readpc(cpu);                              \
+        cpu->regs.pc.w = cpu->regs.pc.d + (int8_t)cpu->rd.l;     \
+    }                                                            \
 }
+
+op_branch_gen(BPL, 0x80, 0);
+op_branch_gen(BMI, 0x80, 1);
+op_branch_gen(BVC, 0x40, 0);
+op_branch_gen(BVS, 0x40, 1);
+op_branch_gen(BCC, 0x01, 0);
+op_branch_gen(BCS, 0x01, 1);
+op_branch_gen(BNE, 0x02, 0);
+op_branch_gen(BEQ, 0x02, 1);
+#undef op_branch_gen
+
 
 inline void op_bra(cpu_t* cpu) {
     cpu->rd.l = op_readpc(cpu);
@@ -38,25 +51,25 @@ inline void op_jmp_long(cpu_t* cpu) {
 inline void op_jmp_iaddr(cpu_t* cpu) {
     cpu->aa.l = op_readpc(cpu);
     cpu->aa.h = op_readpc(cpu);
-    cpu->rd.l = op_readaddr(cpu->aa.w + 0);
-    cpu->rd.h = op_readaddr(cpu->aa.w + 1);
+    cpu->rd.l = op_readaddr(cpu, cpu->aa.w + 0);
+    cpu->rd.h = op_readaddr(cpu, cpu->aa.w + 1);
     cpu->regs.pc.w = cpu->rd.w;
 }
 
 inline void op_jmp_iaddrx(cpu_t* cpu) {
     cpu->aa.l = op_readpc(cpu);
     cpu->aa.h = op_readpc(cpu);
-    cpu->rd.l = op_readpbr(cpu->aa.w + cpu->regs.x.w + 0);
-    cpu->rd.h = op_readpbr(cpu->aa.w + cpu->regs.x.w + 1);
+    cpu->rd.l = op_readpbr(cpu, cpu->aa.w + cpu->regs.x.w + 0);
+    cpu->rd.h = op_readpbr(cpu, cpu->aa.w + cpu->regs.x.w + 1);
     cpu->regs.pc.w = cpu->rd.w;
 }
 
 inline void op_jmp_iladdr(cpu_t* cpu) {
     cpu->aa.l = op_readpc(cpu);
     cpu->aa.h = op_readpc(cpu);
-    cpu->rd.l = op_readaddr(cpu->aa.w + 0);
-    cpu->rd.h = op_readaddr(cpu->aa.w + 1);
-    cpu->rd.b = op_readaddr(cpu->aa.w + 2);
+    cpu->rd.l = op_readaddr(cpu, cpu->aa.w + 0);
+    cpu->rd.h = op_readaddr(cpu, cpu->aa.w + 1);
+    cpu->rd.b = op_readaddr(cpu, cpu->aa.w + 2);
     cpu->regs.pc.d = cpu->rd.d & 0xffffff;
 }
 
@@ -97,8 +110,8 @@ inline void op_jsr_iaddrx_e(cpu_t* cpu) {
     op_writestackn(cpu, cpu->regs.pc.h);
     op_writestackn(cpu, cpu->regs.pc.l);
     cpu->aa.h = op_readpc(cpu);
-    cpu->rd.l = op_readpbr(cpu->aa.w + cpu->regs.x.w + 0);
-    cpu->rd.h = op_readpbr(cpu->aa.w + cpu->regs.x.w + 1);
+    cpu->rd.l = op_readpbr(cpu, cpu->aa.w + cpu->regs.x.w + 0);
+    cpu->rd.h = op_readpbr(cpu, cpu->aa.w + cpu->regs.x.w + 1);
     cpu->regs.pc.w = cpu->rd.w;
     cpu->regs.s.h = 0x01;
 }
@@ -108,8 +121,8 @@ inline void op_jsr_iaddrx_n(cpu_t* cpu) {
     op_writestackn(cpu, cpu->regs.pc.h);
     op_writestackn(cpu, cpu->regs.pc.l);
     cpu->aa.h = op_readpc(cpu);
-    cpu->rd.l = op_readpbr(cpu->aa.w + cpu->regs.x.w + 0);
-    cpu->rd.h = op_readpbr(cpu->aa.w + cpu->regs.x.w + 1);
+    cpu->rd.l = op_readpbr(cpu, cpu->aa.w + cpu->regs.x.w + 0);
+    cpu->rd.h = op_readpbr(cpu, cpu->aa.w + cpu->regs.x.w + 1);
     cpu->regs.pc.w = cpu->rd.w;
 }
 
@@ -122,7 +135,7 @@ inline void op_rti_e(cpu_t* cpu) {
 
 inline void op_rti_n(cpu_t* cpu) {
     cpu->regs.p.b = op_readstack(cpu);
-    if(cpu->regs.p.flags.x) {
+    if(cpu->regs.p.x) {
         cpu->regs.x.h = 0x00;
         cpu->regs.y.h = 0x00;
     }

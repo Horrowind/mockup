@@ -15,14 +15,21 @@ struct reg24 {
 };
 typedef struct reg24 reg24_t;
 
-struct regs {
-    reg24_t pc;
+struct reg16 {
     union {
         uint16_t w;
         uint8_t l, h;
-    } a, x, y, z, s, d;
+    };
+};
+typedef struct reg16 reg16_t;
+struct regs {
+    reg24_t pc;
     union {
-        struct { uint8_t n:1, v:1, m:1, x:1, d:1, i:1, z:1, c:1; } flags;
+        reg16_t r[6];
+        reg16_t a, x, y, z, s, d;
+    };
+    union {
+        struct { uint8_t n:1, v:1, m:1, x:1, d:1, i:1, z:1, c:1; };
         uint8_t b;
     } p;
     uint8_t db;
@@ -43,6 +50,8 @@ struct cpu {
     reg24_t aa, rd;
     uint8_t sp, dp;
     
+    void (**opcode_table)(struct cpu*);
+    void (*op_table[5 * 256])(struct cpu*);
 
 };
 typedef struct cpu cpu_t;
@@ -50,5 +59,6 @@ typedef struct cpu cpu_t;
 void cpu_step(cpu_t* cpu);
 void cpu_init(cpu_t* cpu, rom_t* rom);
 void cpu_show_state(cpu_t* cpu, char ouput[256]);
+void cpu_disassemble_opcode(cpu_t* cpu, char* output, uint32_t addr);
 
 #endif //MOCKUP_CPU_H
