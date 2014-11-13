@@ -1,68 +1,84 @@
 #include "cpu/memory.h"
 #include "cpu/opcode_write.h"
 
-template<int n> void op_write_addr_b(cpu_t* cpu) {
-  cpu->aa.l = op_readpc(cpu);
-  cpu->aa.h = op_readpc(cpu);
-  op_writedbr(cpu, cpu->aa.w, cpu->regs.r[n]);
-}
+#define op_write_addr_gen(name, num)					\
+    void op_write_addr_##name##_b(cpu_t* cpu) {				\
+	cpu->aa.l = op_readpc(cpu);					\
+	cpu->aa.h = op_readpc(cpu);					\
+	op_writedbr(cpu, cpu->aa.w, cpu->regs.r[n]);			\
+    }									\
+									\
+    void op_write_addr##name##_w(cpu_t* cpu) {				\
+	cpu->aa.l = op_readpc(cpu);					\
+	cpu->aa.h = op_readpc(cpu);					\
+	op_writedbr(cpu, cpu->aa.w + 0, cpu->regs.r[n] >> 0);		\
+	op_writedbr(cpu, cpu->aa.w + 1, cpu->regs.r[n] >> 8);		\
+    }
 
-template<int n> void op_write_addr_w(cpu_t* cpu) {
-  cpu->aa.l = op_readpc(cpu);
-  cpu->aa.h = op_readpc(cpu);
-  op_writedbr(cpu, cpu->aa.w + 0, cpu->regs.r[n] >> 0);
-  op_writedbr(cpu, cpu->aa.w + 1, cpu->regs.r[n] >> 8);
-}
 
-template<int n, int i> void op_write_addrr_b(cpu_t* cpu) {
-  cpu->aa.l = op_readpc(cpu);
-  cpu->aa.h = op_readpc(cpu);
-  op_writedbr(cpu, cpu->aa.w + cpu->regs.r[i], cpu->regs.r[n]);
-}
+#undef op_write_addr_gen
 
-template<int n, int i> void op_write_addrr_w(cpu_t* cpu) {
-  cpu->aa.l = op_readpc(cpu);
-  cpu->aa.h = op_readpc(cpu);
-  op_writedbr(cpu, cpu->aa.w + cpu->regs.r[i] + 0, cpu->regs.r[n] >> 0);
-  op_writedbr(cpu, cpu->aa.w + cpu->regs.r[i] + 1, cpu->regs.r[n] >> 8);
-}
+#define op_write_addrr_gen(name, num, i)				\
+    void op_write_addrr_##name##_b(cpu_t* cpu) {			\
+    cpu->aa.l = op_readpc(cpu);						\
+    cpu->aa.h = op_readpc(cpu);						\
+    op_writedbr(cpu, cpu->aa.w + cpu->regs.r[i], cpu->regs.r[n]);	\
+    }									\
+     									\
+     void op_write_addrr_##name##_w(cpu_t* cpu) {				\
+					cpu->aa.l = op_readpc(cpu);	\
+					cpu->aa.h = op_readpc(cpu);	\
+					op_writedbr(cpu, cpu->aa.w + cpu->regs.r[i] + 0, cpu->regs.r[n] >> 0); \
+					op_writedbr(cpu, cpu->aa.w + cpu->regs.r[i] + 1, cpu->regs.r[n] >> 8); \
+					}
 
-template<int i> void op_write_longr_b(cpu_t* cpu) {
-  cpu->aa.l = op_readpc(cpu);
-  cpu->aa.h = op_readpc(cpu);
-  cpu->aa.b = op_readpc(cpu);
-  op_writelong(cpu, cpu->aa.d + cpu->regs.r[i], cpu->regs.a.l);
-}
+#undef op_write_addrr_gen
 
-template<int i> void op_write_longr_w(cpu_t* cpu) {
-  cpu->aa.l = op_readpc(cpu);
-  cpu->aa.h = op_readpc(cpu);
-  cpu->aa.b = op_readpc(cpu);
-  op_writelong(cpu, cpu->aa.d + cpu->regs.r[i] + 0, cpu->regs.a.l);
-  op_writelong(cpu, cpu->aa.d + cpu->regs.r[i] + 1, cpu->regs.a.h);
-}
+#define op_write_longr_gen(name, i)					\
+    void op_write_longr_##name##_b(cpu_t* cpu) {			\
+	cpu->aa.l = op_readpc(cpu);					\
+	cpu->aa.h = op_readpc(cpu);					\
+	cpu->aa.b = op_readpc(cpu);					\
+	op_writelong(cpu, cpu->aa.d + cpu->regs.r[i], cpu->regs.a.l);	\
+    }									\
+    									\
+    void op_write_longr_##name##_w(cpu_t* cpu) {			\
+	cpu->aa.l = op_readpc(cpu);					\
+	cpu->aa.h = op_readpc(cpu);					\
+	cpu->aa.b = op_readpc(cpu);					\
+	op_writelong(cpu, cpu->aa.d + cpu->regs.r[i] + 0, cpu->regs.a.l); \
+	op_writelong(cpu, cpu->aa.d + cpu->regs.r[i] + 1, cpu->regs.a.h); \
+    }
 
-template<int n> void op_write_dp_b(cpu_t* cpu) {
-  cpu->dp = op_readpc(cpu);
-  op_writedp(cpu->dp, cpu->regs.r[n]);
-}
+#undef op_write_longr_gen	 
 
-template<int n> void op_write_dp_w(cpu_t* cpu) {
-  cpu->dp = op_readpc(cpu);
-  op_writedp(cpu->dp + 0, cpu->regs.r[n] >> 0);
-  op_writedp(cpu->dp + 1, cpu->regs.r[n] >> 8);
-}
 
-template<int n, int i> void op_write_dpr_b(cpu_t* cpu) {
-  cpu->dp = op_readpc(cpu);
-  op_writedp(cpu->dp + cpu->regs.r[i], cpu->regs.r[n]);
-}
+#define op_write_dp_gen(name, num)				\
+    void op_write_dp_##name##_b(cpu_t* cpu) {			\
+	cpu->dp = op_readpc(cpu);				\
+	op_writedp(cpu->dp, cpu->regs.r[n]);			\
+    }								\
+    								\
+    void op_write_dp_##name##_w(cpu_t* cpu) {			\
+	cpu->dp = op_readpc(cpu);				\
+	op_writedp(cpu->dp + 0, cpu->regs.r[n] >> 0);		\
+	op_writedp(cpu->dp + 1, cpu->regs.r[n] >> 8);		\
+    }
+#undef op_write_dp_gen
 
-template<int n, int i> void op_write_dpr_w(cpu_t* cpu) {
-  cpu->dp = op_readpc(cpu);
-  op_writedp(cpu->dp + cpu->regs.r[i] + 0, cpu->regs.r[n] >> 0);
-  op_writedp(cpu->dp + cpu->regs.r[i] + 1, cpu->regs.r[n] >> 8);
-}
+#define op_write_dpr_gen(name, num, i)					\
+    void op_write_dpr_##name##_b(cpu_t* cpu) {				\
+	cpu->dp = op_readpc(cpu);					\
+	op_writedp(cpu->dp + cpu->regs.r[i], cpu->regs.r[n]);		\
+    }									\
+									\
+    void op_write_dpr_##name##_w(cpu_t* cpu) {				\
+	cpu->dp = op_readpc(cpu);					\
+	op_writedp(cpu->dp + cpu->regs.r[i] + 0, cpu->regs.r[n] >> 0);	\
+	op_writedp(cpu->dp + cpu->regs.r[i] + 1, cpu->regs.r[n] >> 8);	\
+    }
+
+#undef op_write_dpr_gen
 
 void op_sta_idp_b(cpu_t* cpu) {
   cpu->dp = op_readpc(cpu);
