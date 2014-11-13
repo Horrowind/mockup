@@ -12,6 +12,10 @@ add_library(libmockup
   cpu/memory.c
   cpu/opcode_misc.c
   cpu/opcode_pc.c
+  cpu/opcode_read.c
+  cpu/opcode_rmw.c
+  cpu/opcode_write.c
+  cpu/table.c
 )
 set_target_properties(libmockup PROPERTIES PREFIX "")
 target_link_libraries(libmockup ${CMAKE_SOURCE_DIR}/bsnes/obj/processor-r65816.o)

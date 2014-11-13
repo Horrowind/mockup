@@ -44,8 +44,8 @@ void op_xba(cpu_t* cpu) {
         if(cpu->regs.a.w--) cpu->regs.pc.w -= 3;                        \
     }                                                                   \
     
-op_move_gen(MVP, (-1));
-op_move_gen(MVN, (+1));
+op_move_gen(mvp, (-1));
+op_move_gen(mvn, (+1));
 #undef op_move_gen
 
 #define op_interrupt_gen(name, vectorE, vectorN)                   \
@@ -76,8 +76,8 @@ op_move_gen(MVN, (+1));
         cpu->regs.pc.w = cpu->rd.w;                                \
     }                                                              \
     
-op_interrupt_gen(BRK, 0xfffe, 0xffe6);
-op_interrupt_gen(COP, 0xfff4, 0xffe4);
+op_interrupt_gen(brk, 0xfffe, 0xffe6);
+op_interrupt_gen(cop, 0xfff4, 0xffe4);
 
 
 void op_stp(cpu_t* cpu) {
@@ -146,6 +146,7 @@ op_flag_gen(SED, 0x08, 0x08);
 
 op_pflag_gen(REP, 0);
 op_pflag_gen(SEP, 1);
+#undef op_pflag_gen
 
 #define op_transfer_gen(name, from, to)                          \
     void op_transfer_##name##_b(cpu_t* cpu) {                    \
@@ -162,19 +163,17 @@ op_pflag_gen(SEP, 1);
 
 
 
-op_transfer_gen(TSC, S, A);
-op_transfer_gen(TCD, A, D);
-op_transfer_gen(TDC, D, A);
+op_transfer_gen(tsc, S, A);
+op_transfer_gen(tcd, A, D);
+op_transfer_gen(tdc, D, A);
 
-op_transfer_gen(TXA, X, A);
-op_transfer_gen(TYA, Y, A);
-op_transfer_gen(TXY, X, Y);
-op_transfer_gen(TAY, A, Y);
-op_transfer_gen(TAX, A, X);
-op_transfer_gen(TYX, Y, X);
-
-
-
+op_transfer_gen(txa, X, A);
+op_transfer_gen(tya, Y, A);
+op_transfer_gen(txy, X, Y);
+op_transfer_gen(tay, A, Y);
+op_transfer_gen(tax, A, X);
+op_transfer_gen(tyx, Y, X);
+#undef op_transfer_gen
 
 void op_tcs_e(cpu_t* cpu) {
     cpu->regs.s.l = cpu->regs.a.l;

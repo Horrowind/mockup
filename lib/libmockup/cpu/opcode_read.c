@@ -1,275 +1,448 @@
-template<void (R65816::*op)()> void R65816::op_read_const_b() {
-    rd.l = op_readpc();
-    call(op);
+#include "cpu/algorithms.h"
+#include "cpu/memory.h"
+#include "cpu/opcode_read.h"
+
+#define A 0
+#define X 1
+#define Y 2
+#define Z 3
+#define S 4
+#define D 5
+
+#define op_read_const_gen(op)                                           \
+    void op_read_const_##op##_b(cpu_t* cpu) {                           \
+        cpu->rd.l = op_readpc(cpu);                                     \
+        op_##op##_b(cpu);                                               \
+    }                                                                   \
+                                                                        \
+    void op_read_const_##op##_w(cpu_t* cpu) {                           \
+        cpu->rd.l = op_readpc(cpu);                                     \
+        cpu->rd.h = op_readpc(cpu);                                     \
+        op_##op##_w(cpu);                                               \
+    }
+
+op_read_const_gen(ora);
+op_read_const_gen(bit);
+op_read_const_gen(and);
+op_read_const_gen(eor);
+op_read_const_gen(adc);
+op_read_const_gen(ldy);
+op_read_const_gen(lda);
+op_read_const_gen(ldx);
+op_read_const_gen(cpy);
+op_read_const_gen(cmp);
+op_read_const_gen(cpx);
+op_read_const_gen(sbc);
+
+#undef op_read_const_gen
+
+void op_read_bit_const_b(cpu_t* cpu) {
+    cpu->rd.l = op_readpc(cpu);
+    cpu->regs.p.z = ((cpu->rd.l & cpu->regs.a.l) == 0);
 }
 
-template<void (R65816::*op)()> void R65816::op_read_const_w() {
-    rd.l = op_readpc();
-    rd.h = op_readpc();
-    call(op);
+void op_read_bit_const_w(cpu_t* cpu) {
+    cpu->rd.l = op_readpc(cpu);
+    cpu->rd.h = op_readpc(cpu);
+    cpu->regs.p.z = ((cpu->rd.w & cpu->regs.a.w) == 0);
 }
 
-void R65816::op_read_bit_const_b() {
-    rd.l = op_readpc();
-    regs.p.z = ((rd.l & regs.a.l) == 0);
-}
+#define op_read_addr_gen(op)                                            \
+    void op_read_addr_##op##_b(cpu_t* cpu) {                            \
+        cpu->aa.l = op_readpc(cpu);                                     \
+        cpu->aa.h = op_readpc(cpu);                                     \
+        cpu->rd.l = op_readdbr(cpu, cpu->aa.w);                         \
+        op_##op##_w(cpu);                                               \
+    }                                                                   \
+                                                                        \
+    void op_read_addr_##op##_w(cpu_t* cpu) {                            \
+        cpu->aa.l = op_readpc(cpu);                                     \
+        cpu->aa.h = op_readpc(cpu);                                     \
+        cpu->rd.l = op_readdbr(cpu, cpu->aa.w + 0);                     \
+        cpu->rd.h = op_readdbr(cpu, cpu->aa.w + 1);                     \
+        op_##op##_w(cpu);                                               \
+    }
 
-void R65816::op_read_bit_const_w() {
-    rd.l = op_readpc();
-    rd.h = op_readpc();
-    regs.p.z = ((rd.w & regs.a.w) == 0);
-}
+op_read_addr_gen(ora);
+op_read_addr_gen(bit);
+op_read_addr_gen(and);
+op_read_addr_gen(eor);
+op_read_addr_gen(adc);
+op_read_addr_gen(ldy);
+op_read_addr_gen(lda);
+op_read_addr_gen(ldx);
+op_read_addr_gen(cpy);
+op_read_addr_gen(cmp);
+op_read_addr_gen(cpx);
+op_read_addr_gen(sbc);
 
-template<void (R65816::*op)()> void R65816::op_read_addr_b() {
-    aa.l = op_readpc();
-    aa.h = op_readpc();
-    rd.l = op_readdbr(aa.w);
-    call(op);
-}
+#undef op_read_addr_gen
 
-template<void (R65816::*op)()> void R65816::op_read_addr_w() {
-    aa.l = op_readpc();
-    aa.h = op_readpc();
-    rd.l = op_readdbr(aa.w + 0);
-    rd.h = op_readdbr(aa.w + 1);
-    call(op);
-}
+#define op_read_addrx_gen(op)                                           \
+    void op_read_addrx_##op##_b(cpu_t* cpu) {                           \
+        cpu->aa.l = op_readpc(cpu);                                     \
+        cpu->aa.h = op_readpc(cpu);                                     \
+        cpu->rd.l = op_readdbr(cpu, cpu->aa.w + cpu->regs.x.w);         \
+        op_##op##_b(cpu);                                               \
+    }                                                                   \
+                                                                        \
+    void op_read_addrx_##op##_w(cpu_t* cpu) {                           \
+        cpu->aa.l = op_readpc(cpu);                                     \
+        cpu->aa.h = op_readpc(cpu);                                     \
+        cpu->rd.l = op_readdbr(cpu, cpu->aa.w + cpu->regs.x.w + 0);     \
+        cpu->rd.h = op_readdbr(cpu, cpu->aa.w + cpu->regs.x.w + 1);     \
+        op_##op##_w(cpu);                                               \
+    }
 
-template<void (R65816::*op)()> void R65816::op_read_addrx_b() {
-    aa.l = op_readpc();
-    aa.h = op_readpc();
-    op_io_cond4(aa.w, aa.w + regs.x.w);
-    rd.l = op_readdbr(aa.w + regs.x.w);
-    call(op);
-}
+op_read_addrx_gen(ora);
+op_read_addrx_gen(bit);
+op_read_addrx_gen(and);
+op_read_addrx_gen(eor);
+op_read_addrx_gen(adc);
+op_read_addrx_gen(ldy);
+op_read_addrx_gen(lda);
+op_read_addrx_gen(cmp);
+op_read_addrx_gen(sbc);
 
-template<void (R65816::*op)()> void R65816::op_read_addrx_w() {
-    aa.l = op_readpc();
-    aa.h = op_readpc();
-    op_io_cond4(aa.w, aa.w + regs.x.w);
-    rd.l = op_readdbr(aa.w + regs.x.w + 0);
-    rd.h = op_readdbr(aa.w + regs.x.w + 1);
-    call(op);
-}
+#undef op_read_addrx
 
-template<void (R65816::*op)()> void R65816::op_read_addry_b() {
-    aa.l = op_readpc();
-    aa.h = op_readpc();
-    op_io_cond4(aa.w, aa.w + regs.y.w);
-    rd.l = op_readdbr(aa.w + regs.y.w);
-    call(op);
-}
+#define op_read_addry_gen(op)                                           \
+    void op_read_addry_##op##_b(cpu_t* cpu) {                           \
+        cpu->aa.l = op_readpc(cpu);                                     \
+        cpu->aa.h = op_readpc(cpu);                                     \
+        cpu->rd.l = op_readdbr(cpu, cpu->aa.w + cpu->regs.y.w);         \
+        op_##op##_b(cpu);                                               \
+    }                                                                   \
+                                                                        \
+    void op_read_addry_##op##_w(cpu_t* cpu) {                           \
+        cpu->aa.l = op_readpc(cpu);                                     \
+        cpu->aa.h = op_readpc(cpu);                                     \
+        cpu->rd.l = op_readdbr(cpu, cpu->aa.w + cpu->regs.y.w + 0);     \
+        cpu->rd.h = op_readdbr(cpu, cpu->aa.w + cpu->regs.y.w + 1);     \
+        op_##op##_w(cpu);                                               \
+    }
 
-template<void (R65816::*op)()> void R65816::op_read_addry_w() {
-    aa.l = op_readpc();
-    aa.h = op_readpc();
-    op_io_cond4(aa.w, aa.w + regs.y.w);
-    rd.l = op_readdbr(aa.w + regs.y.w + 0);
-    rd.h = op_readdbr(aa.w + regs.y.w + 1);
-    call(op);
-}
+op_read_addry_gen(ora);
+op_read_addry_gen(and);
+op_read_addry_gen(eor);
+op_read_addry_gen(adc);
+op_read_addry_gen(ldx);
+op_read_addry_gen(lda);
+op_read_addry_gen(cmp);
+op_read_addry_gen(sbc);
 
-template<void (R65816::*op)()> void R65816::op_read_long_b() {
-    aa.l = op_readpc();
-    aa.h = op_readpc();
-    aa.b = op_readpc();
-    rd.l = op_readlong(aa.d);
-    call(op);
-}
+#undef op_read_addry_gen
 
-template<void (R65816::*op)()> void R65816::op_read_long_w() {
-    aa.l = op_readpc();
-    aa.h = op_readpc();
-    aa.b = op_readpc();
-    rd.l = op_readlong(aa.d + 0);
-    rd.h = op_readlong(aa.d + 1);
-    call(op);
-}
+#define op_read_long_gen(op)                                            \
+    void op_read_long_##op##_b(cpu_t* cpu) {                            \
+        cpu->aa.l = op_readpc(cpu);                                     \
+        cpu->aa.h = op_readpc(cpu);                                     \
+        cpu->aa.b = op_readpc(cpu);                                     \
+        cpu->rd.l = op_readlong(cpu, cpu->aa.d);                        \
+        op_##op##_b(cpu);                                               \
+    }                                                                   \
+                                                                        \
+    void op_read_long_##op##_w(cpu_t* cpu) {                            \
+        cpu->aa.l = op_readpc(cpu);                                     \
+        cpu->aa.h = op_readpc(cpu);                                     \
+        cpu->aa.b = op_readpc(cpu);                                     \
+        cpu->rd.l = op_readlong(cpu, cpu->aa.d + 0);                    \
+        cpu->rd.h = op_readlong(cpu, cpu->aa.d + 1);                    \
+        op_##op##_w(cpu);                                               \
+    }
 
-template<void (R65816::*op)()> void R65816::op_read_longx_b() {
-    aa.l = op_readpc();
-    aa.h = op_readpc();
-    aa.b = op_readpc();
-    rd.l = op_readlong(aa.d + regs.x.w);
-    call(op);
-}
+op_read_long_gen(ora);
+op_read_long_gen(and);
+op_read_long_gen(eor);
+op_read_long_gen(adc);
+op_read_long_gen(lda);
+op_read_long_gen(cmp);
+op_read_long_gen(sbc);
 
-template<void (R65816::*op)()> void R65816::op_read_longx_w() {
-    aa.l = op_readpc();
-    aa.h = op_readpc();
-    aa.b = op_readpc();
-    rd.l = op_readlong(aa.d + regs.x.w + 0);
-    rd.h = op_readlong(aa.d + regs.x.w + 1);
-    call(op);
-}
+#undef op_read_long_b_gen
 
-template<void (R65816::*op)()> void R65816::op_read_dp_b() {
-    dp = op_readpc();
-    op_io_cond2();
-    rd.l = op_readdp(dp);
-    call(op);
-}
+#define op_read_longx_gen(op)                                           \
+    void op_read_longx_##op##_b(cpu_t* cpu) {                           \
+        cpu->aa.l = op_readpc(cpu);                                     \
+        cpu->aa.h = op_readpc(cpu);                                     \
+        cpu->aa.b = op_readpc(cpu);                                     \
+        cpu->rd.l = op_readlong(cpu, cpu->aa.d + cpu->regs.x.w);        \
+        op_##op##_b(cpu);                                               \
+    }                                                                   \
+                                                                        \
+    void op_read_longx_##op##_w(cpu_t* cpu) {                           \
+        cpu->aa.l = op_readpc(cpu);                                     \
+        cpu->aa.h = op_readpc(cpu);                                     \
+        cpu->aa.b = op_readpc(cpu);                                     \
+        cpu->rd.l = op_readlong(cpu, cpu->aa.d + cpu->regs.x.w + 0);    \
+        cpu->rd.h = op_readlong(cpu, cpu->aa.d + cpu->regs.x.w + 1);    \
+        op_##op##_w(cpu);                                               \
+    }
 
-template<void (R65816::*op)()> void R65816::op_read_dp_w() {
-    dp = op_readpc();
-    op_io_cond2();
-    rd.l = op_readdp(dp + 0);
-    rd.h = op_readdp(dp + 1);
-    call(op);
-}
+op_read_longx_gen(ora);
+op_read_longx_gen(and);
+op_read_longx_gen(eor);
+op_read_longx_gen(adc);
+op_read_longx_gen(lda);
+op_read_longx_gen(cmp);
+op_read_longx_gen(sbc);
 
-template<void (R65816::*op)(), int n> void R65816::op_read_dpr_b() {
-    dp = op_readpc();
-    op_io_cond2();
-    op_io();
-    rd.l = op_readdp(dp + regs.r[n].w);
-    call(op);
-}
+#undef op_read_longx_gen
 
-template<void (R65816::*op)(), int n> void R65816::op_read_dpr_w() {
-    dp = op_readpc();
-    op_io_cond2();
-    op_io();
-    rd.l = op_readdp(dp + regs.r[n].w + 0);
-    rd.h = op_readdp(dp + regs.r[n].w + 1);
-    call(op);
-}
+#define op_read_dp_gen(op)                                              \
+    void op_read_dp_##op##_b(cpu_t* cpu) {                              \
+        cpu->dp = op_readpc(cpu);                                       \
+        cpu->rd.l = op_readdp(cpu, cpu->dp);                            \
+        op_##op##_b(cpu);                                               \
+    }                                                                   \
+                                                                        \
+    void op_read_dp_##op##_w(cpu_t* cpu) {                              \
+        cpu->dp = op_readpc(cpu);                                       \
+        cpu->rd.l = op_readdp(cpu, cpu->dp + 0);                        \
+        cpu->rd.h = op_readdp(cpu, cpu->dp + 1);                        \
+        op_##op##_w(cpu);                                               \
+    }
 
-template<void (R65816::*op)()> void R65816::op_read_idp_b() {
-    dp = op_readpc();
-    op_io_cond2();
-    aa.l = op_readdp(dp + 0);
-    aa.h = op_readdp(dp + 1);
-    rd.l = op_readdbr(aa.w);
-    call(op);
-}
+op_read_dp_gen(ora);
+op_read_dp_gen(bit);
+op_read_dp_gen(and);
+op_read_dp_gen(eor);
+op_read_dp_gen(adc);
+op_read_dp_gen(ldy);
+op_read_dp_gen(lda);
+op_read_dp_gen(ldx);
+op_read_dp_gen(cpy);
+op_read_dp_gen(cmp);
+op_read_dp_gen(cpx);
+op_read_dp_gen(sbc);
 
-template<void (R65816::*op)()> void R65816::op_read_idp_w() {
-    dp = op_readpc();
-    op_io_cond2();
-    aa.l = op_readdp(dp + 0);
-    aa.h = op_readdp(dp + 1);
-    rd.l = op_readdbr(aa.w + 0);
-    rd.h = op_readdbr(aa.w + 1);
-    call(op);
-}
+#undef op_read_dp_gen
 
-template<void (R65816::*op)()> void R65816::op_read_idpx_b() {
-    dp = op_readpc();
-    op_io_cond2();
-    op_io();
-    aa.l = op_readdp(dp + regs.x.w + 0);
-    aa.h = op_readdp(dp + regs.x.w + 1);
-    rd.l = op_readdbr(aa.w);
-    call(op);
-}
+#define op_read_dpr_gen(op, num)                                        \
+    void op_read_dpr_##op##_b(cpu_t* cpu) {                             \
+        cpu->dp = op_readpc(cpu);                                       \
+        cpu->rd.l = op_readdp(cpu, cpu->dp + cpu->regs.r[num].w);       \
+        op_##op##_b(cpu);                                               \
+    }                                                                   \
+                                                                        \
+    void op_read_dpr_##op##_w(cpu_t* cpu) {                             \
+        cpu->dp = op_readpc(cpu);                                       \
+        cpu->rd.l = op_readdp(cpu, cpu->dp + cpu->regs.r[num].w + 0);   \
+        cpu->rd.h = op_readdp(cpu, cpu->dp + cpu->regs.r[num].w + 1);   \
+        op_##op##_w(cpu);                                               \
+    }
 
-template<void (R65816::*op)()> void R65816::op_read_idpx_w() {
-    dp = op_readpc();
-    op_io_cond2();
-    op_io();
-    aa.l = op_readdp(dp + regs.x.w + 0);
-    aa.h = op_readdp(dp + regs.x.w + 1);
-    rd.l = op_readdbr(aa.w + 0);
-    rd.h = op_readdbr(aa.w + 1);
-    call(op);
-}
+op_read_dpr_gen(ora, X);
+op_read_dpr_gen(bit, X);
+op_read_dpr_gen(and, X);
+op_read_dpr_gen(eor, X);
+op_read_dpr_gen(adc, X);
+op_read_dpr_gen(ldy, X);
+op_read_dpr_gen(lda, X);
+op_read_dpr_gen(ldx, Y);
+op_read_dpr_gen(cmp, X);
+op_read_dpr_gen(sbc, X);
 
-template<void (R65816::*op)()> void R65816::op_read_idpy_b() {
-    dp = op_readpc();
-    op_io_cond2();
-    aa.l = op_readdp(dp + 0);
-    aa.h = op_readdp(dp + 1);
-    op_io_cond4(aa.w, aa.w + regs.y.w);
-    rd.l = op_readdbr(aa.w + regs.y.w);
-    call(op);
-}
+#undef op_read_dpr_gen
 
-template<void (R65816::*op)()> void R65816::op_read_idpy_w() {
-    dp = op_readpc();
-    op_io_cond2();
-    aa.l = op_readdp(dp + 0);
-    aa.h = op_readdp(dp + 1);
-    op_io_cond4(aa.w, aa.w + regs.y.w);
-    rd.l = op_readdbr(aa.w + regs.y.w + 0);
-    rd.h = op_readdbr(aa.w + regs.y.w + 1);
-    call(op);
-}
+#define op_read_idp_gen(op)                                             \
+    void op_read_idp_##op##_b(cpu_t* cpu) {                             \
+        cpu->dp = op_readpc(cpu);                                       \
+        cpu->aa.l = op_readdp(cpu, cpu->dp + 0);                        \
+        cpu->aa.h = op_readdp(cpu, cpu->dp + 1);                        \
+        cpu->rd.l = op_readdbr(cpu, cpu->aa.w);                         \
+        op_##op##_b(cpu);                                               \
+    }                                                                   \
+                                                                        \
+    void op_read_idp_##op##_w(cpu_t* cpu) {                             \
+        cpu->dp = op_readpc(cpu);                                       \
+        cpu->aa.l = op_readdp(cpu, cpu->dp + 0);                        \
+        cpu->aa.h = op_readdp(cpu, cpu->dp + 1);                        \
+        cpu->rd.l = op_readdbr(cpu, cpu->aa.w + 0);                     \
+        cpu->rd.h = op_readdbr(cpu, cpu->aa.w + 1);                     \
+        op_##op##_w(cpu);                                               \
+    }
 
-template<void (R65816::*op)()> void R65816::op_read_ildp_b() {
-    dp = op_readpc();
-    op_io_cond2();
-    aa.l = op_readdp(dp + 0);
-    aa.h = op_readdp(dp + 1);
-    aa.b = op_readdp(dp + 2);
-    rd.l = op_readlong(aa.d);
-    call(op);
-}
+op_read_idp_gen(ora);
+op_read_idp_gen(and);
+op_read_idp_gen(eor);
+op_read_idp_gen(adc);
+op_read_idp_gen(lda);
+op_read_idp_gen(cmp);
+op_read_idp_gen(sbc);
+#undef op_read_idp_gen
 
-template<void (R65816::*op)()> void R65816::op_read_ildp_w() {
-    dp = op_readpc();
-    op_io_cond2();
-    aa.l = op_readdp(dp + 0);
-    aa.h = op_readdp(dp + 1);
-    aa.b = op_readdp(dp + 2);
-    rd.l = op_readlong(aa.d + 0);
-    rd.h = op_readlong(aa.d + 1);
-    call(op);
-}
+#define op_read_idpx_gen(op)                                            \
+    void op_read_idpx_##op##_b(cpu_t* cpu) {                            \
+        cpu->dp = op_readpc(cpu);                                       \
+        cpu->aa.l = op_readdp(cpu, cpu->dp + cpu->regs.x.w + 0);        \
+        cpu->aa.h = op_readdp(cpu, cpu->dp + cpu->regs.x.w + 1);        \
+        cpu->rd.l = op_readdbr(cpu, cpu->aa.w);                         \
+        op_##op##_b(cpu);                                               \
+    }                                                                   \
+                                                                        \
+    void op_read_idpx_##op##_w(cpu_t* cpu) {                            \
+        cpu->dp = op_readpc(cpu);                                       \
+        cpu->aa.l = op_readdp(cpu, cpu->dp + cpu->regs.x.w + 0);        \
+        cpu->aa.h = op_readdp(cpu, cpu->dp + cpu->regs.x.w + 1);        \
+        cpu->rd.l = op_readdbr(cpu, cpu->aa.w + 0);                     \
+        cpu->rd.h = op_readdbr(cpu, cpu->aa.w + 1);                     \
+        op_##op##_w(cpu);                                               \
+    }
 
-template<void (R65816::*op)()> void R65816::op_read_ildpy_b() {
-    dp = op_readpc();
-    op_io_cond2();
-    aa.l = op_readdp(dp + 0);
-    aa.h = op_readdp(dp + 1);
-    aa.b = op_readdp(dp + 2);
-    rd.l = op_readlong(aa.d + regs.y.w);
-    call(op);
-}
+op_read_idpx_gen(ora);
+op_read_idpx_gen(and);
+op_read_idpx_gen(eor);
+op_read_idpx_gen(adc);
+op_read_idpx_gen(lda);
+op_read_idpx_gen(cmp);
+op_read_idpx_gen(sbc);
 
-template<void (R65816::*op)()> void R65816::op_read_ildpy_w() {
-    dp = op_readpc();
-    op_io_cond2();
-    aa.l = op_readdp(dp + 0);
-    aa.h = op_readdp(dp + 1);
-    aa.b = op_readdp(dp + 2);
-    rd.l = op_readlong(aa.d + regs.y.w + 0);
-    rd.h = op_readlong(aa.d + regs.y.w + 1);
-    call(op);
-}
+#undef op_read_idpx_gen
 
-template<void (R65816::*op)()> void R65816::op_read_sr_b() {
-    sp = op_readpc();
-    op_io();
-    rd.l = op_readsp(sp);
-    call(op);
-}
+#define op_read_idpy_gen(op)                                            \
+    void op_read_idpy_##op##_b(cpu_t* cpu) {                            \
+        cpu->dp = op_readpc(cpu);                                       \
+        cpu->aa.l = op_readdp(cpu, cpu->dp + 0);                        \
+        cpu->aa.h = op_readdp(cpu, cpu->dp + 1);                        \
+        cpu->rd.l = op_readdbr(cpu, cpu->aa.w + cpu->regs.y.w);         \
+        op_##op##_b(cpu);                                               \
+    }                                                                   \
+                                                                        \
+    void op_read_idpy_##op##_w(cpu_t* cpu) {                            \
+        cpu->dp = op_readpc(cpu);                                       \
+        cpu->aa.l = op_readdp(cpu, cpu->dp + 0);                        \
+        cpu->aa.h = op_readdp(cpu, cpu->dp + 1);                        \
+        cpu->rd.l = op_readdbr(cpu, cpu->aa.w + cpu->regs.y.w + 0);     \
+        cpu->rd.h = op_readdbr(cpu, cpu->aa.w + cpu->regs.y.w + 1);     \
+        op_##op##_w(cpu);                                               \
+    }
 
-template<void (R65816::*op)()> void R65816::op_read_sr_w() {
-    sp = op_readpc();
-    op_io();
-    rd.l = op_readsp(sp + 0);
-    rd.h = op_readsp(sp + 1);
-    call(op);
-}
+op_read_idpy_gen(ora);
+op_read_idpy_gen(and);
+op_read_idpy_gen(eor);
+op_read_idpy_gen(adc);
+op_read_idpy_gen(lda);
+op_read_idpy_gen(cmp);
+op_read_idpy_gen(sbc);
 
-template<void (R65816::*op)()> void R65816::op_read_isry_b() {
-    sp = op_readpc();
-    op_io();
-    aa.l = op_readsp(sp + 0);
-    aa.h = op_readsp(sp + 1);
-    op_io();
-    rd.l = op_readdbr(aa.w + regs.y.w);
-    call(op);
-}
+#undef op_read_idpy_gen
 
-template<void (R65816::*op)()> void R65816::op_read_isry_w() {
-    sp = op_readpc();
-    op_io();
-    aa.l = op_readsp(sp + 0);
-    aa.h = op_readsp(sp + 1);
-    op_io();
-    rd.l = op_readdbr(aa.w + regs.y.w + 0);
-    rd.h = op_readdbr(aa.w + regs.y.w + 1);
-    call(op);
-}
+#define op_read_ildp_gen(op)                                            \
+    void op_read_ildp_##op##_b(cpu_t* cpu) {                            \
+        cpu->dp = op_readpc(cpu);                                       \
+        cpu->aa.l = op_readdp(cpu, cpu->dp + 0);                        \
+        cpu->aa.h = op_readdp(cpu, cpu->dp + 1);                        \
+        cpu->aa.b = op_readdp(cpu, cpu->dp + 2);                        \
+        cpu->rd.l = op_readlong(cpu, cpu->aa.d);                        \
+        op_##op##_b(cpu);                                               \
+    }                                                                   \
+                                                                        \
+    void op_read_ildp_##op##_w(cpu_t* cpu) {                            \
+        cpu->dp = op_readpc(cpu);                                       \
+        cpu->aa.l = op_readdp(cpu, cpu->dp + 0);                        \
+        cpu->aa.h = op_readdp(cpu, cpu->dp + 1);                        \
+        cpu->aa.b = op_readdp(cpu, cpu->dp + 2);                        \
+        cpu->rd.l = op_readlong(cpu, cpu->aa.d + 0);                    \
+        cpu->rd.h = op_readlong(cpu, cpu->aa.d + 1);                    \
+        op_##op##_w(cpu);                                               \
+    }
+
+
+op_read_ildp_gen(ora);
+op_read_ildp_gen(and);
+op_read_ildp_gen(eor);
+op_read_ildp_gen(adc);
+op_read_ildp_gen(lda);
+op_read_ildp_gen(cmp);
+op_read_ildp_gen(sbc);
+#undef op_read_ildp_gen
+
+#define op_read_ildpy_gen(op)                                           \
+    void op_read_ildpy_##op##_b(cpu_t* cpu) {                           \
+        cpu->dp = op_readpc(cpu);                                       \
+        cpu->aa.l = op_readdp(cpu, cpu->dp + 0);                        \
+        cpu->aa.h = op_readdp(cpu, cpu->dp + 1);                        \
+        cpu->aa.b = op_readdp(cpu, cpu->dp + 2);                        \
+        cpu->rd.l = op_readlong(cpu, cpu->aa.d + cpu->regs.y.w);        \
+        op_##op##_b(cpu);                                               \
+    }                                                                   \
+                                                                        \
+    void op_read_ildpy_##op##_w(cpu_t* cpu) {                           \
+        cpu->dp = op_readpc(cpu);                                       \
+        cpu->aa.l = op_readdp(cpu, cpu->dp + 0);                        \
+        cpu->aa.h = op_readdp(cpu, cpu->dp + 1);                        \
+        cpu->aa.b = op_readdp(cpu, cpu->dp + 2);                        \
+        cpu->rd.l = op_readlong(cpu, cpu->aa.d + cpu->regs.y.w + 0);    \
+        cpu->rd.h = op_readlong(cpu, cpu->aa.d + cpu->regs.y.w + 1);    \
+        op_##op##_w(cpu);                                               \
+    }
+
+
+op_read_ildpy_gen(ora);
+op_read_ildpy_gen(and);
+op_read_ildpy_gen(eor);
+op_read_ildpy_gen(adc);
+op_read_ildpy_gen(lda);
+op_read_ildpy_gen(cmp);
+op_read_ildpy_gen(sbc);
+#undef op_read_ildpy_gen
+
+#define op_read_sr_gen(op)                                              \
+    void op_read_sr_##op##_b(cpu_t* cpu) {                              \
+        cpu->sp = op_readpc(cpu);                                       \
+        cpu->rd.l = op_readsp(cpu, cpu->sp);                            \
+        op_##op##_b(cpu);                                               \
+    }                                                                   \
+                                                                        \
+    void op_read_sr_##op##_w(cpu_t* cpu) {                              \
+        cpu->sp = op_readpc(cpu);                                       \
+        cpu->rd.l = op_readsp(cpu, cpu->sp + 0);                        \
+        cpu->rd.h = op_readsp(cpu, cpu->sp + 1);                        \
+        op_##op##_w(cpu);                                               \
+    }
+
+op_read_sr_gen(ora);
+op_read_sr_gen(and);
+op_read_sr_gen(eor);
+op_read_sr_gen(adc);
+op_read_sr_gen(lda);
+op_read_sr_gen(cmp);
+op_read_sr_gen(sbc);
+#undef op_read_sr_gen
+
+
+#define op_read_isry_gen(op)                                            \
+    void op_read_isry_##op##_b(cpu_t* cpu) {                            \
+        cpu->sp = op_readpc(cpu);                                       \
+        cpu->aa.l = op_readsp(cpu, cpu->sp + 0);                        \
+        cpu->aa.h = op_readsp(cpu, cpu->sp + 1);                        \
+        cpu->rd.l = op_readdbr(cpu, cpu->aa.w + cpu->regs.y.w);         \
+        op_##op##_b(cpu);                                               \
+    }                                                                   \
+                                                                        \
+    void op_read_isry_##op##_w(cpu_t* cpu) {                            \
+        cpu->sp = op_readpc(cpu);                                       \
+        cpu->aa.l = op_readsp(cpu, cpu->sp + 0);                        \
+        cpu->aa.h = op_readsp(cpu, cpu->sp + 1);                        \
+        cpu->rd.l = op_readdbr(cpu, cpu->aa.w + cpu->regs.y.w + 0);     \
+        cpu->rd.h = op_readdbr(cpu, cpu->aa.w + cpu->regs.y.w + 1);     \
+        op_##op##_w(cpu);                                               \
+    }
+
+op_read_isry_gen(ora);
+op_read_isry_gen(and);
+op_read_isry_gen(eor);
+op_read_isry_gen(adc);
+op_read_isry_gen(lda);
+op_read_isry_gen(cmp);
+op_read_isry_gen(sbc);
+#undef op_read_isry_gen
+
+
+#undef A
+#undef X
+#undef Y
+#undef Z
+#undef S
+#undef D
