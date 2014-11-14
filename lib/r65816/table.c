@@ -1,10 +1,10 @@
-#include "cpu/memory.h"
-#include "cpu/opcode_misc.h"
-#include "cpu/opcode_pc.h"
-#include "cpu/opcode_read.h"
-#include "cpu/opcode_rmw.h"
-#include "cpu/opcode_write.h"
-#include "cpu/table.h"
+#include "memory.h"
+#include "opcode_misc.h"
+#include "opcode_pc.h"
+#include "opcode_read.h"
+#include "opcode_rmw.h"
+#include "opcode_write.h"
+#include "table.h"
 
 void initialize_opcode_table(cpu_t* cpu) {
     enum {

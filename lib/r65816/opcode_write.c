@@ -1,5 +1,5 @@
-#include "cpu/memory.h"
-#include "cpu/opcode_write.h"
+#include "memory.h"
+#include "opcode_write.h"
 
 #define A 0
 #define X 1

@@ -1,6 +1,6 @@
-#include "cpu/memory.h"
-#include "cpu/opcode_pc.h"
-#include "cpu/table.h"
+#include "memory.h"
+#include "opcode_pc.h"
+#include "table.h"
 
 #define op_branch_gen(name, bit, val)                            \
     inline void op_branch_##name(cpu_t* cpu) {                   \

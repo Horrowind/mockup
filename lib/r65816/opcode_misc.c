@@ -1,6 +1,6 @@
-#include "cpu/memory.h"
-#include "cpu/opcode_misc.h"
-#include "cpu/table.h"
+#include "memory.h"
+#include "opcode_misc.h"
+#include "table.h"
 
 #define A 0
 #define X 1

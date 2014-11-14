@@ -1,7 +1,7 @@
 #ifndef MOCKUP_TILES_HPP
 #define MOCKUP_TILES_HPP
 
-#include <stdint>
+#include <stdint.h>
 
 struct tile8 {
     uint8_t pixels[64];

@@ -1,6 +1,6 @@
 #include "string.h"
 
-#include "cpu/disassembler.h"
+#include "disassembler.h"
 
 uint8_t dreadb(cpu_t* cpu, uint32_t addr) {
   if((addr & 0x40ffff) >= 0x2000 && (addr & 0x40ffff) <= 0x5fff) {

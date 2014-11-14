@@ -2,31 +2,87 @@
 #include <stdlib.h>
 
 #include "cpu.h"
-#include "cpu/disassembler.h"
-#include "cpu/memory.h"
+#include "disassembler.h"
+#include "memory.h"
+#include "table.h"
 
-void cpu_step(cpu_t* cpu) {
-    
+void r65816_cpu_step(r65816_cpu_t* cpu) {
+    (cpu->opcode_table[r65816_op_readpc(cpu)])(cpu);
 }
 
-void cpu_clear_ram(cpu_t* cpu) {
-
+void r65816_cpu_clear_ram(r65816_cpu_t* cpu) {
+    cpu->regs.s.w = 0x0100;
+    memset(cpu->ram, 0, 20000);
 }
 
-void cpu_init(cpu_t* cpu, rom_t* rom) {
+void r65816_cpu_init(r65816_cpu_t* cpu, rom_t* rom) {
     cpu->rom = rom;
     cpu->ram = malloc(0x20000);
     cpu->sreg = malloc(0x2500);
-    cpu_clear_ram(cpu);
+    cpu->regs.pc.d = 0x000000;
+    cpu->regs.x.h = 0x00;
+    cpu->regs.y.h = 0x00;
+    cpu->regs.s.h = 0x01;
+    cpu->regs.d.w = 0x0000;
+    cpu->regs.db = 0x00;
+    cpu->regs.p.b = 0x24;
+    cpu->regs.e = 0;
+    cpu->regs.mdr = 0x00;
+    r65816_cpu_clear_ram(cpu);
+    update_table(cpu);
 }
 
 
-
-void cpu_show_state(cpu_t* cpu, char ouput[256]) {
-
+void r65816_op_write(r65816_cpu_t* cpu, uint32_t addr, uint8_t data) {
+    if(addr & 0xFF8000) {
+	if(addr >= 0x7E0000 && addr < 0x800000) {
+	    cpu->ram[addr-0x7E0000] = data;
+	} else {
+	    if(addr & 0x008000) {
+		fprintf(stderr, "Err: %06x Wrote: %06x", cpu->regs.pc, addr);
+		//getchar();
+		//Todo: ERROR
+	    } else {
+		cpu->ram[addr & 0x007FFF] = data;
+	    }
+	}
+    } else {
+	if(addr >= 0x002000) {
+	    if(addr <= 0x004500) {
+		cpu->sreg[addr - 0x2000] = data;
+	    } else {
+		fprintf(stderr, "Err: %06x Wrote: %06x", cpu->regs.pc, addr);
+		//getchar();
+	    }
+	} else {
+	    cpu->ram[addr] = data;
+	}
+    }
 }
 
-void cpu_disassemble_opcode(cpu_t* cpu, char* output, uint32_t addr) {
+uint8_t r65816_op_read(r65816_cpu_t* cpu, uint32_t addr) {
+    if(addr & 0xFF8000) {
+	if(addr >= 0x7E0000 && addr < 0x800000) {
+	    return cpu->ram[addr-0x7E0000];
+	} else if(addr & 0x008000) {
+	    return cpu->rom->banks[(addr & 0x7f0000) >> 17][addr & 0x7fff];
+	} else {
+	    return cpu->ram[addr & 0x007FFF];
+	}
+    }
+    if(addr >= 0x002000) {
+	if(addr <= 0x004500) {
+	    return cpu->sreg[addr - 0x2000];
+	} else {
+	    fprintf(stderr, "Err: %06x Read: %06x", cpu->regs.pc, addr);
+	    //getchar();
+	}
+    }
+    return cpu->ram[addr];
+}
+
+
+void r65816_cpu_disassemble_opcode(r65816_cpu_t* cpu, char* output, uint32_t addr) {
   static reg24_t pc;
   char t[256];
   char* s = output;

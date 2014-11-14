@@ -15,6 +15,7 @@ struct rom {
 typedef struct rom rom_t;
 
 void rom_load(rom_t* rom, const char* path);
+void rom_expand(rom_t* rom, uint32_t size);
 
 
 #endif //MOCKUP_ROM_H
