@@ -8,7 +8,7 @@ uint8_t dreadb(cpu_t* cpu, uint32_t addr) {
     //do not read MMIO registers within debugger
     return 0x00;
   }
-  return disassembler_read(addr);
+  return op_read(cpu, addr);
 }
 
 uint16_t dreadw(cpu_t* cpu, uint32_t addr) {

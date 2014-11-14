@@ -10,4 +10,4 @@ add_custom_target(
 )
 
 add_subdirectory(libmockup)
-add_dependencies(libmockup bsnes-r65816)
+#add_dependencies(libmockup bsnes-r65816)

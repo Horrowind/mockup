@@ -60,5 +60,6 @@ void cpu_step(cpu_t* cpu);
 void cpu_init(cpu_t* cpu, rom_t* rom);
 void cpu_show_state(cpu_t* cpu, char ouput[256]);
 void cpu_disassemble_opcode(cpu_t* cpu, char* output, uint32_t addr);
-
+uint8_t op_read(cpu_t* cpu, int addr);
+uint8_t op_write(cpu_t* cpu, int addr, uint8_t data);
 #endif //MOCKUP_CPU_H

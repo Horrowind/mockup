@@ -1,5 +1,6 @@
 #include "cpu/memory.h"
 #include "cpu/opcode_misc.h"
+#include "cpu/table.h"
 
 #define A 0
 #define X 1
@@ -347,6 +348,7 @@ void op_per_n(cpu_t* cpu) {
     op_writestackn(cpu, cpu->rd.h);
     op_writestackn(cpu, cpu->rd.l);
 }
+
 #undef A
 #undef X
 #undef Y
