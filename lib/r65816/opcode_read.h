@@ -1,5 +1,5 @@
-#ifndef MOCKUP_CPU_OPCODE_READ
-#define MOCKUP_CPU_OPCODE_READ
+#ifndef R65816_OPCODE_READ
+#define R65816_OPCODE_READ
 
 #include "cpu.h"
 
@@ -288,4 +288,4 @@ void op_read_isry_sbc_b(cpu_t* cpu);
 
 
 
-#endif //MOCKUP_CPU_OPCODE_READ
+#endif //R65816_OPCODE_READ

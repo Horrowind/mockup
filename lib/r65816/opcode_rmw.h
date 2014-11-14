@@ -1,5 +1,5 @@
-#ifndef MOCKUP_CPU_RMW_H
-#define MOCKUP_CPU_RMW_H
+#ifndef R65816_RMW_H
+#define R65816_RMW_H
 
 #include "cpu.h"
 
@@ -85,4 +85,4 @@ void op_adjust_dpx_dec_w(cpu_t* cpu);
 void op_adjust_dpx_inc_b(cpu_t* cpu);
 void op_adjust_dpx_inc_w(cpu_t* cpu);
 
-#endif //MOCKUP_CPU_RMW_H
+#endif //R65816_RMW_H

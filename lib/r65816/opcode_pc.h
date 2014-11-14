@@ -1,5 +1,6 @@
-#ifndef MOCKUP_CPU_OPCODE_PC
-#define MOCKUP_CPU_OPCODE_PC
+
+#ifndef R65816_OPCODE_PC_H
+#define R65816_OPCODE_PC_H
 
 #include "cpu.h"
 
@@ -30,4 +31,4 @@ void op_rts(cpu_t* cpu);
 void op_rtl_e(cpu_t* cpu);
 void op_rtl_n(cpu_t* cpu);
 
-#endif //MOCKUP_CPU_OPCODE_PC
+#endif //R65816_OPCODE_PC_H

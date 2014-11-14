@@ -1,5 +1,5 @@
-#ifndef MOCKUP_CPU_H
-#define MOCKUP_CPU_H
+#ifndef R65816_CPU_H
+#define R65816_CPU_H
 
 #include "stdio.h"
 #include "string.h"
@@ -56,10 +56,11 @@ struct cpu {
 };
 typedef struct cpu cpu_t;
 
-void cpu_step(cpu_t* cpu);
-void cpu_init(cpu_t* cpu, rom_t* rom);
-void cpu_show_state(cpu_t* cpu, char ouput[256]);
-void cpu_disassemble_opcode(cpu_t* cpu, char* output, uint32_t addr);
+void r65816_cpu_step(cpu_t* cpu);
+void r65816_cpu_init(cpu_t* cpu, rom_t* rom);
+void r65816_cpu_show_state(cpu_t* cpu, char ouput[256]);
+void r65816_cpu_disassemble_opcode(cpu_t* cpu, char* output, uint32_t addr);
 void op_write(cpu_t* cpu, uint32_t addr, uint8_t data);
 uint8_t op_read(cpu_t* cpu, uint32_t addr);
-#endif //MOCKUP_CPU_H
+
+#endif //R65816_CPU_H

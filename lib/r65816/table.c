@@ -1,9 +1,10 @@
+#include "disassembler.h"
 #include "memory.h"
-#include "opcode_misc.h"
-#include "opcode_pc.h"
-#include "opcode_read.h"
-#include "opcode_rmw.h"
-#include "opcode_write.h"
+#include "opcode_misc.c"
+#include "opcode_pc.c"
+#include "opcode_read.c"
+#include "opcode_rmw.c"
+#include "opcode_write.c"
 #include "table.h"
 
 void initialize_opcode_table(cpu_t* cpu) {
@@ -35,10 +36,6 @@ void initialize_opcode_table(cpu_t* cpu) {
         = cpu->op_table[table_mX + id] = &op_##name##_b;                \
     cpu->op_table[table_Mx + id] = cpu->op_table[table_mx + id] = &op_##name##_w;  
     
-
-
-//#define opMF( id, name, fn   ) op_table[table_EM + id] = op_table[table_MX + id] = op_table[table_Mx + id] = &op_##name##_b<&op_##fn##_b>; op_table[table_mX + id] = op_table[table_mx + id] = &op_##name##_w<&op_##fn##_w>
-//#define opXF( id, name, fn   ) op_table[table_EM + id] = op_table[table_MX + id] = op_table[table_mX + id] = &op_##name##_b<&op_##fn##_b>; op_table[table_Mx + id] = op_table[table_mx + id] = &op_##name##_w<&op_##fn##_w>
 
     opE(0x00, interrupt_brk);
     opM(0x01, read_idpx_ora);

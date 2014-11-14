@@ -1,5 +1,5 @@
-#ifndef MOCKUP_CPU_MEMORY_H
-#define MOCKUP_CPU_MEMORY_H
+#ifndef R65816_MEMORY_H
+#define R65816_MEMORY_H
 
 #include "cpu.h"
 
@@ -21,4 +21,4 @@ void op_writepbr(cpu_t* cpu, uint32_t addr, uint8_t data);
 void op_writedp(cpu_t* cpu, uint32_t addr, uint8_t data);
 void op_writesp(cpu_t* cpu, uint32_t addr, uint8_t data);
 
-#endif //MOCKUP_CPU_MEMORY_H
+#endif //R65816_MEMORY_H

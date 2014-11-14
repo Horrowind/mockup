@@ -6,16 +6,16 @@
 #include "memory.h"
 #include "table.h"
 
-void r65816_cpu_step(r65816_cpu_t* cpu) {
-    (cpu->opcode_table[r65816_op_readpc(cpu)])(cpu);
+void r65816_cpu_step(cpu_t* cpu) {
+    (cpu->opcode_table[op_readpc(cpu)])(cpu);
 }
 
-void r65816_cpu_clear_ram(r65816_cpu_t* cpu) {
+void r65816_cpu_clear_ram(cpu_t* cpu) {
     cpu->regs.s.w = 0x0100;
     memset(cpu->ram, 0, 20000);
 }
 
-void r65816_cpu_init(r65816_cpu_t* cpu, rom_t* rom) {
+void r65816_cpu_init(cpu_t* cpu, rom_t* rom) {
     cpu->rom = rom;
     cpu->ram = malloc(0x20000);
     cpu->sreg = malloc(0x2500);
@@ -33,7 +33,7 @@ void r65816_cpu_init(r65816_cpu_t* cpu, rom_t* rom) {
 }
 
 
-void r65816_op_write(r65816_cpu_t* cpu, uint32_t addr, uint8_t data) {
+void r65816_op_write(cpu_t* cpu, uint32_t addr, uint8_t data) {
     if(addr & 0xFF8000) {
 	if(addr >= 0x7E0000 && addr < 0x800000) {
 	    cpu->ram[addr-0x7E0000] = data;
@@ -60,7 +60,7 @@ void r65816_op_write(r65816_cpu_t* cpu, uint32_t addr, uint8_t data) {
     }
 }
 
-uint8_t r65816_op_read(r65816_cpu_t* cpu, uint32_t addr) {
+uint8_t r65816_op_read(cpu_t* cpu, uint32_t addr) {
     if(addr & 0xFF8000) {
 	if(addr >= 0x7E0000 && addr < 0x800000) {
 	    return cpu->ram[addr-0x7E0000];
@@ -82,7 +82,7 @@ uint8_t r65816_op_read(r65816_cpu_t* cpu, uint32_t addr) {
 }
 
 
-void r65816_cpu_disassemble_opcode(r65816_cpu_t* cpu, char* output, uint32_t addr) {
+void r65816_cpu_disassemble_opcode(cpu_t* cpu, char* output, uint32_t addr) {
   static reg24_t pc;
   char t[256];
   char* s = output;

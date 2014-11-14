@@ -1,5 +1,5 @@
-#ifndef MOCKUP_ROM_H
-#define MOCKUP_ROM_H
+#ifndef R65816_ROM_H
+#define R65816_ROM_H
 
 #include <stdint.h>
 
@@ -18,4 +18,4 @@ void rom_load(rom_t* rom, const char* path);
 void rom_expand(rom_t* rom, uint32_t size);
 
 
-#endif //MOCKUP_ROM_H
+#endif //R65816_ROM_H

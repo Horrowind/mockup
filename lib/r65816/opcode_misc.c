@@ -1,3 +1,4 @@
+
 #include "memory.h"
 #include "opcode_misc.h"
 #include "table.h"
@@ -112,13 +113,13 @@ void op_flag_##name(cpu_t* cpu) {                               \
     cpu->regs.p.b = (cpu->regs.p.b & ~mask) | value;            \
 }                                                               \
 
-op_flag_gen(CLC, 0x01, 0x00);
-op_flag_gen(SEC, 0x01, 0x01);
-op_flag_gen(CLI, 0x04, 0x00);
-op_flag_gen(SLI, 0x04, 0x04);
-op_flag_gen(CLV, 0x40, 0x00);
-op_flag_gen(CLD, 0x08, 0x00);
-op_flag_gen(SED, 0x08, 0x08);
+op_flag_gen(clc, 0x01, 0x00);
+op_flag_gen(sec, 0x01, 0x01);
+op_flag_gen(cli, 0x04, 0x00);
+op_flag_gen(sli, 0x04, 0x04);
+op_flag_gen(clv, 0x40, 0x00);
+op_flag_gen(cld, 0x08, 0x00);
+op_flag_gen(sed, 0x08, 0x08);
 #undef op_flag_gen
 
 #define op_pflag_gen(name, mode)                                        \
@@ -145,8 +146,8 @@ op_flag_gen(SED, 0x08, 0x08);
         update_table(cpu);                                              \
     }                                                                   
 
-op_pflag_gen(REP, 0);
-op_pflag_gen(SEP, 1);
+op_pflag_gen(rep, 0);
+op_pflag_gen(sep, 1);
 #undef op_pflag_gen
 
 #define op_transfer_gen(name, from, to)                          \
@@ -213,9 +214,9 @@ void op_txs_n(cpu_t* cpu) {
         op_writestack(cpu, cpu->regs.r[n].l);            \
     }                                           
 
-op_push_gen(PHA, A);
-op_push_gen(PHX, X);
-op_push_gen(PHY, Y);
+op_push_gen(pha, A);
+op_push_gen(phx, X);
+op_push_gen(phy, Y);
 #undef op_push_gen
 
 void op_phd_e(cpu_t* cpu) {
@@ -255,9 +256,9 @@ void op_php(cpu_t* cpu) {
         cpu->regs.p.z = (cpu->regs.r[num].w == 0);      \
     }
 
-op_pull_gen(PLA, A);
-op_pull_gen(PLX, X);
-op_pull_gen(PLY, Y);
+op_pull_gen(pla, A);
+op_pull_gen(plx, X);
+op_pull_gen(ply, Y);
 
 #undef op_push_gen
 

@@ -1,5 +1,5 @@
-#ifndef MOCKUP_CPU_WRITE_H
-#define MOCKUP_CPU_WRITE_H
+#ifndef R65816_WRITE_H
+#define R65816_WRITE_H
 
 #include "cpu.h"
 
@@ -58,4 +58,4 @@ void op_sta_sr_w(cpu_t* cpu);
 void op_sta_isry_b(cpu_t* cpu);
 void op_sta_isry_w(cpu_t* cpu);
 
-#endif //MOCKUP_CPU_WRITE_H
+#endif //R65816_WRITE_H

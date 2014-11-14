@@ -8,14 +8,14 @@
 #define S 4
 #define D 5
 
-#define op_write_addr_gen(name, num)					\
-    void op_write_addr_##name##_b(cpu_t* cpu) {				\
+#define op_write_addr_gen(name, num)				\
+    void op_write_addr_##name##_b(cpu_t* cpu) {			\
 	cpu->aa.l = op_readpc(cpu);					\
 	cpu->aa.h = op_readpc(cpu);					\
 	op_writedbr(cpu, cpu->aa.w, cpu->regs.r[num].w);		\
     }									\
 									\
-    void op_write_addr##name##_w(cpu_t* cpu) {				\
+    void op_write_addr##name##_w(cpu_t* cpu) {			\
 	cpu->aa.l = op_readpc(cpu);					\
 	cpu->aa.h = op_readpc(cpu);					\
 	op_writedbr(cpu, cpu->aa.w + 0, cpu->regs.r[num].w >> 0);	\
@@ -27,15 +27,15 @@ op_write_addr_gen(sta, A);
 op_write_addr_gen(stx, X);
 op_write_addr_gen(stz, Z);
 
-#undef op_write_addr_gen
+#undef write_addr_gen
 
 #define op_write_addrr_gen(name, num, i)				\
     void op_write_addrr_##name##_b(cpu_t* cpu) {			\
-    cpu->aa.l = op_readpc(cpu);						\
-    cpu->aa.h = op_readpc(cpu);						\
-    op_writedbr(cpu, cpu->aa.w + cpu->regs.r[i].w, cpu->regs.r[num].w);	\
+	cpu->aa.l = op_readpc(cpu);					\
+	cpu->aa.h = op_readpc(cpu);					\
+	op_writedbr(cpu, cpu->aa.w + cpu->regs.r[i].w, cpu->regs.r[num].w);	\
     }									\
-     									\
+    									\
     void op_write_addrr_##name##_w(cpu_t* cpu) {			\
 	cpu->aa.l = op_readpc(cpu);					\
 	cpu->aa.h = op_readpc(cpu);					\
