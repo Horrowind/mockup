@@ -1,10 +1,10 @@
-#ifndef MOCKUP_CPU_TABLE_H
-#define MOCKUP_CPU_TABLE_H
+#ifndef MOCKUP_R65816_CPU_TABLE_H
+#define MOCKUP_R65816_CPU_TABLE_H
 
 #include "cpu.h"
 
-void initialize_opcode_table(cpu_t* cpu);
-void update_table(cpu_t* cpu);
+void initialize_opcode_table(r65816_cpu_t* cpu);
+void update_table(r65816_cpu_t* cpu);
 
 
 
@@ -15,4 +15,4 @@ void update_table(cpu_t* cpu);
 
 
 
-#endif //MOCKUP_CPU_TABLE_H
+#endif //MOCKUP_R65816_CPU_TABLE_H

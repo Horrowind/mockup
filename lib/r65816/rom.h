@@ -5,17 +5,17 @@
 
 const int banksize = 0x8000;
 
-typedef uint8_t* bank;
+typedef uint8_t* r65816_bank;
 
-struct rom {
+struct r65816_rom {
     const char*  name;
-    bank*        banks;
+    r65816_bank* banks;
     unsigned int num_banks;
 };
-typedef struct rom rom_t;
+typedef struct r65816_rom r65816_rom_t;
 
-void rom_load(rom_t* rom, const char* path);
-void rom_expand(rom_t* rom, uint32_t size);
+void r65816_rom_load(r65816_rom_t* rom, const char* path);
+void r65816_rom_expand(r65816_rom_t* rom, uint32_t size);
 
 
 #endif //MOCKUP_ROM_H

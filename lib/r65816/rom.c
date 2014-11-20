@@ -3,7 +3,7 @@
 
 #include "rom.h"
 
-void rom_load(rom_t* rom, const char* path) {
+void r65816_rom_load(r65816_rom_t* rom, const char* path) {
     const int banksize = banksize;
     FILE* fp = fopen(path, "r");
     if(!fp) return;

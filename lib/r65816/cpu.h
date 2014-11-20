@@ -6,27 +6,27 @@
 
 #include "rom.h"
 
-struct reg24 {
+struct r65816_reg24 {
   union {
     uint32_t d;
     struct { uint16_t w, wh; };
     struct { uint8_t  l, h, b, bh; };
   };
 };
-typedef struct reg24 reg24_t;
+typedef struct r65816_reg24 r65816_reg24_t;
 
-struct reg16 {
+struct r65816_reg16 {
     union {
         uint16_t w;
         uint8_t l, h;
     };
 };
-typedef struct reg16 reg16_t;
-struct regs {
-    reg24_t pc;
+typedef struct r65816_reg16 r65816_reg16_t;
+struct r65816_regs {
+    r65816_reg24_t pc;
     union {
-        reg16_t r[6];
-        reg16_t a, x, y, z, s, d;
+        r65816_reg16_t r[6];
+        r65816_reg16_t a, x, y, z, s, d;
     };
     union {
         struct { uint8_t n:1, v:1, m:1, x:1, d:1, i:1, z:1, c:1; };
@@ -38,28 +38,28 @@ struct regs {
     uint8_t mdr;      //memory data register
     //uint16_t vector;  //interrupt vector address
 };
-typedef struct regs regs_t;
+typedef struct r65816_regs r65816_regs_t;
 
-struct cpu {
-    rom_t* rom;
+struct r65816_cpu {
+    r65816_rom_t* rom;
     uint8_t* ram;
     uint8_t* sreg;
 
 
-    regs_t regs;
-    reg24_t aa, rd;
+    r65816_regs_t regs;
+    r65816_reg24_t aa, rd;
     uint8_t sp, dp;
     
-    void (**opcode_table)(struct cpu*);
-    void (*op_table[5 * 256])(struct cpu*);
+    void (**opcode_table)(struct r65816_cpu*);
+    void (*op_table[5 * 256])(struct r65816_cpu*);
 
 };
-typedef struct cpu cpu_t;
+typedef struct r65816_cpu r65816_cpu_t;
 
-void cpu_step(cpu_t* cpu);
-void cpu_init(cpu_t* cpu, rom_t* rom);
-void cpu_show_state(cpu_t* cpu, char ouput[256]);
-void cpu_disassemble_opcode(cpu_t* cpu, char* output, uint32_t addr);
-void op_write(cpu_t* cpu, uint32_t addr, uint8_t data);
-uint8_t op_read(cpu_t* cpu, uint32_t addr);
+void r65816_cpu_step(r65816_cpu_t* cpu);
+void r65816_cpu_init(r65816_cpu_t* cpu, r65816_rom_t* rom);
+void r65816_cpu_show_state(r65816_cpu_t* cpu, char ouput[256]);
+void r65816_cpu_disassemble_opcode(r65816_cpu_t* cpu, char* output, uint32_t addr);
+void r65816_op_write(r65816_cpu_t* cpu, uint32_t addr, uint8_t data);
+uint8_t r65816_op_read(r65816_cpu_t* cpu, uint32_t addr);
 #endif //MOCKUP_CPU_H
