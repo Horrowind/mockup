@@ -7,18 +7,17 @@
 #include "decode.h"
 #include "level.h"
 
-level_t* level_init(const char* path, int levelnum) {
+level_t* level_init(const char* path) {
     level_t* l = malloc(sizeof(level_t));
     l->path = path;
-    l->load_level(levelnum);
-    cpu_init(l->cpu);
+    r65816_rom_init(l->rom);
+    r65816_rom_load(l->rom, path);
     return l;
 }
 
 void level_load(level_t* l, int levelnum) {
     l->levelnum = levelnum;
-    cpu_init(l->cpu);
-
+    
     load_palette();
     load_map8();
     load_map16();
@@ -26,21 +25,24 @@ void level_load(level_t* l, int levelnum) {
     load_gfx3233();
 
     for(int i = 0; i < 8; i++) {
-	animate(i);
+        level_animate(l, i);
     }
 }
 
 level_t* level_free(level_t* l) {
+    r65816_rom_free(l->rom);
     if(l->layer1) free(l->layer1);
     if(l->layer2) free(l->layer2);
 }
 
     
-void Level::load_palette() {
-m_cpu.clear_ram();
-m_cpu.m_ram[0x65] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum]; 
-m_cpu.m_ram[0x66] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum + 1];
-m_cpu.m_ram[0x67] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum + 2];
+void level_load_palette() {
+    cpu_t cpu;
+    r65816_cpu_init(&cpu, l->rom);
+    cpu.clear_ram();
+    cpu.m_ram[0x65] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum]; 
+    cpu.m_ram[0x66] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum + 1];
+    cpu.m_ram[0x67] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum + 2];
 m_cpu.run(0x0583AC, 0x0583B8);
 // Run the palette loading routine.
 m_cpu.run(0x00ABED, 0x00ACEC);

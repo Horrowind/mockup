@@ -1,1 +1,2 @@
 add_subdirectory(mockup)
+add_subdirectory(annotate)
