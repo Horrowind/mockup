@@ -6,10 +6,5 @@ add_library(r65816
   cpu.c
   disassembler.c
   memory.c
-  opcode_misc.c
-  opcode_pc.c
-  opcode_read.c
-  opcode_rmw.c
-  opcode_write.c
   table.c
 )

@@ -8,7 +8,6 @@ struct level {
     const char* path;
     int levelnum;
     
-    
     uint16_t* layer1 = NULL;
     uint16_t* layer2 = NULL;
     
@@ -21,8 +20,6 @@ struct level {
     uint8_t  is_vertical_level : 1;
     uint32_t background_color;
 	
-
-    
     const int size_of_gfx_32 = 744;
     const int size_of_gfx_33 = 384;
     uint32_t  palette[256];
@@ -30,7 +27,7 @@ struct level {
     tile8_t   gfx_32_33[sizeOfGFX32 + sizeOfGFX33];
     tile16_t  map_16_fg[512];
     tile16_t  map_16_bg[512];
-    cpu_t     cpu;
+    cpu_t*    cpu;
 };
 typedef struct level level_t;
 

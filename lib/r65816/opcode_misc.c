@@ -1,6 +1,4 @@
-
 #include "memory.h"
-#include "opcode_misc.h"
 #include "table.h"
 
 #define A 0

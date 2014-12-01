@@ -1,5 +1,5 @@
-#include "string.h"
-
+#include <string.h>
+#include "memory.h"
 #include "disassembler.h"
 
 uint8_t dreadb(cpu_t* cpu, uint32_t addr) {

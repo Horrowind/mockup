@@ -1,5 +1,4 @@
 #include "memory.h"
-#include "opcode_pc.h"
 #include "table.h"
 
 #define op_branch_gen(name, bit, val)                            \

@@ -1,6 +1,5 @@
 #include "algorithms.h"
 #include "memory.h"
-#include "opcode_rmw.h"
 
 #define A 0
 #define X 1

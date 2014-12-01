@@ -3,6 +3,9 @@
 
 #include "cpu.h"
 
+uint8_t op_read(cpu_t* cpu, uint32_t addr);
+void op_write(cpu_t* cpu, uint32_t addr, uint8_t data);
+
 uint8_t op_readpc(cpu_t* cpu);
 uint8_t op_readstack(cpu_t* cpu);
 uint8_t op_readstackn(cpu_t* cpu);

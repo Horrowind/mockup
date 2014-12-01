@@ -15,6 +15,11 @@ void r65816_cpu_clear_ram(cpu_t* cpu) {
     memset(cpu->ram, 0, 20000);
 }
 
+void r65816_cpu_load(cpu_t* cpu, const char* path) {
+    rom_t* rom = malloc(sizeof(rom));
+    r65816_cpu_init(cpu, rom);
+}
+
 void r65816_cpu_init(cpu_t* cpu, rom_t* rom) {
     cpu->rom = rom;
     cpu->ram = malloc(0x20000);
@@ -33,53 +38,7 @@ void r65816_cpu_init(cpu_t* cpu, rom_t* rom) {
 }
 
 
-void r65816_op_write(cpu_t* cpu, uint32_t addr, uint8_t data) {
-    if(addr & 0xFF8000) {
-	if(addr >= 0x7E0000 && addr < 0x800000) {
-	    cpu->ram[addr-0x7E0000] = data;
-	} else {
-	    if(addr & 0x008000) {
-		fprintf(stderr, "Err: %06x Wrote: %06x", cpu->regs.pc, addr);
-		//getchar();
-		//Todo: ERROR
-	    } else {
-		cpu->ram[addr & 0x007FFF] = data;
-	    }
-	}
-    } else {
-	if(addr >= 0x002000) {
-	    if(addr <= 0x004500) {
-		cpu->sreg[addr - 0x2000] = data;
-	    } else {
-		fprintf(stderr, "Err: %06x Wrote: %06x", cpu->regs.pc, addr);
-		//getchar();
-	    }
-	} else {
-	    cpu->ram[addr] = data;
-	}
-    }
-}
 
-uint8_t r65816_op_read(cpu_t* cpu, uint32_t addr) {
-    if(addr & 0xFF8000) {
-	if(addr >= 0x7E0000 && addr < 0x800000) {
-	    return cpu->ram[addr-0x7E0000];
-	} else if(addr & 0x008000) {
-	    return cpu->rom->banks[(addr & 0x7f0000) >> 17][addr & 0x7fff];
-	} else {
-	    return cpu->ram[addr & 0x007FFF];
-	}
-    }
-    if(addr >= 0x002000) {
-	if(addr <= 0x004500) {
-	    return cpu->sreg[addr - 0x2000];
-	} else {
-	    fprintf(stderr, "Err: %06x Read: %06x", cpu->regs.pc, addr);
-	    //getchar();
-	}
-    }
-    return cpu->ram[addr];
-}
 
 
 void r65816_cpu_disassemble_opcode(cpu_t* cpu, char* output, uint32_t addr) {

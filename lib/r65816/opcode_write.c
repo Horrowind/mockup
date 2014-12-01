@@ -1,5 +1,4 @@
 #include "memory.h"
-#include "opcode_write.h"
 
 #define A 0
 #define X 1
@@ -15,7 +14,7 @@
 	op_writedbr(cpu, cpu->aa.w, cpu->regs.r[num].w);		\
     }									\
 									\
-    void op_write_addr##name##_w(cpu_t* cpu) {			\
+    void op_write_addr_##name##_w(cpu_t* cpu) {				\
 	cpu->aa.l = op_readpc(cpu);					\
 	cpu->aa.h = op_readpc(cpu);					\
 	op_writedbr(cpu, cpu->aa.w + 0, cpu->regs.r[num].w >> 0);	\
