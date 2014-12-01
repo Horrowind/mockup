@@ -8,37 +8,36 @@
 #include "decode.h"
 #include "level.h"
 
-
-
-level_t* level_init(const char* path, int levelnum) {
+level_t* level_init(const char* path) {
     level_t* l = malloc(sizeof(level_t));
     l->path = path;
-    l->load_level(levelnum);
-    r65816_cpu_init(l->cpu);
+    r65816_rom_init(l->rom);
+    r65816_rom_load(l->rom, path);
     return l;
 }
 
 void level_load(level_t* l, int levelnum) {
     l->levelnum = levelnum;
-    r65816_cpu_init(l->cpu);
+    r65816_cpu_t cpu;
+    r65816_cpu_init(&cpu, l->rom);
 
-    level_load_palette();
-    level_load_map8();
-    level_load_map16();
-    level_load_objects();
-    level_load_gfx3233();
+    level_load_palette(&cpu);
+    level_load_map8(&cpu);
+    level_load_map16(&cpu);
+    level_load_objects(&cpu);
+    level_load_gfx3233(&cpu);
 
     for(int i = 0; i < 8; i++) {
-	animate(i);
+        level_animate(l, i);
     }
 }
 
 void level_free(level_t* l) {
+    r65816_rom_free(l->rom);
     if(l->layer1) free(l->layer1);
     if(l->layer2) free(l->layer2);
 }
 
-    
 void level_load_palette(level_t* l) {
     r65816_cpu_clear_ram();
     l->cpu->ram[0x65] = l->cpu->rom[0x02E000 + 3 * m_levelnum]; 

@@ -24,7 +24,7 @@ enum {
   OPTYPE_RELW,      //relw
 };
 
-uint8_t dreadb(cpu_t* cpu, uint32_t addr);
-uint16_t dreadw(cpu_t* cpu, uint32_t addr);
-uint32_t dreadl(cpu_t* cpu, uint32_t addr);
-uint32_t decode(cpu_t* cpu, uint8_t offset_type, uint32_t addr);
+uint8_t r65816_dreadb(r65816_cpu_t* cpu, uint32_t addr);
+uint16_t r65816_dreadw(r65816_cpu_t* cpu, uint32_t addr);
+uint32_t r65816_dreadl(r65816_cpu_t* cpu, uint32_t addr);
+uint32_t r65816_decode(r65816_cpu_t* cpu, uint8_t offset_type, uint32_t addr);
