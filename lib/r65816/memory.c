@@ -1,8 +1,62 @@
 #include "cpu.h"
 #include "memory.h"
 
+<<<<<<< HEAD
+uint8_t op_read(cpu_t* cpu, uint32_t addr) {
+    if(addr & 0xFF8000) {
+	if(addr >= 0x7E0000 && addr < 0x800000) {
+	    return cpu->ram[addr-0x7E0000];
+	} else if(addr & 0x008000) {
+	    return cpu->rom->banks[(addr & 0x7f0000) >> 17][addr & 0x7fff];
+	} else {
+	    return cpu->ram[addr & 0x007FFF];
+	}
+    }
+    if(addr >= 0x002000) {
+	if(addr <= 0x004500) {
+	    return cpu->sreg[addr - 0x2000];
+	} else {
+	    fprintf(stderr, "Err: %06x Read: %06x", cpu->regs.pc.d, addr);
+	    //getchar();
+	}
+    }
+    return cpu->ram[addr];
+}
+
+void op_write(cpu_t* cpu, uint32_t addr, uint8_t data) {
+    if(addr & 0xFF8000) {
+	if(addr >= 0x7E0000 && addr < 0x800000) {
+	    cpu->ram[addr-0x7E0000] = data;
+	} else {
+	    if(addr & 0x008000) {
+		fprintf(stderr, "Err: %06x Wrote: %06x", cpu->regs.pc.d, addr);
+		//getchar();
+		//Todo: ERROR
+	    } else {
+		cpu->ram[addr & 0x007FFF] = data;
+	    }
+	}
+    } else {
+	if(addr >= 0x002000) {
+	    if(addr <= 0x004500) {
+		cpu->sreg[addr - 0x2000] = data;
+	    } else {
+		fprintf(stderr, "Err: %06x Wrote: %06x", cpu->regs.pc.d, addr);
+		//getchar();
+	    }
+	} else {
+	    cpu->ram[addr] = data;
+	}
+    }
+}
+
+
+inline uint8_t op_readpc(cpu_t* cpu) {
+  return op_read(cpu, (cpu->regs.pc.b << 16) + cpu->regs.pc.w++);
+=======
 inline uint8_t r65816_op_readpc(r65816_cpu_t* cpu) {
   return r65816_op_read(cpu, (cpu->regs.pc.b << 16) + cpu->regs.pc.w++);
+>>>>>>> e573f9e01bdb380e20c29036409f287f8f93efe9
 }
 
 inline uint8_t r65816_op_readstack(r65816_cpu_t* cpu) {

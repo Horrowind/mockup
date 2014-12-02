@@ -1,5 +1,5 @@
-#ifndef MOCKUP_ROM_H
-#define MOCKUP_ROM_H
+#ifndef R65816_ROM_H
+#define R65816_ROM_H
 
 #include <stdint.h>
 
@@ -19,4 +19,4 @@ void r65816_rom_free(r65816_rom_t* rom);
 void r65816_rom_expand(r65816_rom_t* rom, uint32_t size);
 
 
-#endif //MOCKUP_ROM_H
+#endif //R65816_ROM_H

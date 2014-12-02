@@ -1,14 +1,13 @@
+#include "disassembler.h"
 #include "memory.h"
-#include "table.h"
-
 #include "opcode_misc.c"
 #include "opcode_pc.c"
 #include "opcode_read.c"
 #include "opcode_rmw.c"
 #include "opcode_write.c"
+#include "table.h"
 
-
-void initialize_opcode_table(r65816_cpu_t* cpu) {
+void initialize_opcode_table(cpu_t* cpu) {
     enum {
         table_EM =    0,  // 8-bit accumulator,  8-bit index (emulation mode)
         table_MX =  256,  // 8-bit accumulator,  8-bit index
@@ -19,24 +18,25 @@ void initialize_opcode_table(r65816_cpu_t* cpu) {
 #define opA(  id, name       )                                          \
     cpu->op_table[table_EM + id] = cpu->op_table[table_MX + id]         \
         = cpu->op_table[table_Mx + id] = cpu->op_table[table_mX + id]   \
-        = cpu->op_table[table_mx + id] = &r65816_op_##name;
+        = cpu->op_table[table_mx + id] = &op_##name;
 
 #define opE(  id, name       )                                          \
-    cpu->op_table[table_EM + id] = &r65816_op_##name##_e;               \
+    cpu->op_table[table_EM + id] = &op_##name##_e;                      \
     cpu->op_table[table_MX + id] = cpu->op_table[table_Mx + id]         \
         = cpu->op_table[table_mX + id]                                  \
-        = cpu->op_table[table_mx + id] = &r65816_op_##name##_n;
+        = cpu->op_table[table_mx + id] = &op_##name##_n;
     
 #define opM(  id, name       )                                          \
     cpu->op_table[table_EM + id] = cpu->op_table[table_MX + id]         \
-        = cpu->op_table[table_Mx + id] = &r65816_op_##name##_b;         \
-    cpu->op_table[table_mX + id] = cpu->op_table[table_mx + id] = &r65816_op_##name##_w;
+        = cpu->op_table[table_Mx + id] = &op_##name##_b;                \
+    cpu->op_table[table_mX + id] = cpu->op_table[table_mx + id] = &op_##name##_w;
     
 #define opX(  id, name       )                                          \
     cpu->op_table[table_EM + id] = cpu->op_table[table_MX + id]         \
-        = cpu->op_table[table_mX + id] = &r65816_op_##name##_b;         \
-    cpu->op_table[table_Mx + id] = cpu->op_table[table_mx + id] = &r65816_op_##name##_w;  
+        = cpu->op_table[table_mX + id] = &op_##name##_b;                \
+    cpu->op_table[table_Mx + id] = cpu->op_table[table_mx + id] = &op_##name##_w;  
     
+
     opE(0x00, interrupt_brk);
     opM(0x01, read_idpx_ora);
     opE(0x02, interrupt_cop);
@@ -301,7 +301,7 @@ void initialize_opcode_table(r65816_cpu_t* cpu) {
 
 }
 
-void update_table(r65816_cpu_t* cpu) {
+void update_table(cpu_t* cpu) {
     enum {
         table_EM =    0,  // 8-bit accumulator,  8-bit index (emulation mode)
         table_MX =  256,  // 8-bit accumulator,  8-bit index

@@ -8,7 +8,6 @@ typedef struct {
     const char* path;
     int levelnum;
     
-    
     uint16_t* layer1;
     uint16_t* layer2;
     
@@ -20,9 +19,6 @@ typedef struct {
     uint8_t  has_layer_2_object : 1;
     uint8_t  is_vertical_level : 1;
     uint32_t background_color;
-	
-
-    
     
     uint32_t     palette[256];
     tile8_t      map_8[512];
