@@ -1,6 +1,8 @@
 #ifndef LUBMOCKUP_REGISTERS_H
 #define LUBMOCKUP_REGISTERS_H
 
+#include "stdint.h"
+
 struct r65816_reg24 {
   union {
     uint32_t d;

@@ -11,7 +11,6 @@
 level_t* level_init(const char* path) {
     level_t* l = malloc(sizeof(level_t));
     l->path = path;
-    r65816_rom_init(l->rom);
     r65816_rom_load(l->rom, path);
     return l;
 }
@@ -39,88 +38,88 @@ void level_free(level_t* l) {
 }
 
 void level_load_palette(level_t* l) {
-    
-void level_load_palette() {
-    cpu_t cpu;
+    r65816_cpu_t cpu;
     r65816_cpu_init(&cpu, l->rom);
 
-    // Run the palette loading routine.
-    cpu.m_ram[0x65] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum]; 
-    cpu.m_ram[0x66] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum + 1];
-    cpu.m_ram[0x67] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum + 2];
+    cpu.ram[0x65] = cpu.rom->banks[2][0xE000 + 3 * l->levelnum]; 
+    cpu.ram[0x66] = cpu.rom->banks[2][0xE000 + 3 * l->levelnum + 1];
+    cpu.ram[0x67] = cpu.rom->banks[2][0xE000 + 3 * l->levelnum + 2];
 
     // Run the palette loading routine.
-    r65816_run(l->cpu, 0x0583AC, 0x0583B8);
+    r65816_cpu_add_exec_bp(&cpu, 0x0583B8);
+    r65816_cpu_run(&cpu, 0x0583AC);
     uint16_t paletteSNES[256];
-    memcpy(paletteSNES, m_cpu.m_ram + 0x0703, 512);
+    memcpy(paletteSNES, cpu.ram + 0x0703, 512);
     
     for(int i = 0; i < 256; i++) {
-        m_palette[i] = i % 16 ? convertColor(paletteSNES[i]) : 0;
+        l->palette[i] = i % 16 ? convertColor(paletteSNES[i]) : 0;
     }
 }
 
-/* void Level::load_map8() { */
+void level_load_map8() {
+    r65816_cpu_t cpu;
+    r65816_cpu_init(&cpu, l->rom);
 
-/* m_cpu.clear_ram(); */
-/* m_cpu.m_ram[0x65] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum];  */
-/* m_cpu.m_ram[0x66] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum + 1]; */
-/* m_cpu.m_ram[0x67] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum + 2]; */
-    
-/* m_cpu.run(0x0583AC, 0x0583B8); */
+    cpu.ram[0x65] = cpu.rom->banks[2][0xE000 + 3 * l->levelnum]; 
+    cpu.ram[0x66] = cpu.rom->banks[2][0xE000 + 3 * l->levelnum + 1];
+    cpu.ram[0x67] = cpu.rom->banks[2][0xE000 + 3 * l->levelnum + 2];
+
+    r65816_cpu_add_exec_bp(&cpu, 0x0583AC);
+    r65816_cpu_run(&cpu, 0x0583B8);
         
-/* int tileset = m_cpu.m_ram[0x1931]; */
-/* auto address = 0x00292B + tileset * 4; */
-/* int fg1 = m_cpu.m_rom[address + 0x00]; */
-/* int fg2 = m_cpu.m_rom[address + 0x01]; */
-/* int bg1 = m_cpu.m_rom[address + 0x02]; */
-/* int fg3 = m_cpu.m_rom[address + 0x03]; */
+    int tileset = cpu.ram[0x1931];
+    uint32_t address = 0x00292B + tileset * 4;
+    int fg1 = m_cpu.m_rom[address + 0x00];
+    int fg2 = m_cpu.m_rom[address + 0x01];
+    int bg1 = m_cpu.m_rom[address + 0x02];
+    int fg3 = m_cpu.m_rom[address + 0x03];
 
-/* uint8_t fg1Chr[3072], fg2Chr[3072], bg1Chr[3072], fg3Chr[3072]; */
+    uint8_t fg1Chr[3072], fg2Chr[3072], bg1Chr[3072], fg3Chr[3072];
 
-/* int addrFG1 = m_cpu.m_rom[originalGraphicsFilesBankByteTableLocationPC + fg1]; */
-/* addrFG1 = (addrFG1 << 8) | m_cpu.m_rom[originalGraphicsFilesHighByteTableLocationPC + fg1]; */
-/* addrFG1 = (addrFG1 << 8) | m_cpu.m_rom[originalGraphicsFilesLowByteTableLocationPC + fg1]; */
-/* int addrFG1PC = ((addrFG1 & 0x7f0000) >> 1) + (addrFG1 & 0x7fff); */
-/* decryptLZ2(m_cpu.m_rom + addrFG1PC, fg1Chr); */
+    int addrFG1 = m_cpu.m_rom[originalGraphicsFilesBankByteTableLocationPC + fg1];
+    addrFG1 = (addrFG1 << 8) | m_cpu.m_rom[originalGraphicsFilesHighByteTableLocationPC + fg1];
+    addrFG1 = (addrFG1 << 8) | m_cpu.m_rom[originalGraphicsFilesLowByteTableLocationPC + fg1];
+    int addrFG1PC = ((addrFG1 & 0x7f0000) >> 1) + (addrFG1 & 0x7fff);
+    decryptLZ2(m_cpu.m_rom + addrFG1PC, fg1Chr);
 
-/* int addrFG2 = m_cpu.m_rom[originalGraphicsFilesBankByteTableLocationPC + fg2]; */
-/* addrFG2 = (addrFG2 << 8) | m_cpu.m_rom[originalGraphicsFilesHighByteTableLocationPC + fg2]; */
-/* addrFG2 = (addrFG2 << 8) | m_cpu.m_rom[originalGraphicsFilesLowByteTableLocationPC + fg2]; */
-/* int addrFG2PC = ((addrFG2 & 0x7f0000) >> 1) + (addrFG2 & 0x7fff); */
-/* decryptLZ2(m_cpu.m_rom + addrFG2PC, fg2Chr); */
+    int addrFG2 = m_cpu.m_rom[originalGraphicsFilesBankByteTableLocationPC + fg2];
+    addrFG2 = (addrFG2 << 8) | m_cpu.m_rom[originalGraphicsFilesHighByteTableLocationPC + fg2];
+    addrFG2 = (addrFG2 << 8) | m_cpu.m_rom[originalGraphicsFilesLowByteTableLocationPC + fg2];
+    int addrFG2PC = ((addrFG2 & 0x7f0000) >> 1) + (addrFG2 & 0x7fff);
+    decryptLZ2(m_cpu.m_rom + addrFG2PC, fg2Chr);
 
-/* int addrBG1 = m_cpu.m_rom[originalGraphicsFilesBankByteTableLocationPC + bg1]; */
-/* addrBG1 = (addrBG1 << 8) | m_cpu.m_rom[originalGraphicsFilesHighByteTableLocationPC + bg1]; */
-/* addrBG1 = (addrBG1 << 8) | m_cpu.m_rom[originalGraphicsFilesLowByteTableLocationPC + bg1]; */
-/* int addrBG1PC = ((addrBG1 & 0x7f0000) >> 1) + (addrBG1 & 0x7fff); */
-/* decryptLZ2(m_cpu.m_rom + addrBG1PC, bg1Chr); */
+    int addrBG1 = m_cpu.m_rom[originalGraphicsFilesBankByteTableLocationPC + bg1];
+    addrBG1 = (addrBG1 << 8) | m_cpu.m_rom[originalGraphicsFilesHighByteTableLocationPC + bg1];
+    addrBG1 = (addrBG1 << 8) | m_cpu.m_rom[originalGraphicsFilesLowByteTableLocationPC + bg1];
+    int addrBG1PC = ((addrBG1 & 0x7f0000) >> 1) + (addrBG1 & 0x7fff);
+    decryptLZ2(m_cpu.m_rom + addrBG1PC, bg1Chr);
 
-/* int addrFG3 = m_cpu.m_rom[originalGraphicsFilesBankByteTableLocationPC + fg3]; */
-/* addrFG3 = (addrFG3 << 8) | m_cpu.m_rom[originalGraphicsFilesHighByteTableLocationPC + fg3]; */
-/* addrFG3 = (addrFG3 << 8) | m_cpu.m_rom[originalGraphicsFilesLowByteTableLocationPC + fg3]; */
-/* int addrFG3PC = ((addrFG3 & 0x7f0000) >> 1) + (addrFG3 & 0x7fff); */
-/* decryptLZ2(m_cpu.m_rom + addrFG3PC, fg3Chr); */
+    int addrFG3 = m_cpu.m_rom[originalGraphicsFilesBankByteTableLocationPC + fg3];
+    addrFG3 = (addrFG3 << 8) | m_cpu.m_rom[originalGraphicsFilesHighByteTableLocationPC + fg3];
+    addrFG3 = (addrFG3 << 8) | m_cpu.m_rom[originalGraphicsFilesLowByteTableLocationPC + fg3];
+    int addrFG3PC = ((addrFG3 & 0x7f0000) >> 1) + (addrFG3 & 0x7fff);
+    decryptLZ2(m_cpu.m_rom + addrFG3PC, fg3Chr);
 
-/* for(int tile = 0; tile < 512; tile++) { */
-/* uint8_t* usedChr; */
-/* switch(tile >> 7) { */
-/*  case 0b000: */
-/* usedChr = fg1Chr; */
-/* break; */
-/*  case 0b001: */
-/* usedChr = fg2Chr; */
-/* break; */
-/*  case 0b010: */
-/* usedChr = bg1Chr; */
-/* break; */
-/*  case 0b011: */
-/* usedChr = fg3Chr; */
-/* break; */
-/* } */
+    for(int tile = 0; tile < 512; tile++) {
+        uint8_t* usedChr;
+        switch(tile >> 7) {
+        case 0b000:
+            usedChr = fg1Chr;
+            break;
+        case 0b001:
+            usedChr = fg2Chr;
+            break;
+        case 0b010:
+            usedChr = bg1Chr;
+            break;
+        case 0b011:
+            usedChr = fg3Chr;
+            break;
+        }
 
-/* m_map8[tile] = Tile8::from3bpp(usedChr + 24 * (tile % 128)); */
-/* } */
-/* } */
+        m_map8[tile] = Tile8::from3bpp(usedChr + 24 * (tile % 128));
+    }
+}
 
 /* void Level::load_map16() { */
 /* m_cpu.clear_ram(); */

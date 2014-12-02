@@ -8,7 +8,7 @@ uint8_t r65816_dreadb(r65816_cpu_t* cpu, uint32_t addr) {
     //do not read MMIO registers within debugger
     return 0x00;
   }
-  return r65816_op_read(cpu, addr);
+  return r65816_cpu_read(cpu, addr);
 }
 
 uint16_t r65816_dreadw(r65816_cpu_t* cpu, uint32_t addr) {

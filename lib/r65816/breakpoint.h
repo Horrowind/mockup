@@ -1,13 +1,25 @@
 #ifndef LIBR65816_BREAKPOINT_H
 #define LIBR65816_BREAKPOINT_H
 
-typedef struct breakpoint {
-    struct breakpoint* next;
-    int address;
-    uint8_t read  : 1;
-    uint8_t write : 1;
-    uint8_t exec  : 1;
-} breakpoint_t;
+#include "stdint.h"
 
+typedef struct r65816_breakpoint {
+    struct r65816_breakpoint* next;
+    uint32_t address;
+} r65816_breakpoint_t;
+
+
+uint8_t r65816_breakpoint_is_hit(r65816_breakpoint_t* head, uint32_t address) {
+    while(head != 0) {
+        if(head->address == address) return 1; 
+        head = head->next;
+    } 
+    return 0;
+}
+
+void r65816_breakpoint_clear(r65816_breakpoint_t** head_ptr) {
+    
+
+}
 
 #endif //LIBR65816_BREAKPOINT_H

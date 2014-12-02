@@ -1,15 +1,15 @@
 #include "tiles.h"
 
-tile8_t tile8_flip(tile8_t tile, bool flipX, bool flipY) {
+tile8_t tile8_flip(tile8_t tile, tile_flip_t flip) {
     tile8_t tile_new;
-    int itx = flipX ? -1 : 1;
-    int ity = flipY ? -1 : 1;
+    int itx = flip.X ? -1 : 1;
+    int ity = flip.Y ? -1 : 1;
         
-    int sy  = flipY ?  7 : 0;
+    int sy  = flip.Y ?  7 : 0;
     for(int i = 0; i < 8; i++) {
-        int sx  = flipX ?  7 : 0;
+        int sx  = flip.X ?  7 : 0;
         for(int j = 0; j < 8; j++) {
-            tile_new.pixels[i * 8 + j] = pixels[sy * 8 + sx];
+            tile_new.pixels[i * 8 + j] = tile.pixels[sy * 8 + sx];
             sx += itx;
                 
         }
@@ -58,7 +58,7 @@ tile8_t tile8_from4bpp(uint8_t* data) {
     return tile;
 }
 
-tile16_t tile16_fromTile8(Tile8 t[4], const uint8_t (&pal)[4]) {
+tile16_t tile16_fromTile8(tile8_t t[4], const uint8_t* pal) {
     tile16_t tile;
     for(int i = 0; i < 8; i++) {
         for(int j = 0; j < 16; j++) {
