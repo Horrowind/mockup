@@ -39,11 +39,11 @@ level_t* level_free(level_t* l) {
 void level_load_palette() {
     cpu_t cpu;
     r65816_cpu_init(&cpu, l->rom);
-    cpu.clear_ram();
+
     cpu.m_ram[0x65] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum]; 
     cpu.m_ram[0x66] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum + 1];
     cpu.m_ram[0x67] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum + 2];
-m_cpu.run(0x0583AC, 0x0583B8);
+    m_cpu.run(0x0583AC, 0x0583B8);
 // Run the palette loading routine.
 m_cpu.run(0x00ABED, 0x00ACEC);
 uint16_t paletteSNES[256];
