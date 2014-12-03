@@ -56,7 +56,7 @@ void level_load_palette(level_t* l) {
     }
 }
 
-void level_load_map8() {
+void level_load_map8(level_t* l) {
     r65816_cpu_t cpu;
     r65816_cpu_init(&cpu, l->rom);
 
@@ -68,15 +68,15 @@ void level_load_map8() {
     r65816_cpu_run(&cpu, 0x0583B8);
         
     int tileset = cpu.ram[0x1931];
-    uint32_t address = 0x00292B + tileset * 4;
-    int fg1 = m_cpu.m_rom[address + 0x00];
-    int fg2 = m_cpu.m_rom[address + 0x01];
-    int bg1 = m_cpu.m_rom[address + 0x02];
-    int fg3 = m_cpu.m_rom[address + 0x03];
+    uint32_t address = 0x292B + tileset * 4;
+    int fg1 = r65816_cpu_read(cpu, address);
+    int fg2 = r65816_cpu_read(cpu, address + 1);
+    int bg1 = r65816_cpu_read(cpu, address + 2);
+    int fg3 = r65816_cpu_read(cpu, address + 3);
 
     uint8_t fg1Chr[3072], fg2Chr[3072], bg1Chr[3072], fg3Chr[3072];
 
-    int addrFG1 = m_cpu.m_rom[originalGraphicsFilesBankByteTableLocationPC + fg1];
+    uint32_t addrFG1 = r65816_cpu_read(cpu, originalGraphicsFilesBankByteTableLocation + fg1);
     addrFG1 = (addrFG1 << 8) | m_cpu.m_rom[originalGraphicsFilesHighByteTableLocationPC + fg1];
     addrFG1 = (addrFG1 << 8) | m_cpu.m_rom[originalGraphicsFilesLowByteTableLocationPC + fg1];
     int addrFG1PC = ((addrFG1 & 0x7f0000) >> 1) + (addrFG1 & 0x7fff);
