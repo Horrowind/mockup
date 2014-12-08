@@ -3,10 +3,13 @@
 
 #include <stdint.h>
 
-typedef struct {
-    uint8_t X :1;
-    uint8_t Y :1;
-} tile_flip_t;
+typedef union {
+    struct {
+	uint8_t X :1;
+	uint8_t Y :1;
+    };
+    uint8_t XY;
+}tile_flip_t;
 
 const tile_flip_t tile_flip_None = { .X = 0, .Y = 0};
 const tile_flip_t tile_flip_X = { .X = 1, .Y = 0};
@@ -23,9 +26,9 @@ typedef struct {
 
 
 tile8_t tile8_flip(tile8_t tile, tile_flip_t flip);
-tile8_t tile8_from3bpp(uint8_t* data);
-tile8_t tile8_from4bpp(uint8_t* data);
+tile8_t tile8_from_3bpp(uint8_t* data);
+tile8_t tile8_from_4bpp(uint8_t* data);
 
-tile16_t tile16_fromTile8(tile8_t t[4], const uint8_t* palette);
+tile16_t tile16_from_tile8(tile8_t t[4], const uint8_t* palette);
     
 #endif //MOCKUP_TILES_HPP
