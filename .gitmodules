@@ -1,3 +1,0 @@
-[submodule "bsnes"]
-	path = lib/bsnes
-	url = https://gitorious.org/bsnes/bsnes.git
