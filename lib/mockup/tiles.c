@@ -18,7 +18,7 @@ tile8_t tile8_flip(tile8_t tile, tile_flip_t flip) {
     return tile_new;
 }
 
-tile8_t tile8_from3bpp(uint8_t* data) {
+tile8_t tile8_from_3bpp(uint8_t* data) {
     tile8_t tile;
     for(int k = 0; k < 8; k++) {
         unsigned char bp1, bp2, bp3;
@@ -37,7 +37,7 @@ tile8_t tile8_from3bpp(uint8_t* data) {
     return tile;
 }
 
-tile8_t tile8_from4bpp(uint8_t* data) {
+tile8_t tile8_from_4bpp(uint8_t* data) {
     tile8_t tile;
     for(int k = 0; k < 8; k++) {
         unsigned char bp1, bp2, bp3, bp4;
@@ -58,7 +58,7 @@ tile8_t tile8_from4bpp(uint8_t* data) {
     return tile;
 }
 
-tile16_t tile16_fromTile8(tile8_t t[4], const uint8_t* pal) {
+tile16_t tile16_from_tile8(tile8_t t[4], const uint8_t* pal) {
     tile16_t tile;
     for(int i = 0; i < 8; i++) {
         for(int j = 0; j < 16; j++) {
