@@ -1,8 +1,6 @@
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
-
-include_directories("${CMAKE_SOURCE_DIR}/lib")
-
 add_library(libmockup
   level.c
   tiles.c
 )
+
+target_include_directories(libmockup PUBLIC ${R65816_INCLUDE_DIR})

@@ -13,4 +13,3 @@ add_subdirectory(mockup)
 add_subdirectory(r65816)
 
 add_dependencies(libmockup r65816)
-

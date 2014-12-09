@@ -12,3 +12,5 @@ add_library(r65816
 )
 
 target_include_directories(r65816 PUBLIC include/r65816)
+set(R65816_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
+message(STATUS ${R65816_INCLUDE_DIR})
