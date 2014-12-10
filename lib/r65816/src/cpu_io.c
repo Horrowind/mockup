@@ -1,3 +1,5 @@
+#include "cpu.h"
+
 uint8_t r65816_cpu_read(r65816_cpu_t* cpu, uint32_t addr) {
     cpu->stop_execution |= r65816_breakpoint_is_hit(
         cpu->breakpoints_read, addr);

@@ -1,11 +1,13 @@
+#include "algorithms.h"
 #include "disassembler.h"
 #include "memory.h"
-#include "opcode_misc.c"
-#include "opcode_pc.c"
-#include "opcode_read.c"
-#include "opcode_rmw.c"
-#include "opcode_write.c"
 #include "table.h"
+#include "opcode_misc.h"
+#include "opcode_pc.h"
+#include "opcode_read.h"
+#include "opcode_rmw.h"
+#include "opcode_write.h"
+
 
 void initialize_opcode_table(r65816_cpu_t* cpu) {
     enum {

@@ -5,6 +5,7 @@
 #include "disassembler.h"
 #include "memory.h"
 #include "table.h"
+#include "algorithms.h"
 
 void r65816_cpu_init(r65816_cpu_t* cpu, r65816_rom_t* rom) {
     cpu->rom = rom;

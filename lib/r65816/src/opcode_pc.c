@@ -1,5 +1,8 @@
+#include "algorithms.h"
 #include "memory.h"
 #include "table.h"
+
+#include "opcode_pc.h"
 
 #define r65816_op_branch_gen(name, bit, val)                            \
     inline void r65816_op_branch_##name(r65816_cpu_t* cpu) {                   \
