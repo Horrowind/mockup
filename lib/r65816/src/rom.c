@@ -53,7 +53,7 @@ uint8_t r65816_score_header(r65816_rom_t* rom, uint32_t address) {
 	return 0;
     }
     uint8_t score = 0;
-    r65816_rom_header_t* header = (r65816_rom_header_t*)rom->data + address;
+    r65816_rom_header_t* header = (r65816_rom_header_t*)(rom->data + address);
     uint16_t reset_vector = header->interrupt_emulation[5];
     uint16_t checksum = header->checksum;
     uint16_t complement = header->checksum_complement;
@@ -124,13 +124,13 @@ uint8_t r65816_guess_header(r65816_rom_t* rom) {
     uint8_t score_ex = r65816_score_header(rom, 0x40ffc0);
     
     if(score_lo >= score_hi && score_lo >= score_ex + 4){
-	rom->header = (r65816_rom_header_t*)rom->data + 0x007fc0;
+	rom->header = (r65816_rom_header_t*)(rom->data + 0x007fc0);
 	return score_lo;
     }else if(score_hi >= score_ex + 4){
-        rom->header = (r65816_rom_header_t*)rom->data + 0x00ffc0;
+        rom->header = (r65816_rom_header_t*)(rom->data + 0x00ffc0);
 	return score_hi;
     }else{
-	rom->header = (r65816_rom_header_t*)rom->data + 0x40ffc0;
+	rom->header = (r65816_rom_header_t*)(rom->data + 0x40ffc0);
 	return score_ex;
     }
 }

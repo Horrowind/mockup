@@ -9,6 +9,10 @@ add_executable(annotate
   main.c
   )
 
+add_executable(annotate_tracer
+  annotate_tracer.c
+  )
+
 target_link_libraries(annotate
   ${LIBXML2_LIBRARIES}
   )
