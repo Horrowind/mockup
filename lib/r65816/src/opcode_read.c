@@ -1,6 +1,8 @@
 #include "algorithms.h"
 #include "memory.h"
 
+#include "opcode_read.h"
+
 #define A 0
 #define X 1
 #define Y 2

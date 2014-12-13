@@ -3,7 +3,7 @@
 
 #include "cpu.h"
 
-void initialize_opcode_table(r65816_cpu_t* cpu);
-void update_table(r65816_cpu_t* cpu);
+void r65816_initialize_opcode_table(r65816_cpu_t* cpu);
+void r65816_update_table(r65816_cpu_t* cpu);
 
 #endif //R65816_TABLE_H
