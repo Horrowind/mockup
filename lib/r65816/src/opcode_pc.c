@@ -146,7 +146,7 @@ inline void r65816_op_rti_n(r65816_cpu_t* cpu) {
     cpu->rd.h = r65816_op_readstack(cpu);
     cpu->rd.b = r65816_op_readstack(cpu);
     cpu->regs.pc.d = cpu->rd.d & 0xffffff;
-    update_table(cpu);
+    r65816_update_table(cpu);
 }
 
 inline void r65816_op_rts(r65816_cpu_t* cpu) {

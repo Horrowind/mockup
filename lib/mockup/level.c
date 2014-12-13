@@ -135,46 +135,44 @@ void level_load_map16(level_t* l, r65816_cpu_t* cpu) {
     int bgPalette = cpu.ram[0x1930];
               
     for(int i = 0; i < 512; i++) {
-	int map16lookupSNES = 0x0D0000 + cpu.ram[2 * i + 0x0FBF] * 256 + cpu.ram[2 * i + 0x0FBE];
-	int map16lookupPC   = ((map16lookupSNES & 0x7f0000) >> 1) + (map16lookupSNES & 0x7fff);
+        int map16lookupSNES = 0x0D0000 + cpu.ram[2 * i + 0x0FBF] * 256 + cpu.ram[2 * i + 0x0FBE];
+        int map16lookupPC   = ((map16lookupSNES & 0x7f0000) >> 1) + (map16lookupSNES & 0x7fff);
             
         tile8_t   tiles[4];
-	uint8_t palettes[4];
-	tile_flip_t flip;
-	int tile;
-	for(int j = 0; j < 4; j++) {
-	    flip.XY     = (l->rom->data[map16lookupPC + j * 2 + 1] & 0b11000000) >> 6;
-	    palettes[j] = (l->rom->data[map16lookupPC + j * 2 + 1] & 0b00011100) >> 2;
-	    tile        =  l->rom->data[map16lookupPC + j * 2] | ((l->rom->data[map16lookupPC + j * 2 + 1] & 0b00000011) << 8);
-	    tiles[j]    =  tile8_flip(l->map8[tile], flip);
-	}
+        uint8_t palettes[4];
+        tile_flip_t flip;
+        int tile;
+        for(int j = 0; j < 4; j++) {
+            flip.XY     = (l->rom->data[map16lookupPC + j * 2 + 1] & 0b11000000) >> 6;
+            palettes[j] = (l->rom->data[map16lookupPC + j * 2 + 1] & 0b00011100) >> 2;
+            tile        =  l->rom->data[map16lookupPC + j * 2] | ((l->rom->data[map16lookupPC + j * 2 + 1] & 0b00000011) << 8);
+            tiles[j]    =  tile8_flip(l->map8[tile], flip);
+        }
 
-	l->map16_fg[i] = tile16_from_tile8(tiles, palettes);
+        l->map16_fg[i] = tile16_from_tile8(tiles, palettes);
     }
 
     for(int i = 0; i < 512; i++) {
-	int map16lookupSNES = 0x0D9100 + i*8;
-	int map16lookupPC   = ((map16lookupSNES & 0x7f0000) >> 1) + (map16lookupSNES & 0x7fff);
+        int map16lookupSNES = 0x0D9100 + i*8;
+        int map16lookupPC   = ((map16lookupSNES & 0x7f0000) >> 1) + (map16lookupSNES & 0x7fff);
 
-	tile8_t   tiles[4];
-	uint8_t palettes[4];
-	tile_flip_t flip;
-	int tile;
-	for(int j = 0; j < 4; j++) {
-	    flip.XY     = (l->rom->data[map16lookupPC + j * 2 + 1] & 0b11000000) >> 6;
-	    palettes[j] = (l->rom->data[map16lookupPC + j * 2 + 1] & 0b00011100) >> 2;
-	    tile        =  l->rom->data[map16lookupPC + j * 2] | ((l->rom->data[map16lookupPC + j * 2 + 1] & 0b00000011) << 8);
-	    tiles[j]    =  tile8_flip(l->map8[tile], flip);
+        tile8_t   tiles[4];
+        uint8_t palettes[4];
+        tile_flip_t flip;
+        int tile;
+        for(int j = 0; j < 4; j++) {
+            flip.XY     = (l->rom->data[map16lookupPC + j * 2 + 1] & 0b11000000) >> 6;
+            palettes[j] = (l->rom->data[map16lookupPC + j * 2 + 1] & 0b00011100) >> 2;
+            tile        =  l->rom->data[map16lookupPC + j * 2] | ((l->rom->data[map16lookupPC + j * 2 + 1] & 0b00000011) << 8);
+            tiles[j]    =  tile8_flip(l->map8[tile], flip);
 
-	}
+        }
 
        	l->map16_bg[i] = tile16_from_tile8(tiles, palettes);
     }
 
     r65816_cpu_free(&cpu);
 }
-
-
 
 void level_load_objects(level_t* l, r65816_cpu_t* cpu) {
     r65816_cpu_t cpu;
@@ -189,8 +187,8 @@ void level_load_objects(level_t* l, r65816_cpu_t* cpu) {
     r65816_cpu_run(&cpu, 0x0583AC);
         
     for(int i = 0; i < 0x14 * 27 * 16; i++) {
-	cpu.ram[0x0C800 + i] = 0x25;
-	cpu.ram[0x1C800 + i] = 0;
+        cpu.ram[0x0C800 + i] = 0x25;
+        cpu.ram[0x1C800 + i] = 0;
     }
     
     int levelmode = cpu.ram[0x1925];
@@ -204,21 +202,21 @@ void level_load_objects(level_t* l, r65816_cpu_t* cpu) {
     case 0x1E:
     case 0x0A:
     case 0x0D:
-	l->hasLayer2Objects = true;
-	break;
+        l->hasLayer2Objects = true;
+        break;
 	    
     case 0x09: // \
     case 0x0B: // | Boss level
     case 0x10: // /
-	l->layer1    = new uint16_t[1];
-	l->layer1[0] = 0x25;
-	l->width     = 1;
-	l->height    = 1;
-	l->hasLayer2Objects = false;
-	return;
+        l->layer1    = new uint16_t[1];
+        l->layer1[0] = 0x25;
+        l->width     = 1;
+        l->height    = 1;
+        l->hasLayer2Objects = false;
+        return;
     default:
-	l->hasLayer2Objects = false;
-	break;
+        l->hasLayer2Objects = false;
+        break;
     }
 
     l->cpu.run(0x0583CF, 0x0583D2);
@@ -234,138 +232,100 @@ void level_load_objects(level_t* l, r65816_cpu_t* cpu) {
         
     
     if(l->layer1) {
-	delete[] l->layer1;
-	l->layer1 = NULL;
+        delete[] l->layer1;
+        l->layer1 = NULL;
     }
     if(l->layer2) {
-	delete[] l->layer2;
-	l->layer2 = NULL;
+        delete[] l->layer2;
+        l->layer2 = NULL;
     }
 
     // Layer 1
     if(isVerticalLevel) {
-	l->layer1 = new uint16_t[512 * screens];
-	l->width = 32;
-	l->height = screens * 16;
-	for(int i = 0; i < 512 * screens; i++) {
-	    int xy = i % 256; int x = xy % 16; int y = xy >> 4;
-	    int sc = i >> 8;  int left = sc&1; int h = sc >> 1;
+        l->layer1 = new uint16_t[512 * screens];
+        l->width = 32;
+        l->height = screens * 16;
+        for(int i = 0; i < 512 * screens; i++) {
+            int xy = i % 256; int x = xy % 16; int y = xy >> 4;
+            int sc = i >> 8;  int left = sc&1; int h = sc >> 1;
             
-	    int cx = left * 16 + x;
-	    int cy = h * 16 + y;
+            int cx = left * 16 + x;
+            int cy = h * 16 + y;
             
-	    l->layer1[cy * 32 + cx] = cpu.ram[0x1C800 + i] * 256 + cpu.ram[0x0C800 + i];
-	}
+            l->layer1[cy * 32 + cx] = cpu.ram[0x1C800 + i] * 256 + cpu.ram[0x0C800 + i];
+        }
     } else {
-	l->layer1 = new uint16_t[432 * screens];
-	l->width = screens * 16;
-	l->height = 27;
-	for(int i = 0; i < 432 * screens; i++) {
-	    int xy = i % 432;
-	    int sc = i / 432;
-	    int cx = (xy % 16);
-	    int cy = xy >> 4;
-	    l->layer1[(cy * screens + sc) * 16 + cx] = cpu.ram[0x1C800 + i] * 256 + cpu.ram[0x0C800 + i];
-	}
+        l->layer1 = new uint16_t[432 * screens];
+        l->width = screens * 16;
+        l->height = 27;
+        for(int i = 0; i < 432 * screens; i++) {
+            int xy = i % 432;
+            int sc = i / 432;
+            int cx = (xy % 16);
+            int cy = xy >> 4;
+            l->layer1[(cy * screens + sc) * 16 + cx] = cpu.ram[0x1C800 + i] * 256 + cpu.ram[0x0C800 + i];
+        }
     }
 
     // Layer 2
     if(l->hasLayer2BG) {
-	l->layer2 = new uint16_t[432*2];
-	int addr = l->rom->data[0x02E600 + 3 * l->levelnum + 2];
-	int offset = 0;
-	if(addr == 0xFF) addr = 0x0C;
-	addr = (addr << 8) | l->rom->data[0x02E600 + 3 * l->levelnum + 1];
-	addr = (addr << 8) | l->rom->data[0x02E600 + 3 * l->levelnum + 0];
-	if((addr & 0xFFFF) >= 0xE8FE) offset = 0x100;                              //See CODE_058046
-	int pos = 0;
-	while((l->cpu.op_read(addr) != 0xFF || l->cpu.op_read(addr + 1) != 0xFF) && pos < 432 * 2) {
-	    uint8_t cmd = l->cpu.op_read(addr);
-	    uint8_t length = cmd & 0b01111111;
-	    if(cmd & 0x80) {
-		for(int i = 0; i <= length; i++) l->layer2[pos + i] = offset + l->cpu.op_read(addr + 1);
-		pos += length + 1;
-		addr += 2;
-	    } else {
-		for(int i = 0; i <= length; i++) l->layer2[pos + i] = offset + l->cpu.op_read(addr + i + 1);
-		pos += length + 1;
-		addr += length + 2;
-	    }
-	}
+        l->layer2 = new uint16_t[432*2];
+        int addr = l->rom->data[0x02E600 + 3 * l->levelnum + 2];
+        int offset = 0;
+        if(addr == 0xFF) addr = 0x0C;
+        addr = (addr << 8) | l->rom->data[0x02E600 + 3 * l->levelnum + 1];
+        addr = (addr << 8) | l->rom->data[0x02E600 + 3 * l->levelnum + 0];
+        if((addr & 0xFFFF) >= 0xE8FE) offset = 0x100;                              //See CODE_058046
+        int pos = 0;
+        while((l->cpu.op_read(addr) != 0xFF || l->cpu.op_read(addr + 1) != 0xFF) && pos < 432 * 2) {
+            uint8_t cmd = l->cpu.op_read(addr);
+            uint8_t length = cmd & 0b01111111;
+            if(cmd & 0x80) {
+                for(int i = 0; i <= length; i++) l->layer2[pos + i] = offset + l->cpu.op_read(addr + 1);
+                pos += length + 1;
+                addr += 2;
+            } else {
+                for(int i = 0; i <= length; i++) l->layer2[pos + i] = offset + l->cpu.op_read(addr + i + 1);
+                pos += length + 1;
+                addr += length + 2;
+            }
+        }
     } else if(l->hasLayer2Objects) {
-	int addrLayer2LowTableEntryPC = l->rom->data[0x003DA8 + 2 * levelmode];
-	int addrLayer2Low = l->rom->data[addrLayer2LowTableEntryPC] + (l->rom->data[addrLayer2LowTableEntryPC + 1] << 8);
-	int addrLayer2HighTableEntryPC = l->rom->data[0x003DA8 + 2 * levelmode];
-	int addrLayer2High = l->rom->data[addrLayer2LowTableEntryPC] + (l->rom->data[addrLayer2LowTableEntryPC + 1] << 8);
-	if(isVerticalLevel) {
-	    l->layer2 = new uint16_t[512 * screens];
-	    for(int i = 0; i < 512 * screens; i++) {
-		int xy = i % 256; int x = xy % 16; int y = xy >> 4;
-		int sc = i >> 8;  int left = sc&1; int h = sc >> 1;
+        int addrLayer2LowTableEntryPC = l->rom->data[0x003DA8 + 2 * levelmode];
+        int addrLayer2Low = l->rom->data[addrLayer2LowTableEntryPC] + (l->rom->data[addrLayer2LowTableEntryPC + 1] << 8);
+        int addrLayer2HighTableEntryPC = l->rom->data[0x003DA8 + 2 * levelmode];
+        int addrLayer2High = l->rom->data[addrLayer2LowTableEntryPC] + (l->rom->data[addrLayer2LowTableEntryPC + 1] << 8);
+        if(isVerticalLevel) {
+            l->layer2 = new uint16_t[512 * screens];
+            for(int i = 0; i < 512 * screens; i++) {
+                int xy = i % 256; int x = xy % 16; int y = xy >> 4;
+                int sc = i >> 8;  int left = sc&1; int h = sc >> 1;
             
-		int cx = left * 16 + x;
-		int cy = h * 16 + y;
+                int cx = left * 16 + x;
+                int cy = h * 16 + y;
             
-		l->layer2[cy * 32 + cx] = cpu.ram[addrLayer2Low + i] * 256 + cpu.ram[addrLayer2High + i];
+                l->layer2[cy * 32 + cx] = cpu.ram[addrLayer2Low + i] * 256 + cpu.ram[addrLayer2High + i];
                     
-	    }
-	} else {
-	    l->layer2 = new uint16_t[432 * screens];
-	    for(int i = 0; i < 432 * screens; i++) {
-		int xy = i % 432;
-		int sc = i / 432;
-		int cx = (xy % 16);
-		int cy = xy >> 4;
-		l->layer2[(cy * screens + sc) * 16 + cx] = cpu.ram[addrLayer2Low + i] * 256 + cpu.ram[addrLayer2High + i];
-	    }
-	}
+            }
+        } else {
+            l->layer2 = new uint16_t[432 * screens];
+            for(int i = 0; i < 432 * screens; i++) {
+                int xy = i % 432;
+                int sc = i / 432;
+                int cx = (xy % 16);
+                int cy = xy >> 4;
+                l->layer2[(cy * screens + sc) * 16 + cx] = cpu.ram[addrLayer2Low + i] * 256 + cpu.ram[addrLayer2High + i];
+            }
+        }
     }
 
     r65816_cpu_free(&cpu);
 }
 
-/* void Level::renderLineFG(uint8_t* line, int linenum) { */
-/*     int gy = linenum>>4; */
-/*     int by = linenum%16; */
- 
-/*     for(int i = 0; i < l->width * 16; i++) { */
-/* 	int pos = by * 16 + i % 16; */
-/* 	line[i] = l->map16fg[l->layer1[gy * l->width + (i >> 4)]].pixels[pos]; */
-/*     } */
- 
-/* } */
+void level_get_layer1(r65816_cpu* cpu, uint8_t frame, layer16_t* layer) {
+        
+}
 
-/* void Level::renderLineBG(uint8_t* line, int linenum) { */
-/*     if(l->hasLayer2BG) { */
-/* 	int gy = (linenum>>4) % 27; */
-/* 	int by = linenum%16; */
-/* 	if(l->hasLayer2BG) { */
-/* 	    for(int i = 0; i < l->width * 16; i++) { */
-/* 		int pos = by * 16 + i % 16; */
-/* 		line[i] = l->map16bg[l->layer2[((i & 0x100) >> 4) * 27 + gy * 16 + ((i & 0x0FF) >> 4)]].pixels[pos]; */
-/* 	    } */
-/* 	}  */
-/*     } else if(l->hasLayer2Objects) { */
-/* 	int gy = linenum>>4; */
-/* 	int by = linenum%16; */
-            
-/* 	for(int i = 0; i < l->width * 16; i++) { */
-/* 	    int pos = by * 16 + i % 16; */
-/* 	    line[i] = l->map16bg[l->layer2[gy * l->width + (i >> 4)]].pixels[pos]; */
-/* 	} */
-/*     } else { */
-/* 	for(int i = 0; i < l->width * 16; i++) line[i] = 0; */
-/*     } */
-/* } */
-
-/* //TODO: Method is not updated, see renderLine(F/B)G */
-/* uint8_t Level::renderPixel(int x, int y) { */
-/*     int gx = x>>4; */
-/*     int bx = x%16; */
-/*     int gy = y>>4; */
-/*     int by = y%16; */
-/*     return l->map16fg[l->layer1[gy * l->width + gx]].pixels[by * 16 + bx]; */
-/* } */
 
 /* int Level::getHeight() { */
 /*     return l->height; */

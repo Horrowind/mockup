@@ -9,7 +9,7 @@
 #include "opcode_write.h"
 
 
-void initialize_opcode_table(r65816_cpu_t* cpu) {
+void r65816_initialize_opcode_table(r65816_cpu_t* cpu) {
     enum {
         table_EM =    0,  // 8-bit accumulator,  8-bit index (emulation mode)
         table_MX =  256,  // 8-bit accumulator,  8-bit index
@@ -303,7 +303,7 @@ void initialize_opcode_table(r65816_cpu_t* cpu) {
 
 }
 
-void update_table(r65816_cpu_t* cpu) {
+void r65816_update_table(r65816_cpu_t* cpu) {
     enum {
         table_EM =    0,  // 8-bit accumulator,  8-bit index (emulation mode)
         table_MX =  256,  // 8-bit accumulator,  8-bit index

@@ -11,6 +11,7 @@ void r65816_cpu_init(r65816_cpu_t* cpu, r65816_rom_t* rom) {
     cpu->rom = rom;
     cpu->ram = malloc(0x20000);
     cpu->sreg = malloc(0x2500);
+    memset(cpu->sreg, 0, 0x2500);
     cpu->regs.pc.d = 0x000000;
     cpu->regs.x.h = 0x00;
     cpu->regs.y.h = 0x00;
@@ -24,13 +25,8 @@ void r65816_cpu_init(r65816_cpu_t* cpu, r65816_rom_t* rom) {
     cpu->breakpoints_read = NULL;
     cpu->breakpoints_write = NULL;
     r65816_cpu_clear_ram(cpu);
-    update_table(cpu);
-}
-
-void r65816_cpu_load(r65816_cpu_t* cpu, const char* path) {
-    r65816_rom_t* rom = malloc(sizeof(r65816_rom_t));
-    r65816_rom_load(rom, path);
-    r65816_cpu_init(cpu, rom);
+    r65816_initialize_opcode_table(cpu);
+    r65816_update_table(cpu);
 }
 
 void r65816_cpu_free(r65816_cpu_t* cpu) {
@@ -73,12 +69,9 @@ void r65816_breakpoint_add_write(r65816_cpu_t* cpu, uint32_t addr) {
     r65816_breakpoint_add(&cpu->breakpoints_write, addr);
 }
 
-
-
-
-
-
-
+void r65816_cpu_show_state(r65816_cpu_t* cpu, char* output) {
+    r65816_cpu_disassemble_opcode(cpu, output, cpu->regs.pc.d);
+}
 
 void r65816_cpu_disassemble_opcode(r65816_cpu_t* cpu, char* output, uint32_t addr) {
   static r65816_reg24_t pc;
@@ -86,7 +79,7 @@ void r65816_cpu_disassemble_opcode(r65816_cpu_t* cpu, char* output, uint32_t add
   char* s = output;
 
   pc.d = addr;
-  sprintf(s, "%.6x ", (uint32_t)pc.d);
+  sprintf(s, "%.6x ",  (uint32_t)pc.d);
 
   uint8_t op  = r65816_dreadb(cpu, pc.d); pc.w++;
   uint8_t op0 = r65816_dreadb(cpu, pc.d); pc.w++;

@@ -36,11 +36,6 @@ void CPU::setDebug(bool debug) {
 void CPU::run(uint32_t addrFrom, uint32_t addrTo) {
     regs.pc = addrFrom;
     while(regs.pc != addrTo) {
-        if(m_debug) {
-            char output[256];
-            disassemble_opcode(output, regs.pc);
-            printf(output);
-        }
         step();
     }
 }
@@ -102,7 +97,12 @@ void CPU::clear_ram() {
 }
 
 void CPU::step() {
-     (this->*opcode_table[op_readpc()])();
+    if(m_debug) {
+        char output[256];
+        disassemble_opcode(output, regs.pc);
+        printf("%s\n", output);
+    }
+    (this->*opcode_table[op_readpc()])();
 }
 
 void CPU::init() {
