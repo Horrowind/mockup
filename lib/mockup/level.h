@@ -2,17 +2,12 @@
 #define MOCKUP_LEVEL_H
 
 #include "r65816/cpu.h"
-#include "tiles.h"
 
-typedef struct object {
-    uint32_t x;
-    uint32_t y;
-    uint8_t number;
-    uint8_t settings;
-    uint8_t extended : 1;
-    int     z_index;
-    struct object* next;
-} object_t;
+#include "gfx_store.h"
+#include "objects.h"
+#include "overworld.h"
+#include "palette.h"
+#include "tiles.h"
 
 typedef struct {
     uint8_t bg_palette      : 3;
@@ -32,30 +27,34 @@ typedef struct {
 
 
 typedef struct {
-    level_header_t* header;
-    object_t* layer_1_objects;
+    level_header_t header;
+    object_list_t*  layer1_objects;
 
     union {
-	object_t* layer_2_objects;
-	uint16_t* layer_2_background;
+        object_list_t* layer2_objects;
+        layer16_t*  layer2_background;
     };
-    uint8_t  has_layer_2_bg : 1;
-    uint8_t  has_layer_2_object : 1;
+
+    sprite_list_t*  sprites;
+    
+    uint8_t  has_layer2_bg : 1;
+    uint8_t  has_layer2_object : 1;
     uint8_t  is_vertical_level : 1;
     
-    uint32_t      palette[256];
-    tile8_t       map8[512];
-    tile8_t       gfx32_33[SIZE_OF_GFX_32 + SIZE_OF_GFX_33];
-    tile16_t      map16_fg[512];
-    tile16_t      map16_bg[512];
+    palette_t* palette;
+    map8_t*    map8;
+    tileset_t* tileset;
+    map16_t*   map16_fg;
+    map16_t*   map16_bg;
+
     r65816_rom_t* rom;
 } level_t;
 
-level_t*  level_init();
-void      level_load(level_t* l, int levelnum);
-void      level_free(level_t* l);
+void level_init(level_t* l);
+void level_load(level_t* l, int num_level);
+void level_free(level_t* l);
 
-uint16_t  level_get_tile_16(level_t* l, int x, int y);
-void      level_animate(level_t* l, unsigned char frame);
+void level_draw_layer1(level_t* l, uint8_t num_frame, layer16 layer1);
+void level_draw_layer2(level_t* l, uint8_t num_frame, layer16 layer1);
 
 #endif //MOCKUP_LEVEL

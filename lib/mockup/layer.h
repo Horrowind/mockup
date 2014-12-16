@@ -14,7 +14,7 @@ typedef struct {
 } layer16_t;
 
 
-void layer_render_line() {
+void layer_render_line(uint8_t* line, int linenum) {
 
 /* void Level::renderLineFG(uint8_t* line, int linenum) { */
 /*     int gy = linenum>>4; */
