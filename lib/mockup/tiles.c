@@ -58,7 +58,7 @@ tile8_t tile8_from_4bpp(uint8_t* data) {
     return tile;
 }
 
-tile16_t tile16_from_tile8(tile8_t t[4], const uint8_t* pal) {
+tile16_t tile16_from_tile8(tile8_t* t[4], tile_properties_t properties) {
     tile16_t tile;
     for(int i = 0; i < 8; i++) {
         for(int j = 0; j < 16; j++) {

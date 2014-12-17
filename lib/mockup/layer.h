@@ -10,20 +10,21 @@ typedef struct {
     tile16_t* map;
     int map_length;
     
-    
+    palette_t* palette;
+    int palette_length;
 } layer16_t;
 
 
-void layer_render_line() {
-
-/* void Level::renderLineFG(uint8_t* line, int linenum) { */
-/*     int gy = linenum>>4; */
-/*     int by = linenum%16; */
+void layer16_render_line(layer16_t layer, int num_line, uint8_t* line) {
+    int gy = num_line>>4;
+    int by = num_line%16;
  
-/*     for(int i = 0; i < l->width * 16; i++) { */
-/* 	int pos = by * 16 + i % 16; */
-/* 	line[i] = l->map16fg[l->layer1[gy * l->width + (i >> 4)]].pixels[pos]; */
-/*     } */
+    for(int i = 0; i < layer->width * 16; i++) {
+	int pos = by * 16 + i % 16;
+	line[i] = layer->map[layer->data[gy * layer->width + (i >> 4)]].pixels[pos];
+    }
+}
+/* void Level::renderLineFG(uint8_t* line, int linenum) { */
  
 /* } */
 

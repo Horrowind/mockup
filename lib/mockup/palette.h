@@ -3,31 +3,13 @@
 
 typedef struct {
     uint16_t[256] data;
-
 } palette_t;
 
-int convertColor(int snes) {
-}
+typedef struct {
+    uint32_t[256] data;
+} palette_pc_t;
 
-
-void palette_load(palette_t* palette) {
-    r65816_cpu_t cpu;
-    r65816_cpu_init(&cpu, l->rom);
-
-    cpu.ram[0x65] = cpu.rom->banks[2][0xE000 + 3 * l->levelnum]; 
-    cpu.ram[0x66] = cpu.rom->banks[2][0xE000 + 3 * l->levelnum + 1];
-    cpu.ram[0x67] = cpu.rom->banks[2][0xE000 + 3 * l->levelnum + 2];
-
-    r65816_cpu_add_exec_bp(&cpu, 0x0583AC);
-    r65816_cpu_run(&cpu, 0x0583B8);
-    memcpy(palette->data, cpu.ram + 0x0703, 512);
-    
-    for(int i = 0; i < 16; i++) {
-        palette->data[i << 4] = 0;
-    }
-    
-    r65816_cpu_free(&cpu);
-}
+void palette_load_level_palette(palette_t* palette, r65816_rom_t* rom, int num_level);
 
 uint32_t palette_to_pc(palette_t* palette, uint8_t index) {
     uint16_t snes = palette->data[index];
