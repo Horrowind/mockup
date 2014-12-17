@@ -15,18 +15,15 @@ typedef struct {
 } layer16_t;
 
 
-void layer16_render_line(layer16_t layer, int num_line, uint8_t* line) {
+
+/*void layer16_render_line(layer16_t layer, int num_line, uint8_t* line) {
     int gy = num_line>>4;
     int by = num_line%16;
- 
     for(int i = 0; i < layer->width * 16; i++) {
 	int pos = by * 16 + i % 16;
 	line[i] = layer->map[layer->data[gy * layer->width + (i >> 4)]].pixels[pos];
     }
-}
-/* void Level::renderLineFG(uint8_t* line, int linenum) { */
- 
-/* } */
+}*/
 
 /* void Level::renderLineBG(uint8_t* line, int linenum) { */
 /*     if(l->hasLayer2BG) { */

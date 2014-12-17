@@ -70,7 +70,7 @@ void level_load_palette(level_t level, palette_t* palette) {
     r65816_cpu_free(&cpu);
 }
 
-void level_load_map8(level_t* l) {
+void level_load_(level_t* l) {
         
     int tileset = cpu.ram[0x1931];
     uint32_t address = 0x292B + tileset * 4;
