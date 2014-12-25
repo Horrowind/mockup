@@ -9,8 +9,6 @@ typedef struct {
     uint32_t[256] data;
 } palette_pc_t;
 
-void palette_load_level_palette(palette_t* palette, r65816_rom_t* rom, int num_level);
-
 uint32_t palette_to_pc(palette_t* palette, uint8_t index) {
     uint16_t snes = palette->data[index];
     int r = ((snes & 0x1F) << 3);   r |= (r >> 5);

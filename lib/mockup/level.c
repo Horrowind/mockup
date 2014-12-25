@@ -8,31 +8,27 @@
 #include "decode.h"
 #include "level.h"
 
-void      level_load_palette();
-void      level_load_map16();
-void      level_load_map8();
-void      level_load_objects();
-void      level_load_gfx32_33();
+void      level_load_palette(level_t* l);
+void      level_load_tileset(level_t* l);
+void      level_load_map16(level_t* l);
+void      level_load_map8(level_t* l);
+void      level_load_objects(level_t* l);
+void      level_load_gfx32_33(level_t* l);
 
-level_t* level_init(const char* path) {
-    level_t* l = malloc(sizeof(level_t));
-    l->path = path;
-    r65816_rom_load(l->rom, path);
-    return l;
-}
 
-void level_load(level_t* l, int levelnum) {
+void level_load(level_t* l, rom_t* rom, int levelnum) {
+    l->rom = rom;
     l->levelnum = levelnum;
 
-    r65816_cpu_t cpu;
-    r65816_cpu_init(&cpu, l->rom);
+    /* r65816_cpu_t cpu; */
+    /* r65816_cpu_init(&cpu, l->rom); */
 
-    cpu.ram[0x65] = cpu.rom->banks[2][0xE000 + 3 * l->levelnum]; 
-    cpu.ram[0x66] = cpu.rom->banks[2][0xE000 + 3 * l->levelnum + 1];
-    cpu.ram[0x67] = cpu.rom->banks[2][0xE000 + 3 * l->levelnum + 2];
+    /* cpu.ram[0x65] = cpu.rom->banks[2][0xE000 + 3 * l->levelnum];  */
+    /* cpu.ram[0x66] = cpu.rom->banks[2][0xE000 + 3 * l->levelnum + 1]; */
+    /* cpu.ram[0x67] = cpu.rom->banks[2][0xE000 + 3 * l->levelnum + 2]; */
 
-    r65816_cpu_add_exec_bp(&cpu, 0x0583AC);
-    r65816_cpu_run(&cpu, 0x0583B8);
+    /* r65816_cpu_add_exec_bp(&cpu, 0x0583AC); */
+    /* r65816_cpu_run(&cpu, 0x0583B8); */
 
     level_load_palette(l, &cpu);
     level_load_map8(l, cpu);
@@ -70,7 +66,7 @@ void level_load_palette(level_t level, palette_t* palette) {
     r65816_cpu_free(&cpu);
 }
 
-void level_load_(level_t* l) {
+void level_load_map8(level_t* l) {
         
     int tileset = cpu.ram[0x1931];
     uint32_t address = 0x292B + tileset * 4;
