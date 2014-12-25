@@ -1,5 +1,5 @@
-#ifndef LUBMOCKUP_REGISTERS_H
-#define LUBMOCKUP_REGISTERS_H
+#ifndef LIBMOCKUP_REGISTERS_H
+#define LIBMOCKUP_REGISTERS_H
 
 #include "stdint.h"
 
@@ -38,4 +38,4 @@ struct r65816_regs {
 typedef struct r65816_regs r65816_regs_t;
 
 
-#endif //LUBMOCKUP_REGISTERS_H
+#endif //LIBMOCKUP_REGISTERS_H
