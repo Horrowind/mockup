@@ -2,7 +2,7 @@
 #include "gfx_store.h"
 
 
-void gfx_store_load(rom_t* rom, gfx_store_t* gfx_store) {
+void gfx_store_init(rom_t* rom, gfx_store_t* gfx_store) {
     gfx_page_t* gfx_page;
     uint8_t gfx33_chr[12288];
     int addr_gfx32_pc = 0x40000;

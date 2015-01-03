@@ -81,3 +81,32 @@ tile16_t tile16_from_tile8(tile8_t* t[4], tile_properties_t properties) {
     return tile;
 }
 
+void map8_init(map8_t* map8, tileset_t* tileset) {
+    map8->length = 512;
+    map8->tiles = malloc(512 * sizeof(tile8_t))
+    for(int tile = 0; tile < 512; tile++) {
+        gfx_page* used_chr;
+        switch(tile >> 7) {
+        case 0:
+            used_chr = tileset->fg1;
+            break;
+        case 1:
+            used_chr = tileset->fg2;
+            break;
+        case 2:
+            used_chr = tileset->bg1;
+            break;
+        case 3:
+            used_chr = tileset->fg3;
+            break;
+        }
+
+        map8->tiles[tile] = tile8_from_3bpp(used_chr.data + 24 * (tile % 128));
+    }
+    
+
+}
+
+void map8_deinit(map8_t* map8) {
+    free(map8_tiles);
+}

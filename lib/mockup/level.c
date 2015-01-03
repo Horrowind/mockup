@@ -8,327 +8,239 @@
 #include "decode.h"
 #include "level.h"
 
-void      level_load_palette(level_t* l);
-void      level_load_tileset(level_t* l);
-void      level_load_map16(level_t* l);
-void      level_load_map8(level_t* l);
-void      level_load_objects(level_t* l);
-void      level_load_gfx32_33(level_t* l);
-
-
-void level_load(level_t* l, rom_t* rom, int levelnum) {
+void level_init(level_t* l, r65816_rom_t* rom, gfx_store_t* gfx_store, int num_level) {
     l->rom = rom;
-    l->levelnum = levelnum;
+    l->num_level = num_level;
 
-    /* r65816_cpu_t cpu; */
-    /* r65816_cpu_init(&cpu, l->rom); */
+    level_header_init(l->header, rom, num_level);
+    palette_init(l->palette, rom, num_level);
+    tileset_init_level(l->tileset, rom, num_level, gfx_store_t* gfx_store);
+    map8_init(l->map8, l->tileset);
+    map16_init(l->map16, rom, num_level);
+    object_list_init(l->layer1_objects, rom, num_level);
 
-    /* cpu.ram[0x65] = cpu.rom->banks[2][0xE000 + 3 * l->levelnum];  */
-    /* cpu.ram[0x66] = cpu.rom->banks[2][0xE000 + 3 * l->levelnum + 1]; */
-    /* cpu.ram[0x67] = cpu.rom->banks[2][0xE000 + 3 * l->levelnum + 2]; */
-
-    /* r65816_cpu_add_exec_bp(&cpu, 0x0583AC); */
-    /* r65816_cpu_run(&cpu, 0x0583B8); */
-
-    level_load_palette(l, &cpu);
-    level_load_map8(l, cpu);
-    level_load_map16(l, cpu);
-    level_load_objects(l, cpu);
-    level_load_gfx32_33(l);
-
-    for(int i = 0; i < 8; i++) {
-        level_animate(l, i);
-    }
+    /* for(int i = 0; i < 8; i++) { */
+    /*     level_animate(l, i); */
+    /* } */
+    l->layer1 = NULL;
+    l->layer2 = NULL;
 }
 
-void level_free(level_t* l) {
-    r65816_rom_free(l->rom);
+void level_deinit(level_t* l) {
     if(l->layer1) free(l->layer1);
     if(l->layer2) free(l->layer2);
+    if(l->has_layer2_objects) object_list_deinit(l->layer2_objects);
+    if(l->has_layer2_bg) layer16_deinit(l->layer2_background);
+    object_list_deinit(l->layer1_objects);
+    map8_init(l->map8, l->tileset);
+
 }
 
-void level_load_palette(level_t level, palette_t* palette) {
-    r65816_cpu_t cpu;
-    r65816_cpu_init(&cpu, l->rom);
-
-    cpu.ram[0x65] = cpu.rom->banks[2][0xE000 + 3 * l->levelnum]; 
-    cpu.ram[0x66] = cpu.rom->banks[2][0xE000 + 3 * l->levelnum + 1];
-    cpu.ram[0x67] = cpu.rom->banks[2][0xE000 + 3 * l->levelnum + 2];
-
-    r65816_cpu_add_exec_bp(&cpu, 0x0583AC);
-    r65816_cpu_run(&cpu, 0x0583B8);
-    memcpy(palette->data, cpu.ram + 0x0703, 512);
+/* void level_load_map16(level_t* l, r65816_cpu_t* cpu) { */
+/*     r65816_cpu_t cpu; */
+/*     r65816_cpu_init(&cpu, l->rom); */
     
-    for(int i = 0; i < 16; i++) {
-        palette->data[i << 4] = 0;
-    }
+/*     cpu.ram[0x65] = l->rom->data[0x02E000 + 3 * l->levelnum]; */
+/*     cpu.ram[0x66] = l->rom->data[0x02E000 + 3 * l->levelnum + 1]; */
+/*     cpu.ram[0x67] = l->rom->data[0x02E000 + 3 * l->levelnum + 2]; */
+
+/*     // Run the palette loading routine. */
+/*     r65816_cpu_add_exec_bp(&cpu, 0x0583B8); */
+/*     r65816_cpu_run(&cpu, 0x0583AC); */
     
-    r65816_cpu_free(&cpu);
-}
-
-void level_load_map8(level_t* l) {
-        
-    int tileset = cpu.ram[0x1931];
-    uint32_t address = 0x292B + tileset * 4;
-    int fg1 = r65816_cpu_read(&cpu, address);
-    int fg2 = r65816_cpu_read(&cpu, address + 1);
-    int bg1 = r65816_cpu_read(&cpu, address + 2);
-    int fg3 = r65816_cpu_read(&cpu, address + 3);
-
-    uint8_t fg1Chr[3072], fg2Chr[3072], bg1Chr[3072], fg3Chr[3072];
-
-    uint32_t addrFG1 = l->rom->data[gfx0031_table_bank_pc + fg1];
-    addrFG1 = (addrFG1 << 8) | l->rom->data[gfx0031_table_high_pc + fg1];
-    addrFG1 = (addrFG1 << 8) | l->rom->data[gfx0031_table_low_pc + fg1];
-    int addrFG1PC = ((addrFG1 & 0x7f0000) >> 1) + (addrFG1 & 0x7fff);
-    decryptLZ2(l->rom->data + addrFG1PC, fg1Chr);
-
-    int addrFG2 = l->rom->data[gfx0031_table_bank_pc + fg2];
-    addrFG2 = (addrFG2 << 8) | l->rom->data[gfx0031_table_high_pc + fg2];
-    addrFG2 = (addrFG2 << 8) | l->rom->data[gfx0031_table_low_pc + fg2];
-    int addrFG2PC = ((addrFG2 & 0x7f0000) >> 1) + (addrFG2 & 0x7fff);
-    decryptLZ2(l->rom->data + addrFG2PC, fg2Chr);
-
-    int addrBG1 = l->rom->data[gfx0031_table_bank_pc + bg1];
-    addrBG1 = (addrBG1 << 8) | l->rom->data[gfx0031_table_high_pc + bg1];
-    addrBG1 = (addrBG1 << 8) | l->rom->data[gfx0031_table_low_pc + bg1];
-    int addrBG1PC = ((addrBG1 & 0x7f0000) >> 1) + (addrBG1 & 0x7fff);
-    decryptLZ2(l->rom->data + addrBG1PC, bg1Chr);
-
-    int addrFG3 = l->rom->data[gfx0031_table_bank_pc + fg3];
-    addrFG3 = (addrFG3 << 8) | l->rom->data[gfx0031_table_high_pc + fg3];
-    addrFG3 = (addrFG3 << 8) | l->rom->data[gfx0031_table_low_pc + fg3];
-    int addrFG3PC = ((addrFG3 & 0x7f0000) >> 1) + (addrFG3 & 0x7fff);
-    decryptLZ2(l->rom->data + addrFG3PC, fg3Chr);
-
-    for(int tile = 0; tile < 512; tile++) {
-        uint8_t* used_chr;
-        switch(tile >> 7) {
-        case 0b000:
-            used_chr = fg1Chr;
-            break;
-        case 0b001:
-            used_chr = fg2Chr;
-            break;
-        case 0b010:
-            used_chr = bg1Chr;
-            break;
-        case 0b011:
-            used_chr = fg3Chr;
-            break;
-        }
-
-        l->map8[tile] = tile8_from_3bpp(used_chr + 24 * (tile % 128));
-    }
-    
-    r65816_cpu_free(&cpu);
-}
-
-void level_load_map16(level_t* l, r65816_cpu_t* cpu) {
-    r65816_cpu_t cpu;
-    r65816_cpu_init(&cpu, l->rom);
-    
-    cpu.ram[0x65] = l->rom->data[0x02E000 + 3 * l->levelnum];
-    cpu.ram[0x66] = l->rom->data[0x02E000 + 3 * l->levelnum + 1];
-    cpu.ram[0x67] = l->rom->data[0x02E000 + 3 * l->levelnum + 2];
-
-    // Run the palette loading routine.
-    r65816_cpu_add_exec_bp(&cpu, 0x0583B8);
-    r65816_cpu_run(&cpu, 0x0583AC);
-    
-    int bgPalette = cpu.ram[0x1930];
+/*     int bgPalette = cpu.ram[0x1930]; */
               
-    for(int i = 0; i < 512; i++) {
-        int map16lookupSNES = 0x0D0000 + cpu.ram[2 * i + 0x0FBF] * 256 + cpu.ram[2 * i + 0x0FBE];
-        int map16lookupPC   = ((map16lookupSNES & 0x7f0000) >> 1) + (map16lookupSNES & 0x7fff);
+/*     for(int i = 0; i < 512; i++) { */
+/*         int map16lookupSNES = 0x0D0000 + cpu.ram[2 * i + 0x0FBF] * 256 + cpu.ram[2 * i + 0x0FBE]; */
+/*         int map16lookupPC   = ((map16lookupSNES & 0x7f0000) >> 1) + (map16lookupSNES & 0x7fff); */
             
-        tile8_t   tiles[4];
-        uint8_t palettes[4];
-        tile_flip_t flip;
-        int tile;
-        for(int j = 0; j < 4; j++) {
-            flip.XY     = (l->rom->data[map16lookupPC + j * 2 + 1] & 0b11000000) >> 6;
-            palettes[j] = (l->rom->data[map16lookupPC + j * 2 + 1] & 0b00011100) >> 2;
-            tile        =  l->rom->data[map16lookupPC + j * 2] | ((l->rom->data[map16lookupPC + j * 2 + 1] & 0b00000011) << 8);
-            tiles[j]    =  tile8_flip(l->map8[tile], flip);
-        }
+/*         tile8_t   tiles[4]; */
+/*         uint8_t palettes[4]; */
+/*         tile_flip_t flip; */
+/*         int tile; */
+/*         for(int j = 0; j < 4; j++) { */
+/*             flip.XY     = (l->rom->data[map16lookupPC + j * 2 + 1] & 0b11000000) >> 6; */
+/*             palettes[j] = (l->rom->data[map16lookupPC + j * 2 + 1] & 0b00011100) >> 2; */
+/*             tile        =  l->rom->data[map16lookupPC + j * 2] | ((l->rom->data[map16lookupPC + j * 2 + 1] & 0b00000011) << 8); */
+/*             tiles[j]    =  tile8_flip(l->map8[tile], flip); */
+/*         } */
 
-        l->map16_fg[i] = tile16_from_tile8(tiles, palettes);
-    }
+/*         l->map16_fg[i] = tile16_from_tile8(tiles, palettes); */
+/*     } */
 
-    for(int i = 0; i < 512; i++) {
-        int map16lookupSNES = 0x0D9100 + i*8;
-        int map16lookupPC   = ((map16lookupSNES & 0x7f0000) >> 1) + (map16lookupSNES & 0x7fff);
+/*     for(int i = 0; i < 512; i++) { */
+/*         int map16lookupSNES = 0x0D9100 + i*8; */
+/*         int map16lookupPC   = ((map16lookupSNES & 0x7f0000) >> 1) + (map16lookupSNES & 0x7fff); */
 
-        tile8_t   tiles[4];
-        uint8_t palettes[4];
-        tile_flip_t flip;
-        int tile;
-        for(int j = 0; j < 4; j++) {
-            flip.XY     = (l->rom->data[map16lookupPC + j * 2 + 1] & 0b11000000) >> 6;
-            palettes[j] = (l->rom->data[map16lookupPC + j * 2 + 1] & 0b00011100) >> 2;
-            tile        =  l->rom->data[map16lookupPC + j * 2] | ((l->rom->data[map16lookupPC + j * 2 + 1] & 0b00000011) << 8);
-            tiles[j]    =  tile8_flip(l->map8[tile], flip);
+/*         tile8_t   tiles[4]; */
+/*         uint8_t palettes[4]; */
+/*         tile_flip_t flip; */
+/*         int tile; */
+/*         for(int j = 0; j < 4; j++) { */
+/*             flip.XY     = (l->rom->data[map16lookupPC + j * 2 + 1] & 0b11000000) >> 6; */
+/*             palettes[j] = (l->rom->data[map16lookupPC + j * 2 + 1] & 0b00011100) >> 2; */
+/*             tile        =  l->rom->data[map16lookupPC + j * 2] | ((l->rom->data[map16lookupPC + j * 2 + 1] & 0b00000011) << 8); */
+/*             tiles[j]    =  tile8_flip(l->map8[tile], flip); */
 
-        }
+/*         } */
 
-       	l->map16_bg[i] = tile16_from_tile8(tiles, palettes);
-    }
+/*        	l->map16_bg[i] = tile16_from_tile8(tiles, palettes); */
+/*     } */
 
-    r65816_cpu_free(&cpu);
-}
+/*     r65816_cpu_free(&cpu); */
+/* } */
 
-void level_load_objects(level_t* l, r65816_cpu_t* cpu) {
-    r65816_cpu_t cpu;
-    r65816_cpu_init(&cpu, l->rom);
+/* void level_load_objects(level_t* l, r65816_cpu_t* cpu) { */
+/*     r65816_cpu_t cpu; */
+/*     r65816_cpu_init(&cpu, l->rom); */
     
-    cpu.ram[0x65] = l->rom->data[0x02E000 + 3 * l->levelnum];
-    cpu.ram[0x66] = l->rom->data[0x02E000 + 3 * l->levelnum + 1];
-    cpu.ram[0x67] = l->rom->data[0x02E000 + 3 * l->levelnum + 2];
+/*     cpu.ram[0x65] = l->rom->data[0x02E000 + 3 * l->levelnum]; */
+/*     cpu.ram[0x66] = l->rom->data[0x02E000 + 3 * l->levelnum + 1]; */
+/*     cpu.ram[0x67] = l->rom->data[0x02E000 + 3 * l->levelnum + 2]; */
 
-    // Run the palette loading routine.
-    r65816_cpu_add_exec_bp(&cpu, 0x0583B8);
-    r65816_cpu_run(&cpu, 0x0583AC);
+/*     // Run the palette loading routine. */
+/*     r65816_cpu_add_exec_bp(&cpu, 0x0583B8); */
+/*     r65816_cpu_run(&cpu, 0x0583AC); */
         
-    for(int i = 0; i < 0x14 * 27 * 16; i++) {
-        cpu.ram[0x0C800 + i] = 0x25;
-        cpu.ram[0x1C800 + i] = 0;
-    }
+/*     for(int i = 0; i < 0x14 * 27 * 16; i++) { */
+/*         cpu.ram[0x0C800 + i] = 0x25; */
+/*         cpu.ram[0x1C800 + i] = 0; */
+/*     } */
     
-    int levelmode = cpu.ram[0x1925];
-    int bgColorAddr = 0x30A0 + 2 * cpu.ram[0x192F];
-    l->background_color = convertColor(l->rom->data[bgColorAddr] | (l->rom->data[bgColorAddr + 1] << 8));
-    switch(levelmode) {
-    case 0x00:
-    case 0x0C:
-    case 0x0E:
-    case 0x11:
-    case 0x1E:
-    case 0x0A:
-    case 0x0D:
-        l->hasLayer2Objects = true;
-        break;
+/*     int levelmode = cpu.ram[0x1925]; */
+/*     int bgColorAddr = 0x30A0 + 2 * cpu.ram[0x192F]; */
+/*     l->background_color = convertColor(l->rom->data[bgColorAddr] | (l->rom->data[bgColorAddr + 1] << 8)); */
+/*     switch(levelmode) { */
+/*     case 0x00: */
+/*     case 0x0C: */
+/*     case 0x0E: */
+/*     case 0x11: */
+/*     case 0x1E: */
+/*     case 0x0A: */
+/*     case 0x0D: */
+/*         l->hasLayer2Objects = true; */
+/*         break; */
 	    
-    case 0x09: // \
-    case 0x0B: // | Boss level
-    case 0x10: // /
-        l->layer1    = new uint16_t[1];
-        l->layer1[0] = 0x25;
-        l->width     = 1;
-        l->height    = 1;
-        l->hasLayer2Objects = false;
-        return;
-    default:
-        l->hasLayer2Objects = false;
-        break;
-    }
+/*     case 0x09: // \ */
+/*     case 0x0B: // | Boss level */
+/*     case 0x10: // / */
+/*         l->layer1    = new uint16_t[1]; */
+/*         l->layer1[0] = 0x25; */
+/*         l->width     = 1; */
+/*         l->height    = 1; */
+/*         l->hasLayer2Objects = false; */
+/*         return; */
+/*     default: */
+/*         l->hasLayer2Objects = false; */
+/*         break; */
+/*     } */
 
-    l->cpu.run(0x0583CF, 0x0583D2);
-    int screens = cpu.ram[0x5D];
-    bool isVerticalLevel = cpu.ram[0x5B] & 0x01;
+/*     l->cpu.run(0x0583CF, 0x0583D2); */
+/*     int screens = cpu.ram[0x5D]; */
+/*     bool isVerticalLevel = cpu.ram[0x5B] & 0x01; */
 
-    l->cpu.run(0x0583AC, 0x0583B8);
-    l->hasLayer2BG = (l->rom->data[0x02E600 + 3 * l->levelnum + 2] == 0xFF);
-    // cpu.ram[0x1933] = 1; //Object
-    // l->cpu.run(0x0583CF, 0x0583D2);
+/*     l->cpu.run(0x0583AC, 0x0583B8); */
+/*     l->hasLayer2BG = (l->rom->data[0x02E600 + 3 * l->levelnum + 2] == 0xFF); */
+/*     // cpu.ram[0x1933] = 1; //Object */
+/*     // l->cpu.run(0x0583CF, 0x0583D2); */
     
         
         
     
-    if(l->layer1) {
-        delete[] l->layer1;
-        l->layer1 = NULL;
-    }
-    if(l->layer2) {
-        delete[] l->layer2;
-        l->layer2 = NULL;
-    }
+/*     if(l->layer1) { */
+/*         delete[] l->layer1; */
+/*         l->layer1 = NULL; */
+/*     } */
+/*     if(l->layer2) { */
+/*         delete[] l->layer2; */
+/*         l->layer2 = NULL; */
+/*     } */
 
-    // Layer 1
-    if(isVerticalLevel) {
-        l->layer1 = new uint16_t[512 * screens];
-        l->width = 32;
-        l->height = screens * 16;
-        for(int i = 0; i < 512 * screens; i++) {
-            int xy = i % 256; int x = xy % 16; int y = xy >> 4;
-            int sc = i >> 8;  int left = sc&1; int h = sc >> 1;
+/*     // Layer 1 */
+/*     if(isVerticalLevel) { */
+/*         l->layer1 = new uint16_t[512 * screens]; */
+/*         l->width = 32; */
+/*         l->height = screens * 16; */
+/*         for(int i = 0; i < 512 * screens; i++) { */
+/*             int xy = i % 256; int x = xy % 16; int y = xy >> 4; */
+/*             int sc = i >> 8;  int left = sc&1; int h = sc >> 1; */
             
-            int cx = left * 16 + x;
-            int cy = h * 16 + y;
+/*             int cx = left * 16 + x; */
+/*             int cy = h * 16 + y; */
             
-            l->layer1[cy * 32 + cx] = cpu.ram[0x1C800 + i] * 256 + cpu.ram[0x0C800 + i];
-        }
-    } else {
-        l->layer1 = new uint16_t[432 * screens];
-        l->width = screens * 16;
-        l->height = 27;
-        for(int i = 0; i < 432 * screens; i++) {
-            int xy = i % 432;
-            int sc = i / 432;
-            int cx = (xy % 16);
-            int cy = xy >> 4;
-            l->layer1[(cy * screens + sc) * 16 + cx] = cpu.ram[0x1C800 + i] * 256 + cpu.ram[0x0C800 + i];
-        }
-    }
+/*             l->layer1[cy * 32 + cx] = cpu.ram[0x1C800 + i] * 256 + cpu.ram[0x0C800 + i]; */
+/*         } */
+/*     } else { */
+/*         l->layer1 = new uint16_t[432 * screens]; */
+/*         l->width = screens * 16; */
+/*         l->height = 27; */
+/*         for(int i = 0; i < 432 * screens; i++) { */
+/*             int xy = i % 432; */
+/*             int sc = i / 432; */
+/*             int cx = (xy % 16); */
+/*             int cy = xy >> 4; */
+/*             l->layer1[(cy * screens + sc) * 16 + cx] = cpu.ram[0x1C800 + i] * 256 + cpu.ram[0x0C800 + i]; */
+/*         } */
+/*     } */
 
-    // Layer 2
-    if(l->hasLayer2BG) {
-        l->layer2 = new uint16_t[432*2];
-        int addr = l->rom->data[0x02E600 + 3 * l->levelnum + 2];
-        int offset = 0;
-        if(addr == 0xFF) addr = 0x0C;
-        addr = (addr << 8) | l->rom->data[0x02E600 + 3 * l->levelnum + 1];
-        addr = (addr << 8) | l->rom->data[0x02E600 + 3 * l->levelnum + 0];
-        if((addr & 0xFFFF) >= 0xE8FE) offset = 0x100;                              //See CODE_058046
-        int pos = 0;
-        while((l->cpu.op_read(addr) != 0xFF || l->cpu.op_read(addr + 1) != 0xFF) && pos < 432 * 2) {
-            uint8_t cmd = l->cpu.op_read(addr);
-            uint8_t length = cmd & 0b01111111;
-            if(cmd & 0x80) {
-                for(int i = 0; i <= length; i++) l->layer2[pos + i] = offset + l->cpu.op_read(addr + 1);
-                pos += length + 1;
-                addr += 2;
-            } else {
-                for(int i = 0; i <= length; i++) l->layer2[pos + i] = offset + l->cpu.op_read(addr + i + 1);
-                pos += length + 1;
-                addr += length + 2;
-            }
-        }
-    } else if(l->hasLayer2Objects) {
-        int addrLayer2LowTableEntryPC = l->rom->data[0x003DA8 + 2 * levelmode];
-        int addrLayer2Low = l->rom->data[addrLayer2LowTableEntryPC] + (l->rom->data[addrLayer2LowTableEntryPC + 1] << 8);
-        int addrLayer2HighTableEntryPC = l->rom->data[0x003DA8 + 2 * levelmode];
-        int addrLayer2High = l->rom->data[addrLayer2LowTableEntryPC] + (l->rom->data[addrLayer2LowTableEntryPC + 1] << 8);
-        if(isVerticalLevel) {
-            l->layer2 = new uint16_t[512 * screens];
-            for(int i = 0; i < 512 * screens; i++) {
-                int xy = i % 256; int x = xy % 16; int y = xy >> 4;
-                int sc = i >> 8;  int left = sc&1; int h = sc >> 1;
+/*     // Layer 2 */
+/*     if(l->hasLayer2BG) { */
+/*         l->layer2 = new uint16_t[432*2]; */
+/*         int addr = l->rom->data[0x02E600 + 3 * l->levelnum + 2]; */
+/*         int offset = 0; */
+/*         if(addr == 0xFF) addr = 0x0C; */
+/*         addr = (addr << 8) | l->rom->data[0x02E600 + 3 * l->levelnum + 1]; */
+/*         addr = (addr << 8) | l->rom->data[0x02E600 + 3 * l->levelnum + 0]; */
+/*         if((addr & 0xFFFF) >= 0xE8FE) offset = 0x100;                              //See CODE_058046 */
+/*         int pos = 0; */
+/*         while((l->cpu.op_read(addr) != 0xFF || l->cpu.op_read(addr + 1) != 0xFF) && pos < 432 * 2) { */
+/*             uint8_t cmd = l->cpu.op_read(addr); */
+/*             uint8_t length = cmd & 0b01111111; */
+/*             if(cmd & 0x80) { */
+/*                 for(int i = 0; i <= length; i++) l->layer2[pos + i] = offset + l->cpu.op_read(addr + 1); */
+/*                 pos += length + 1; */
+/*                 addr += 2; */
+/*             } else { */
+/*                 for(int i = 0; i <= length; i++) l->layer2[pos + i] = offset + l->cpu.op_read(addr + i + 1); */
+/*                 pos += length + 1; */
+/*                 addr += length + 2; */
+/*             } */
+/*         } */
+/*     } else if(l->hasLayer2Objects) { */
+/*         int addrLayer2LowTableEntryPC = l->rom->data[0x003DA8 + 2 * levelmode]; */
+/*         int addrLayer2Low = l->rom->data[addrLayer2LowTableEntryPC] + (l->rom->data[addrLayer2LowTableEntryPC + 1] << 8); */
+/*         int addrLayer2HighTableEntryPC = l->rom->data[0x003DA8 + 2 * levelmode]; */
+/*         int addrLayer2High = l->rom->data[addrLayer2LowTableEntryPC] + (l->rom->data[addrLayer2LowTableEntryPC + 1] << 8); */
+/*         if(isVerticalLevel) { */
+/*             l->layer2 = new uint16_t[512 * screens]; */
+/*             for(int i = 0; i < 512 * screens; i++) { */
+/*                 int xy = i % 256; int x = xy % 16; int y = xy >> 4; */
+/*                 int sc = i >> 8;  int left = sc&1; int h = sc >> 1; */
             
-                int cx = left * 16 + x;
-                int cy = h * 16 + y;
+/*                 int cx = left * 16 + x; */
+/*                 int cy = h * 16 + y; */
             
-                l->layer2[cy * 32 + cx] = cpu.ram[addrLayer2Low + i] * 256 + cpu.ram[addrLayer2High + i];
+/*                 l->layer2[cy * 32 + cx] = cpu.ram[addrLayer2Low + i] * 256 + cpu.ram[addrLayer2High + i]; */
                     
-            }
-        } else {
-            l->layer2 = new uint16_t[432 * screens];
-            for(int i = 0; i < 432 * screens; i++) {
-                int xy = i % 432;
-                int sc = i / 432;
-                int cx = (xy % 16);
-                int cy = xy >> 4;
-                l->layer2[(cy * screens + sc) * 16 + cx] = cpu.ram[addrLayer2Low + i] * 256 + cpu.ram[addrLayer2High + i];
-            }
-        }
-    }
+/*             } */
+/*         } else { */
+/*             l->layer2 = new uint16_t[432 * screens]; */
+/*             for(int i = 0; i < 432 * screens; i++) { */
+/*                 int xy = i % 432; */
+/*                 int sc = i / 432; */
+/*                 int cx = (xy % 16); */
+/*                 int cy = xy >> 4; */
+/*                 l->layer2[(cy * screens + sc) * 16 + cx] = cpu.ram[addrLayer2Low + i] * 256 + cpu.ram[addrLayer2High + i]; */
+/*             } */
+/*         } */
+/*     } */
 
-    r65816_cpu_free(&cpu);
-}
+/*     r65816_cpu_free(&cpu); */
+/* } */
 
-void level_get_layer1(r65816_cpu* cpu, uint8_t frame, layer16_t* layer) {
+/* void level_get_layer1(r65816_cpu* cpu, uint8_t frame, layer16_t* layer) { */
         
-}
+/* } */
 
 
 /* int Level::getHeight() { */

@@ -9,6 +9,7 @@ typedef struct {
 } gfx_page;
 
 typedef struct {
+    int num_pages;
     gfx_page* pages[];
 } gfx_store;
 

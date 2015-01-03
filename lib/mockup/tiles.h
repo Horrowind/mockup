@@ -47,7 +47,10 @@ tile8_t tile8_from_4bpp(uint8_t* data);
 
 tile16_t tile16_from_tile8(tile8_t* tiles[4], tile_properties_t poperties[4]);
 
-void map16_load_from_level(map16_t* map16, rom_t* rom, int num_level);
+void map8_init(map8_t* map8, tileset_t* tileset);
+void map8_deinit(map8_t* map8);
+
+void map16_init(map16_t* map16, r65816_t* rom, int num_level);
 void map16_to_pc(map16_t* map16, palette_t palette, map16_pc_t* map16pc);
 
 #endif //MOCKUP_TILES_HPP

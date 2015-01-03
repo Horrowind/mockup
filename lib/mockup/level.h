@@ -3,7 +3,7 @@
 
 #include "r65816/cpu.h"
 #include "gfx_store.h"
-#include "objects.h"
+#include "object.h"
 #include "overworld.h"
 #include "palette.h"
 #include "tiles.h"
@@ -28,11 +28,11 @@ typedef struct {
 typedef struct {
     level_header_t header;
     object_list_t* layer_1_objects;
-    sprite_list_t* sprites;
+    //sprite_list_t* sprites;
 
     union {
-	object_t*  layer_2_objects;
-	layer16_t* layer_2_background;
+        object_t*  layer_2_objects;
+        layer16_t* layer_2_background;
     };
     uint8_t has_layer_2_bg     : 1;
     uint8_t has_layer_2_object : 1;
@@ -40,14 +40,13 @@ typedef struct {
 
     palette_t palette;
     map8_t    map8;
-    map8_t*   gfx32_33;
     map16_t   map16_fg;
     map16_t   map16_bg;
 
     r65816_rom_t* rom;
 } level_t;
 
-void level_init(level_t* l, rom_t* rom, gfx_store* gfx_store, int levelnum);
+void level_init(level_t* l, r65816_rom_t* rom, gfx_store* gfx_store, int levelnum);
 void level_deinit(level_t* l);
 
 void level_init_path(level_t* l, const char* path, int levelnum);

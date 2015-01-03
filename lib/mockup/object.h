@@ -1,8 +1,9 @@
 #ifndef MOCKUP_OBJECT_H
 #define MOCKUP_OBJECT_H
 
-#include "r65816/rom.h"
 #include "stdint.h"
+#include "r65816/rom.h"
+#include "layer.h"
 
 typedef struct {
     uint32_t x;
@@ -23,7 +24,7 @@ typedef struct object_entry {
 void object_list_init(object_list_t* object_list);
 void object_list_deinit(object_list_t* object_list);
 
-void object_list_init_addr(object_list_t* object_list, rom_t* rom, uint32_t addr);
+void object_list_init_addr(object_list_t* object_list, r65816_rom_t* rom, uint32_t addr);
 void object_list_deinit_addr(object_list_t* object_list);
 
 void object_list_init_data(object_list_t* object_list, uint8_t* data);

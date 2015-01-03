@@ -9,5 +9,6 @@ typedef struct {
     gfx_page_t* fg3;
 } tileset_t;
 
-void tileset_load(tileset_t* tileset, rom_t* rom, int num_level);
+void tileset_init(tileset_t* tileset, gfx_store_t* gfx_store, uint8_t fg1, uint8_t fg2, uint8_t bg1, uint8_t fg3);
+void tileset_init_level(tileset_t* tileset, gfx_store_t* gfx_store, rom_t* rom, int num_level);
 #endif //MOCKUP_TILESET_H

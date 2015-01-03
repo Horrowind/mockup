@@ -1,11 +1,14 @@
 #ifndef MOCKUP_LAYER_H
 #define MOCKUP_LAYER_H
 
+#include "palette.h"
+#include "tiles.h"
+
 typedef struct {
     int height;
     int width;
 
-    uint16_t data;
+    uint16_t* data;
     
     tile16_t* map;
     int map_length;
