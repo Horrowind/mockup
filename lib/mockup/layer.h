@@ -17,6 +17,8 @@ typedef struct {
     int palette_length;
 } layer16_t;
 
+void layer16_init(layer16_t* layer);
+void layer16_deinit(layer16_t* layer);
 
 
 /*void layer16_render_line(layer16_t layer, int num_line, uint8_t* line) {

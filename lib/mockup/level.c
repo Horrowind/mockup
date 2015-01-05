@@ -10,30 +10,26 @@
 
 void level_init(level_t* l, r65816_rom_t* rom, gfx_store_t* gfx_store, int num_level) {
     l->rom = rom;
-    l->num_level = num_level;
 
-    level_header_init(l->header, rom, num_level);
-    palette_init(l->palette, rom, num_level);
-    tileset_init_level(l->tileset, rom, num_level, gfx_store_t* gfx_store);
-    map8_init(l->map8, l->tileset);
-    map16_init(l->map16, rom, num_level);
-    object_list_init(l->layer1_objects, rom, num_level);
+    level_header_init(&l->header, rom, num_level);
+    palette_init(&l->palette, rom, num_level);
+    tileset_init_level(&l->tileset, rom, num_level, gfx_store);
+    map8_init(&l->map8, &l->tileset);
+    map16_init_bg(&l->map16_bg, rom, num_level, &l->map8);
+    map16_init_fg(&l->map16_fg, rom, num_level, &l->map8);
+    //Todo
+    int addr = 0;
+    object_list_init_addr(l->layer1_objects, rom, addr);
 
     /* for(int i = 0; i < 8; i++) { */
     /*     level_animate(l, i); */
     /* } */
-    l->layer1 = NULL;
-    l->layer2 = NULL;
 }
 
 void level_deinit(level_t* l) {
-    if(l->layer1) free(l->layer1);
-    if(l->layer2) free(l->layer2);
     if(l->has_layer2_objects) object_list_deinit(l->layer2_objects);
     if(l->has_layer2_bg) layer16_deinit(l->layer2_background);
     object_list_deinit(l->layer1_objects);
-    map8_init(l->map8, l->tileset);
-
 }
 
 /* void level_load_map16(level_t* l, r65816_cpu_t* cpu) { */
