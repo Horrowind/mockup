@@ -5,11 +5,10 @@
 #include <QGraphicsView>
 #include <QTextEdit>
 
+extern "C" {
+#include "smw.h"
+}
 
-#include "cpu.hpp"
-#include "level.hpp"
-
-class TestCPU;
 class QKeyEvent;
 
 namespace Mockup {
@@ -35,7 +34,7 @@ namespace Mockup {
         
     private:
         
-        void draw_level(int level);
+        //void draw_level(int level);
 
         QGraphicsView* m_view;
         QGraphicsScene m_scene;
@@ -51,11 +50,9 @@ namespace Mockup {
         QGraphicsView* m_viewMap16;
         QGraphicsScene m_sceneMap16;
 
-
-        int            m_currentLevel = 0x105;
-        uint8_t        m_frame = 0;
-        Level          m_level;
         QString        m_filePath;
+
+        smw_t smw;
     };
 }
 #endif //MOCKUP_MAIN_WINDOW_HPP

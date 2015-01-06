@@ -58,17 +58,17 @@ tile8_t tile8_from_4bpp(uint8_t* data) {
     return tile;
 }
 
-void map16_to_pc(map16_t* map16, map16_pc_t* map16_pc) {
+void tile16_to_pc(tile16_t* tile16, tile16_pc_t* tile16_pc) {
     for(int k = 0; k < 1; k++) {
         for(int l = 0; l < 1; l++) {
             int pos = k*2 +l;
-            int itx = map16->properties[pos].X ? -1 : 1;
-            int ity = map16->properties[pos].Y ? -1 : 1; 
-            int sy  = map16->properties[pos].Y ?  7 : 0;
+            int itx = tile16->properties[pos].X ? -1 : 1;
+            int ity = tile16->properties[pos].Y ? -1 : 1; 
+            int sy  = tile16->properties[pos].Y ?  7 : 0;
             for(int i = 0; i < 8; i++) {
-                int sx  = map16->properties[pos].X ?  7 : 0;
+                int sx  = tile16->properties[pos].X ?  7 : 0;
                 for(int j = 0; j < 8; j++) {
-                    map16_pc[16* l + (2 * k + i) * 8 + j] = map16->tiles[pos].pixels[sy * 8 + sx];
+                    tile16_pc->data[16* l + (2 * k + i) * 8 + j] = tile16->tiles[pos]->pixels[sy * 8 + sx];
                     sx += itx;
                 }
                 sy += ity;
@@ -99,6 +99,13 @@ tile16_t tile16_from_tile8(tile8_t* t[4], tile_properties_t properties[4]) {
         tile.properties[i] = properties[i];
     }
     return tile;
+}
+
+void map16_init_bg(map16_t* map16, r65816_rom_t* rom, int num_level, map8_t* map8) {
+
+}
+void map16_init_fg(map16_t* map16, r65816_rom_t* rom, int num_level, map8_t* map8) {
+
 }
 
 void map8_init(map8_t* map8, tileset_t* tileset) {

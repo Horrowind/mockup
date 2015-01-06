@@ -20,10 +20,10 @@ typedef union {
 
 typedef tile_properties_t tile_flip_t;
 
-const tile_flip_t tile_flip_None = { .X = 0, .Y = 0};
-const tile_flip_t tile_flip_X    = { .X = 1, .Y = 0};
-const tile_flip_t tile_flip_Y    = { .X = 0, .Y = 1};
-const tile_flip_t tile_flip_XY   = { .X = 1, .Y = 1};
+/* const tile_flip_t tile_flip_None = { .X = 0, .Y = 0}; */
+/* const tile_flip_t tile_flip_X    = { .X = 1, .Y = 0}; */
+/* const tile_flip_t tile_flip_Y    = { .X = 0, .Y = 1}; */
+/* const tile_flip_t tile_flip_XY   = { .X = 1, .Y = 1}; */
 
 typedef struct {
     uint8_t pixels[64];
@@ -39,7 +39,9 @@ typedef struct {
     tile_properties_t properties[4];
 } tile16_t;
 
-typedef uint32_t tile16_pc_t[64];
+typedef struct {
+    uint32_t data[64];
+} tile16_pc_t;
 
 typedef struct {
     int length;

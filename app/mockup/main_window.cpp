@@ -2,8 +2,6 @@
 #include <cstdio>
 #include <cstring>
 
-#include <iostream>
-
 #include <QDockWidget>
 #include <QFileDialog>
 #include <QInputDialog>
@@ -11,9 +9,6 @@
 #include <QKeyEvent>
 #include <QTimer>
 
-#include "debug.hpp"
-#include "cpu.hpp"
-#include "level.hpp"
 #include "main_window.hpp"
 
 
@@ -21,8 +16,8 @@
 namespace Mockup {
     
 
-    MainWindow::MainWindow(int level) : m_level("smw.smc", level) {
-        m_currentLevel = level;
+    MainWindow::MainWindow() {
+
         setDocumentMode(true);
         grabKeyboard();
         
@@ -33,7 +28,7 @@ namespace Mockup {
         m_textDebug->setReadOnly(true);
         m_dockDebug->setWidget(m_textDebug);
 
-        initializeDebug(m_textDebug);
+        //initializeDebug(m_textDebug);
 
         m_viewMap8 = new QGraphicsView(&m_sceneMap8);
         m_viewMap8->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -58,6 +53,13 @@ namespace Mockup {
         addDockWidget(Qt::BottomDockWidgetArea, m_dockDebug);
         m_view = new QGraphicsView(&m_scene);
         setCentralWidget(m_view);
+        m_filePath = "smw.smc";
+        smw_init_path(&smw, m_filePath.toLatin1().data());
+        for(int i = 0; i < smw.gfx_pages.num_pages; i++) {
+            printf("Huhu %i: %i\n", i, smw.gfx_pages.pages[i]->length);
+
+        }
+        //smw_deinit_path(&smw);
         
         // for(int i = 0; i < 512; i++) {
         //     draw_level(filePath.toLatin1().data(), i);
@@ -68,19 +70,12 @@ namespace Mockup {
         //     image.save("png/" + QString::number(i, 16) + ".png");
         // }
 
-        
-        draw_level(m_currentLevel);
 
         QTimer *timer = new QTimer(this);
         connect(timer, SIGNAL(timeout()), this, SLOT(update()));
         timer->start(8000/60);
 
     }
-
-    MainWindow::MainWindow() : MainWindow(0x105) { }
-
-    MainWindow::MainWindow(MainWindow& w) :  MainWindow(w.getLevelNumber()) { }
-
     MainWindow::~MainWindow() {
         // delete m_dockMap8;
         // delete m_dockMap16;
@@ -89,102 +84,91 @@ namespace Mockup {
 
     void MainWindow::update() {
 
-        m_frame += 8;
-        for(int i = 0; i < 8; i++) {
-            m_level.animate(m_frame + i);
-        }
-        draw_level(m_currentLevel);
+        // m_frame += 8;
+        // for(int i = 0; i < 8; i++) {
+        //     m_level.animate(m_frame + i);
+        // }
+        // draw_level(m_currentLevel);
         m_scene.invalidate();
         m_sceneMap8.invalidate();
         m_sceneMap16.invalidate();
     }
 
 
-    void MainWindow::draw_level(int levelnum) {
-        setWindowTitle(QString("Mockup - Level 0x%1").arg(levelnum, 0, 16));
+    // void MainWindow::draw_level(int levelnum) {
+    //     setWindowTitle(QString("Mockup - Level 0x%1").arg(levelnum, 0, 16));
         
-        m_scene.clear();
-        m_sceneMap8.clear();
-        m_sceneMap16.clear();
-        m_view->setSceneRect(0, 0, m_level.getWidth() * 16 , m_level.getHeight() * 16);
-        m_viewMap8->setSceneRect(0, 0, 128, 256);
-        uint32_t palette[256]; 
-        memcpy(&palette, m_level.getPalette(), 1024);
+    //     m_scene.clear();
+    //     m_sceneMap8.clear();
+    //     m_sceneMap16.clear();
+    //     m_view->setSceneRect(0, 0, m_level.getWidth() * 16 , m_level.getHeight() * 16);
+    //     m_viewMap8->setSceneRect(0, 0, 128, 256);
+    //     uint32_t palette[256]; 
+    //     memcpy(&palette, m_level.getPalette(), 1024);
 
-        //Background Color
-        m_scene.setBackgroundBrush(QBrush(QColor::fromRgba(m_level.getBackgroundColor())));
+    //     //Background Color
+    //     m_scene.setBackgroundBrush(QBrush(QColor::fromRgba(m_level.getBackgroundColor())));
 
-        //Background
-        QImage imgBG(m_level.getWidth()*16, m_level.getHeight()*16, QImage::Format_Indexed8);
-        for(int i = 0; i < 256; i++) imgBG.setColor(i, palette[i]);
-        imgBG.fill(QColor(0, 0, 0, 0));
+    //     //Background
+    //     QImage imgBG(m_level.getWidth()*16, m_level.getHeight()*16, QImage::Format_Indexed8);
+    //     for(int i = 0; i < 256; i++) imgBG.setColor(i, palette[i]);
+    //     imgBG.fill(QColor(0, 0, 0, 0));
            
-        for(int i = 0; i < m_level.getHeight()*16; i++) {
-            m_level.renderLineBG(imgBG.scanLine(i), i); 
-        }
-        QGraphicsItem* itemBG = m_scene.addPixmap(QPixmap::fromImage(imgBG));
+    //     for(int i = 0; i < m_level.getHeight()*16; i++) {
+    //         m_level.renderLineBG(imgBG.scanLine(i), i); 
+    //     }
+    //     QGraphicsItem* itemBG = m_scene.addPixmap(QPixmap::fromImage(imgBG));
 
-        //Foreground
-        QImage imgFG(m_level.getWidth()*16, m_level.getHeight()*16, QImage::Format_Indexed8);
-        for(int i = 0; i < 256; i++) imgFG.setColor(i, palette[i]);
-        imgFG.fill(QColor(0, 0, 0, 0));
+    //     //Foreground
+    //     QImage imgFG(m_level.getWidth()*16, m_level.getHeight()*16, QImage::Format_Indexed8);
+    //     for(int i = 0; i < 256; i++) imgFG.setColor(i, palette[i]);
+    //     imgFG.fill(QColor(0, 0, 0, 0));
 
-        for(int i = 0; i < m_level.getHeight()*16; i++) {
-            m_level.renderLineFG(imgFG.scanLine(i), i); 
-        }
+    //     for(int i = 0; i < m_level.getHeight()*16; i++) {
+    //         m_level.renderLineFG(imgFG.scanLine(i), i); 
+    //     }
         
-        QGraphicsItem* itemFG = m_scene.addPixmap(QPixmap::fromImage(imgFG));
+    //     QGraphicsItem* itemFG = m_scene.addPixmap(QPixmap::fromImage(imgFG));
 
-        //Map8
-        QImage imgMap8(128, 256, QImage::Format_Indexed8);
-        for(int i = 0; i < 256; i++) imgMap8.setColor(i, palette[i]);
-        imgBG.fill(QColor(0, 0, 0, 0));
-        for(int i = 0; i < 512; i++) {
-            Tile8 tile = m_level.getMap8(i);
-            for(int j = 0; j < 64; j++) {
-                imgMap8.setPixel((i % 16) * 8 + (j % 8), (i / 16) * 8 + (j / 8), tile.pixels[j]);
-            }
-        }
-        QGraphicsItem* itemMap8 = m_sceneMap8.addPixmap(QPixmap::fromImage(imgMap8));
+    //     //Map8
+    //     QImage imgMap8(128, 256, QImage::Format_Indexed8);
+    //     for(int i = 0; i < 256; i++) imgMap8.setColor(i, palette[i]);
+    //     imgBG.fill(QColor(0, 0, 0, 0));
+    //     for(int i = 0; i < 512; i++) {
+    //         Tile8 tile = m_level.getMap8(i);
+    //         for(int j = 0; j < 64; j++) {
+    //             imgMap8.setPixel((i % 16) * 8 + (j % 8), (i / 16) * 8 + (j / 8), tile.pixels[j]);
+    //         }
+    //     }
+    //     QGraphicsItem* itemMap8 = m_sceneMap8.addPixmap(QPixmap::fromImage(imgMap8));
 
-        //Map16
-        QImage imgMap16(256, 256, QImage::Format_Indexed8);
-        for(int i = 0; i < 256; i++) imgMap16.setColor(i, palette[i]);
-        imgBG.fill(QColor(255, 255, 255, 255));
-        for(int i = 0; i < 256; i++) {
-            Tile16 tile = m_level.getMap16bg(i);
-            for(int j = 0; j < 256; j++) {
-                imgMap16.setPixel((i % 16) * 16 + (j % 16), (i / 16) * 16 + (j / 16), tile.pixels[j]);
-            }
-        }
-        QGraphicsItem* itemMap16 = m_sceneMap16.addPixmap(QPixmap::fromImage(imgMap16));
-    }
+    //     //Map16
+    //     QImage imgMap16(256, 256, QImage::Format_Indexed8);
+    //     for(int i = 0; i < 256; i++) imgMap16.setColor(i, palette[i]);
+    //     imgBG.fill(QColor(255, 255, 255, 255));
+    //     for(int i = 0; i < 256; i++) {
+    //         Tile16 tile = m_level.getMap16bg(i);
+    //         for(int j = 0; j < 256; j++) {
+    //             imgMap16.setPixel((i % 16) * 16 + (j % 16), (i / 16) * 16 + (j / 16), tile.pixels[j]);
+    //         }
+    //     }
+    //     QGraphicsItem* itemMap16 = m_sceneMap16.addPixmap(QPixmap::fromImage(imgMap16));
+    // }
     
  
  
     void MainWindow::keyPressEvent(QKeyEvent* event) {
-        if(event->key() == Qt::Key_PageUp && m_currentLevel < 511) {
-            m_currentLevel++;
-        } else if(event->key() == Qt::Key_PageDown && m_currentLevel > 0) {
-            m_currentLevel--;
-        } else {
-            event->ignore();
-            return;
-        }
-        event->accept();
-        m_level.load_level(m_currentLevel);
-        draw_level(m_currentLevel);
+        // if(event->key() == Qt::Key_PageUp && m_currentLevel < 511) {
+        //     m_currentLevel++;
+        // } else if(event->key() == Qt::Key_PageDown && m_currentLevel > 0) {
+        //     m_currentLevel--;
+        // } else {
+        //     event->ignore();
+        //     return;
+        // }
+        // event->accept();
+        // m_level.load_level(m_currentLevel);
+        // draw_level(m_currentLevel);
     }
-
-
-    QString MainWindow::getFilePath() {
-        return m_filePath;
-    }
-
-    int MainWindow::getLevelNumber() {
-        return m_currentLevel;
-    }
-
-
 
 };

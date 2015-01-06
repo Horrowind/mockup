@@ -48,7 +48,7 @@ typedef struct {
     r65816_rom_t* rom;
 } level_t;
 
-void level_init(level_t* l, r65816_rom_t* rom, gfx_store_t* gfx_store, int num_level);
+void level_init(level_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gfx_store);
 void level_header_init(level_header_t* header, r65816_rom_t* rom, int num_level);
 void level_deinit(level_t* l);
 

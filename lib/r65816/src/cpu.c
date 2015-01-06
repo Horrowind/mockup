@@ -58,15 +58,15 @@ void r65816_cpu_run(r65816_cpu_t* cpu, uint32_t address) {
     }
 }
 
-void r65816_breakpoint_add_exec(r65816_cpu_t* cpu, uint32_t addr) {
+void r65816_cpu_add_exec_bp(r65816_cpu_t* cpu, uint32_t addr) {
     r65816_breakpoint_add(&cpu->breakpoints_exec, addr);
 }
 
-void r65816_breakpoint_add_read(r65816_cpu_t* cpu, uint32_t addr) {
+void r65816_cpu_add_read_bp(r65816_cpu_t* cpu, uint32_t addr) {
     r65816_breakpoint_add(&cpu->breakpoints_read, addr);
 }
 
-void r65816_breakpoint_add_write(r65816_cpu_t* cpu, uint32_t addr) {
+void r65816_cpu_add_write_bp(r65816_cpu_t* cpu, uint32_t addr) {
     r65816_breakpoint_add(&cpu->breakpoints_write, addr);
 }
 

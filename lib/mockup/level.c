@@ -8,28 +8,32 @@
 #include "decode.h"
 #include "level.h"
 
-void level_init(level_t* l, r65816_rom_t* rom, gfx_store_t* gfx_store, int num_level) {
+void level_init(level_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gfx_store) {
     l->rom = rom;
 
     level_header_init(&l->header, rom, num_level);
     palette_init(&l->palette, rom, num_level);
     tileset_init_level(&l->tileset, rom, num_level, gfx_store);
     map8_init(&l->map8, &l->tileset);
-    map16_init_bg(&l->map16_bg, rom, num_level, &l->map8);
-    map16_init_fg(&l->map16_fg, rom, num_level, &l->map8);
+    /* map16_init_bg(&l->map16_bg, rom, num_level, &l->map8); */
+    /* map16_init_fg(&l->map16_fg, rom, num_level, &l->map8); */
     //Todo
     int addr = 0;
-    object_list_init_addr(l->layer1_objects, rom, addr);
+    /* object_list_init_addr(l->layer1_objects, rom, addr); */
 
     /* for(int i = 0; i < 8; i++) { */
     /*     level_animate(l, i); */
     /* } */
 }
 
+void level_header_init(level_header_t* header, r65816_rom_t* rom, int num_level) {
+
+}
+
 void level_deinit(level_t* l) {
-    if(l->has_layer2_objects) object_list_deinit(l->layer2_objects);
+    if(l->has_layer2_objects) object_list_deinit_addr(l->layer2_objects);
     if(l->has_layer2_bg) layer16_deinit(l->layer2_background);
-    object_list_deinit(l->layer1_objects);
+    object_list_deinit_addr(l->layer1_objects);
 }
 
 /* void level_load_map16(level_t* l, r65816_cpu_t* cpu) { */
