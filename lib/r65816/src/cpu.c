@@ -14,6 +14,7 @@ void r65816_cpu_init(r65816_cpu_t* cpu, r65816_rom_t* rom) {
     cpu->sreg = malloc(0x2500);
     memset(cpu->sreg, 0, 0x2500);
     cpu->regs.pc.d = 0x000000;
+    cpu->regs.a.w = 0x0000;
     cpu->regs.x.h = 0x00;
     cpu->regs.y.h = 0x00;
     cpu->regs.s.h = 0x01;
@@ -50,7 +51,10 @@ void r65816_cpu_step(r65816_cpu_t* cpu) {
 void r65816_cpu_run(r65816_cpu_t* cpu, uint32_t address) {
     cpu->regs.pc.d = address;
     cpu->stop_execution = 0;
-    while(cpu->stop_execution) {
+    while(!cpu->stop_execution) {
+        char output[256];
+        r65816_cpu_disassemble_opcode(cpu, output, cpu->regs.pc.d);
+        printf("%s\n", output);
         r65816_cpu_step(cpu);
         cpu->stop_execution |= r65816_breakpoint_is_hit(
             cpu->breakpoints_exec,

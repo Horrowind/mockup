@@ -23,10 +23,12 @@ struct r65816_regs {
     r65816_reg24_t pc;
     union {
         r65816_reg16_t r[6];
-        r65816_reg16_t a, x, y, z, s, d;
+        struct {
+            r65816_reg16_t a, x, y, z, s, d;
+        };
     };
     union {
-        struct { uint8_t n:1, v:1, m:1, x:1, d:1, i:1, z:1, c:1; };
+        struct { uint8_t c:1, z:1, i:1, d:1, x:1, m:1, v:1, n:1; };
         uint8_t b;
     } p;
     uint8_t db;

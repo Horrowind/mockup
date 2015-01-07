@@ -10,16 +10,16 @@
 #define S 4
 #define D 5
 
-#define r65816_op_read_const_gen(op)                                           \
-    void r65816_op_read_const_##op##_b(r65816_cpu_t* cpu) {                           \
-        cpu->rd.l = r65816_op_readpc(cpu);                                     \
-        r65816_op_##op##_b(cpu);                                               \
-    }                                                                   \
-                                                                        \
-    void r65816_op_read_const_##op##_w(r65816_cpu_t* cpu) {                           \
-        cpu->rd.l = r65816_op_readpc(cpu);                                     \
-        cpu->rd.h = r65816_op_readpc(cpu);                                     \
-        r65816_op_##op##_w(cpu);                                               \
+#define r65816_op_read_const_gen(op)                        \
+    void r65816_op_read_const_##op##_b(r65816_cpu_t* cpu) { \
+        cpu->rd.l = r65816_op_readpc(cpu);                  \
+        r65816_op_##op##_b(cpu);                            \
+    }                                                       \
+                                                            \
+    void r65816_op_read_const_##op##_w(r65816_cpu_t* cpu) { \
+        cpu->rd.l = r65816_op_readpc(cpu);                  \
+        cpu->rd.h = r65816_op_readpc(cpu);                  \
+        r65816_op_##op##_w(cpu);                            \
     }
 
 r65816_op_read_const_gen(ora);
@@ -48,20 +48,20 @@ void r65816_op_read_bit_const_w(r65816_cpu_t* cpu) {
     cpu->regs.p.z = ((cpu->rd.w & cpu->regs.a.w) == 0);
 }
 
-#define r65816_op_read_addr_gen(op)                                            \
-    void r65816_op_read_addr_##op##_b(r65816_cpu_t* cpu) {                            \
-        cpu->aa.l = r65816_op_readpc(cpu);                                     \
-        cpu->aa.h = r65816_op_readpc(cpu);                                     \
-        cpu->rd.l = r65816_op_readdbr(cpu, cpu->aa.w);                         \
-        r65816_op_##op##_w(cpu);                                               \
-    }                                                                   \
-                                                                        \
-    void r65816_op_read_addr_##op##_w(r65816_cpu_t* cpu) {                            \
-        cpu->aa.l = r65816_op_readpc(cpu);                                     \
-        cpu->aa.h = r65816_op_readpc(cpu);                                     \
-        cpu->rd.l = r65816_op_readdbr(cpu, cpu->aa.w + 0);                     \
-        cpu->rd.h = r65816_op_readdbr(cpu, cpu->aa.w + 1);                     \
-        r65816_op_##op##_w(cpu);                                               \
+#define r65816_op_read_addr_gen(op)                         \
+    void r65816_op_read_addr_##op##_b(r65816_cpu_t* cpu) {  \
+        cpu->aa.l = r65816_op_readpc(cpu);                  \
+        cpu->aa.h = r65816_op_readpc(cpu);                  \
+        cpu->rd.l = r65816_op_readdbr(cpu, cpu->aa.w);      \
+        r65816_op_##op##_w(cpu);                            \
+    }                                                       \
+                                                            \
+    void r65816_op_read_addr_##op##_w(r65816_cpu_t* cpu) {  \
+        cpu->aa.l = r65816_op_readpc(cpu);                  \
+        cpu->aa.h = r65816_op_readpc(cpu);                  \
+        cpu->rd.l = r65816_op_readdbr(cpu, cpu->aa.w + 0);  \
+        cpu->rd.h = r65816_op_readdbr(cpu, cpu->aa.w + 1);  \
+        r65816_op_##op##_w(cpu);                            \
     }
 
 r65816_op_read_addr_gen(ora);
@@ -79,20 +79,20 @@ r65816_op_read_addr_gen(sbc);
 
 #undef r65816_op_read_addr_gen
 
-#define r65816_op_read_addrx_gen(op)                                           \
-    void r65816_op_read_addrx_##op##_b(r65816_cpu_t* cpu) {                           \
-        cpu->aa.l = r65816_op_readpc(cpu);                                     \
-        cpu->aa.h = r65816_op_readpc(cpu);                                     \
-        cpu->rd.l = r65816_op_readdbr(cpu, cpu->aa.w + cpu->regs.x.w);         \
-        r65816_op_##op##_b(cpu);                                               \
+#define r65816_op_read_addrx_gen(op)                                    \
+    void r65816_op_read_addrx_##op##_b(r65816_cpu_t* cpu) {             \
+        cpu->aa.l = r65816_op_readpc(cpu);                              \
+        cpu->aa.h = r65816_op_readpc(cpu);                              \
+        cpu->rd.l = r65816_op_readdbr(cpu, cpu->aa.w + cpu->regs.x.w);  \
+        r65816_op_##op##_b(cpu);                                        \
     }                                                                   \
                                                                         \
-    void r65816_op_read_addrx_##op##_w(r65816_cpu_t* cpu) {                           \
-        cpu->aa.l = r65816_op_readpc(cpu);                                     \
-        cpu->aa.h = r65816_op_readpc(cpu);                                     \
-        cpu->rd.l = r65816_op_readdbr(cpu, cpu->aa.w + cpu->regs.x.w + 0);     \
-        cpu->rd.h = r65816_op_readdbr(cpu, cpu->aa.w + cpu->regs.x.w + 1);     \
-        r65816_op_##op##_w(cpu);                                               \
+    void r65816_op_read_addrx_##op##_w(r65816_cpu_t* cpu) {             \
+        cpu->aa.l = r65816_op_readpc(cpu);                              \
+        cpu->aa.h = r65816_op_readpc(cpu);                              \
+        cpu->rd.l = r65816_op_readdbr(cpu, cpu->aa.w + cpu->regs.x.w + 0); \
+        cpu->rd.h = r65816_op_readdbr(cpu, cpu->aa.w + cpu->regs.x.w + 1); \
+        r65816_op_##op##_w(cpu);                                        \
     }
 
 r65816_op_read_addrx_gen(ora);
@@ -107,20 +107,20 @@ r65816_op_read_addrx_gen(sbc);
 
 #undef r65816_op_read_addrx
 
-#define r65816_op_read_addry_gen(op)                                           \
-    void r65816_op_read_addry_##op##_b(r65816_cpu_t* cpu) {                           \
-        cpu->aa.l = r65816_op_readpc(cpu);                                     \
-        cpu->aa.h = r65816_op_readpc(cpu);                                     \
-        cpu->rd.l = r65816_op_readdbr(cpu, cpu->aa.w + cpu->regs.y.w);         \
-        r65816_op_##op##_b(cpu);                                               \
+#define r65816_op_read_addry_gen(op)                                    \
+    void r65816_op_read_addry_##op##_b(r65816_cpu_t* cpu) {             \
+        cpu->aa.l = r65816_op_readpc(cpu);                              \
+        cpu->aa.h = r65816_op_readpc(cpu);                              \
+        cpu->rd.l = r65816_op_readdbr(cpu, cpu->aa.w + cpu->regs.y.w);  \
+        r65816_op_##op##_b(cpu);                                        \
     }                                                                   \
                                                                         \
-    void r65816_op_read_addry_##op##_w(r65816_cpu_t* cpu) {                           \
-        cpu->aa.l = r65816_op_readpc(cpu);                                     \
-        cpu->aa.h = r65816_op_readpc(cpu);                                     \
-        cpu->rd.l = r65816_op_readdbr(cpu, cpu->aa.w + cpu->regs.y.w + 0);     \
-        cpu->rd.h = r65816_op_readdbr(cpu, cpu->aa.w + cpu->regs.y.w + 1);     \
-        r65816_op_##op##_w(cpu);                                               \
+    void r65816_op_read_addry_##op##_w(r65816_cpu_t* cpu) {             \
+        cpu->aa.l = r65816_op_readpc(cpu);                              \
+        cpu->aa.h = r65816_op_readpc(cpu);                              \
+        cpu->rd.l = r65816_op_readdbr(cpu, cpu->aa.w + cpu->regs.y.w + 0); \
+        cpu->rd.h = r65816_op_readdbr(cpu, cpu->aa.w + cpu->regs.y.w + 1); \
+        r65816_op_##op##_w(cpu);                                        \
     }
 
 r65816_op_read_addry_gen(ora);
@@ -134,22 +134,22 @@ r65816_op_read_addry_gen(sbc);
 
 #undef r65816_op_read_addry_gen
 
-#define r65816_op_read_long_gen(op)                                            \
-    void r65816_op_read_long_##op##_b(r65816_cpu_t* cpu) {                            \
-        cpu->aa.l = r65816_op_readpc(cpu);                                     \
-        cpu->aa.h = r65816_op_readpc(cpu);                                     \
-        cpu->aa.b = r65816_op_readpc(cpu);                                     \
-        cpu->rd.l = r65816_op_readlong(cpu, cpu->aa.d);                        \
-        r65816_op_##op##_b(cpu);                                               \
-    }                                                                   \
-                                                                        \
-    void r65816_op_read_long_##op##_w(r65816_cpu_t* cpu) {                            \
-        cpu->aa.l = r65816_op_readpc(cpu);                                     \
-        cpu->aa.h = r65816_op_readpc(cpu);                                     \
-        cpu->aa.b = r65816_op_readpc(cpu);                                     \
-        cpu->rd.l = r65816_op_readlong(cpu, cpu->aa.d + 0);                    \
-        cpu->rd.h = r65816_op_readlong(cpu, cpu->aa.d + 1);                    \
-        r65816_op_##op##_w(cpu);                                               \
+#define r65816_op_read_long_gen(op)                         \
+    void r65816_op_read_long_##op##_b(r65816_cpu_t* cpu) {  \
+        cpu->aa.l = r65816_op_readpc(cpu);                  \
+        cpu->aa.h = r65816_op_readpc(cpu);                  \
+        cpu->aa.b = r65816_op_readpc(cpu);                  \
+        cpu->rd.l = r65816_op_readlong(cpu, cpu->aa.d);     \
+        r65816_op_##op##_b(cpu);                            \
+    }                                                       \
+                                                            \
+    void r65816_op_read_long_##op##_w(r65816_cpu_t* cpu) {  \
+        cpu->aa.l = r65816_op_readpc(cpu);                  \
+        cpu->aa.h = r65816_op_readpc(cpu);                  \
+        cpu->aa.b = r65816_op_readpc(cpu);                  \
+        cpu->rd.l = r65816_op_readlong(cpu, cpu->aa.d + 0); \
+        cpu->rd.h = r65816_op_readlong(cpu, cpu->aa.d + 1); \
+        r65816_op_##op##_w(cpu);                            \
     }
 
 r65816_op_read_long_gen(ora);
@@ -162,22 +162,22 @@ r65816_op_read_long_gen(sbc);
 
 #undef r65816_op_read_long_b_gen
 
-#define r65816_op_read_longx_gen(op)                                           \
-    void r65816_op_read_longx_##op##_b(r65816_cpu_t* cpu) {                           \
-        cpu->aa.l = r65816_op_readpc(cpu);                                     \
-        cpu->aa.h = r65816_op_readpc(cpu);                                     \
-        cpu->aa.b = r65816_op_readpc(cpu);                                     \
-        cpu->rd.l = r65816_op_readlong(cpu, cpu->aa.d + cpu->regs.x.w);        \
-        r65816_op_##op##_b(cpu);                                               \
+#define r65816_op_read_longx_gen(op)                                    \
+    void r65816_op_read_longx_##op##_b(r65816_cpu_t* cpu) {             \
+        cpu->aa.l = r65816_op_readpc(cpu);                              \
+        cpu->aa.h = r65816_op_readpc(cpu);                              \
+        cpu->aa.b = r65816_op_readpc(cpu);                              \
+        cpu->rd.l = r65816_op_readlong(cpu, cpu->aa.d + cpu->regs.x.w); \
+        r65816_op_##op##_b(cpu);                                        \
     }                                                                   \
                                                                         \
-    void r65816_op_read_longx_##op##_w(r65816_cpu_t* cpu) {                           \
-        cpu->aa.l = r65816_op_readpc(cpu);                                     \
-        cpu->aa.h = r65816_op_readpc(cpu);                                     \
-        cpu->aa.b = r65816_op_readpc(cpu);                                     \
-        cpu->rd.l = r65816_op_readlong(cpu, cpu->aa.d + cpu->regs.x.w + 0);    \
-        cpu->rd.h = r65816_op_readlong(cpu, cpu->aa.d + cpu->regs.x.w + 1);    \
-        r65816_op_##op##_w(cpu);                                               \
+    void r65816_op_read_longx_##op##_w(r65816_cpu_t* cpu) {             \
+        cpu->aa.l = r65816_op_readpc(cpu);                              \
+        cpu->aa.h = r65816_op_readpc(cpu);                              \
+        cpu->aa.b = r65816_op_readpc(cpu);                              \
+        cpu->rd.l = r65816_op_readlong(cpu, cpu->aa.d + cpu->regs.x.w + 0); \
+        cpu->rd.h = r65816_op_readlong(cpu, cpu->aa.d + cpu->regs.x.w + 1); \
+        r65816_op_##op##_w(cpu);                                        \
     }
 
 r65816_op_read_longx_gen(ora);
@@ -190,18 +190,18 @@ r65816_op_read_longx_gen(sbc);
 
 #undef r65816_op_read_longx_gen
 
-#define r65816_op_read_dp_gen(op)                                              \
-    void r65816_op_read_dp_##op##_b(r65816_cpu_t* cpu) {                              \
-        cpu->dp = r65816_op_readpc(cpu);                                       \
-        cpu->rd.l = r65816_op_readdp(cpu, cpu->dp);                            \
-        r65816_op_##op##_b(cpu);                                               \
+#define r65816_op_read_dp_gen(op)                                       \
+    void r65816_op_read_dp_##op##_b(r65816_cpu_t* cpu) {                \
+        cpu->dp = r65816_op_readpc(cpu);                                \
+        cpu->rd.l = r65816_op_readdp(cpu, cpu->dp);                     \
+        r65816_op_##op##_b(cpu);                                        \
     }                                                                   \
                                                                         \
-    void r65816_op_read_dp_##op##_w(r65816_cpu_t* cpu) {                              \
-        cpu->dp = r65816_op_readpc(cpu);                                       \
-        cpu->rd.l = r65816_op_readdp(cpu, cpu->dp + 0);                        \
-        cpu->rd.h = r65816_op_readdp(cpu, cpu->dp + 1);                        \
-        r65816_op_##op##_w(cpu);                                               \
+    void r65816_op_read_dp_##op##_w(r65816_cpu_t* cpu) {                \
+        cpu->dp = r65816_op_readpc(cpu);                                \
+        cpu->rd.l = r65816_op_readdp(cpu, cpu->dp + 0);                 \
+        cpu->rd.h = r65816_op_readdp(cpu, cpu->dp + 1);                 \
+        r65816_op_##op##_w(cpu);                                        \
     }
 
 r65816_op_read_dp_gen(ora);
@@ -219,18 +219,18 @@ r65816_op_read_dp_gen(sbc);
 
 #undef r65816_op_read_dp_gen
 
-#define r65816_op_read_dpr_gen(op, num)                                        \
-    void r65816_op_read_dpr_##op##_b(r65816_cpu_t* cpu) {                             \
-        cpu->dp = r65816_op_readpc(cpu);                                       \
-        cpu->rd.l = r65816_op_readdp(cpu, cpu->dp + cpu->regs.r[num].w);       \
-        r65816_op_##op##_b(cpu);                                               \
+#define r65816_op_read_dpr_gen(op, num)                                 \
+    void r65816_op_read_dpr_##op##_b(r65816_cpu_t* cpu) {               \
+        cpu->dp = r65816_op_readpc(cpu);                                \
+        cpu->rd.l = r65816_op_readdp(cpu, cpu->dp + cpu->regs.r[num].w); \
+        r65816_op_##op##_b(cpu);                                        \
     }                                                                   \
                                                                         \
-    void r65816_op_read_dpr_##op##_w(r65816_cpu_t* cpu) {                             \
-        cpu->dp = r65816_op_readpc(cpu);                                       \
-        cpu->rd.l = r65816_op_readdp(cpu, cpu->dp + cpu->regs.r[num].w + 0);   \
-        cpu->rd.h = r65816_op_readdp(cpu, cpu->dp + cpu->regs.r[num].w + 1);   \
-        r65816_op_##op##_w(cpu);                                               \
+    void r65816_op_read_dpr_##op##_w(r65816_cpu_t* cpu) {               \
+        cpu->dp = r65816_op_readpc(cpu);                                \
+        cpu->rd.l = r65816_op_readdp(cpu, cpu->dp + cpu->regs.r[num].w + 0); \
+        cpu->rd.h = r65816_op_readdp(cpu, cpu->dp + cpu->regs.r[num].w + 1); \
+        r65816_op_##op##_w(cpu);                                        \
     }
 
 r65816_op_read_dpr_gen(ora, X);
@@ -246,22 +246,22 @@ r65816_op_read_dpr_gen(sbc, X);
 
 #undef r65816_op_read_dpr_gen
 
-#define r65816_op_read_idp_gen(op)                                             \
-    void r65816_op_read_idp_##op##_b(r65816_cpu_t* cpu) {                             \
-        cpu->dp = r65816_op_readpc(cpu);                                       \
-        cpu->aa.l = r65816_op_readdp(cpu, cpu->dp + 0);                        \
-        cpu->aa.h = r65816_op_readdp(cpu, cpu->dp + 1);                        \
-        cpu->rd.l = r65816_op_readdbr(cpu, cpu->aa.w);                         \
-        r65816_op_##op##_b(cpu);                                               \
+#define r65816_op_read_idp_gen(op)                                      \
+    void r65816_op_read_idp_##op##_b(r65816_cpu_t* cpu) {               \
+        cpu->dp = r65816_op_readpc(cpu);                                \
+        cpu->aa.l = r65816_op_readdp(cpu, cpu->dp + 0);                 \
+        cpu->aa.h = r65816_op_readdp(cpu, cpu->dp + 1);                 \
+        cpu->rd.l = r65816_op_readdbr(cpu, cpu->aa.w);                  \
+        r65816_op_##op##_b(cpu);                                        \
     }                                                                   \
                                                                         \
-    void r65816_op_read_idp_##op##_w(r65816_cpu_t* cpu) {                             \
-        cpu->dp = r65816_op_readpc(cpu);                                       \
-        cpu->aa.l = r65816_op_readdp(cpu, cpu->dp + 0);                        \
-        cpu->aa.h = r65816_op_readdp(cpu, cpu->dp + 1);                        \
-        cpu->rd.l = r65816_op_readdbr(cpu, cpu->aa.w + 0);                     \
-        cpu->rd.h = r65816_op_readdbr(cpu, cpu->aa.w + 1);                     \
-        r65816_op_##op##_w(cpu);                                               \
+    void r65816_op_read_idp_##op##_w(r65816_cpu_t* cpu) {               \
+        cpu->dp = r65816_op_readpc(cpu);                                \
+        cpu->aa.l = r65816_op_readdp(cpu, cpu->dp + 0);                 \
+        cpu->aa.h = r65816_op_readdp(cpu, cpu->dp + 1);                 \
+        cpu->rd.l = r65816_op_readdbr(cpu, cpu->aa.w + 0);              \
+        cpu->rd.h = r65816_op_readdbr(cpu, cpu->aa.w + 1);              \
+        r65816_op_##op##_w(cpu);                                        \
     }
 
 r65816_op_read_idp_gen(ora);
@@ -273,22 +273,22 @@ r65816_op_read_idp_gen(cmp);
 r65816_op_read_idp_gen(sbc);
 #undef r65816_op_read_idp_gen
 
-#define r65816_op_read_idpx_gen(op)                                            \
-    void r65816_op_read_idpx_##op##_b(r65816_cpu_t* cpu) {                            \
-        cpu->dp = r65816_op_readpc(cpu);                                       \
-        cpu->aa.l = r65816_op_readdp(cpu, cpu->dp + cpu->regs.x.w + 0);        \
-        cpu->aa.h = r65816_op_readdp(cpu, cpu->dp + cpu->regs.x.w + 1);        \
-        cpu->rd.l = r65816_op_readdbr(cpu, cpu->aa.w);                         \
-        r65816_op_##op##_b(cpu);                                               \
+#define r65816_op_read_idpx_gen(op)                                     \
+    void r65816_op_read_idpx_##op##_b(r65816_cpu_t* cpu) {              \
+        cpu->dp = r65816_op_readpc(cpu);                                \
+        cpu->aa.l = r65816_op_readdp(cpu, cpu->dp + cpu->regs.x.w + 0); \
+        cpu->aa.h = r65816_op_readdp(cpu, cpu->dp + cpu->regs.x.w + 1); \
+        cpu->rd.l = r65816_op_readdbr(cpu, cpu->aa.w);                  \
+        r65816_op_##op##_b(cpu);                                        \
     }                                                                   \
                                                                         \
-    void r65816_op_read_idpx_##op##_w(r65816_cpu_t* cpu) {                            \
-        cpu->dp = r65816_op_readpc(cpu);                                       \
-        cpu->aa.l = r65816_op_readdp(cpu, cpu->dp + cpu->regs.x.w + 0);        \
-        cpu->aa.h = r65816_op_readdp(cpu, cpu->dp + cpu->regs.x.w + 1);        \
-        cpu->rd.l = r65816_op_readdbr(cpu, cpu->aa.w + 0);                     \
-        cpu->rd.h = r65816_op_readdbr(cpu, cpu->aa.w + 1);                     \
-        r65816_op_##op##_w(cpu);                                               \
+    void r65816_op_read_idpx_##op##_w(r65816_cpu_t* cpu) {              \
+        cpu->dp = r65816_op_readpc(cpu);                                \
+        cpu->aa.l = r65816_op_readdp(cpu, cpu->dp + cpu->regs.x.w + 0); \
+        cpu->aa.h = r65816_op_readdp(cpu, cpu->dp + cpu->regs.x.w + 1); \
+        cpu->rd.l = r65816_op_readdbr(cpu, cpu->aa.w + 0);              \
+        cpu->rd.h = r65816_op_readdbr(cpu, cpu->aa.w + 1);              \
+        r65816_op_##op##_w(cpu);                                        \
     }
 
 r65816_op_read_idpx_gen(ora);
@@ -301,22 +301,22 @@ r65816_op_read_idpx_gen(sbc);
 
 #undef r65816_op_read_idpx_gen
 
-#define r65816_op_read_idpy_gen(op)                                            \
-    void r65816_op_read_idpy_##op##_b(r65816_cpu_t* cpu) {                            \
-        cpu->dp = r65816_op_readpc(cpu);                                       \
-        cpu->aa.l = r65816_op_readdp(cpu, cpu->dp + 0);                        \
-        cpu->aa.h = r65816_op_readdp(cpu, cpu->dp + 1);                        \
-        cpu->rd.l = r65816_op_readdbr(cpu, cpu->aa.w + cpu->regs.y.w);         \
-        r65816_op_##op##_b(cpu);                                               \
+#define r65816_op_read_idpy_gen(op)                                     \
+    void r65816_op_read_idpy_##op##_b(r65816_cpu_t* cpu) {              \
+        cpu->dp = r65816_op_readpc(cpu);                                \
+        cpu->aa.l = r65816_op_readdp(cpu, cpu->dp + 0);                 \
+        cpu->aa.h = r65816_op_readdp(cpu, cpu->dp + 1);                 \
+        cpu->rd.l = r65816_op_readdbr(cpu, cpu->aa.w + cpu->regs.y.w);  \
+        r65816_op_##op##_b(cpu);                                        \
     }                                                                   \
                                                                         \
-    void r65816_op_read_idpy_##op##_w(r65816_cpu_t* cpu) {                            \
-        cpu->dp = r65816_op_readpc(cpu);                                       \
-        cpu->aa.l = r65816_op_readdp(cpu, cpu->dp + 0);                        \
-        cpu->aa.h = r65816_op_readdp(cpu, cpu->dp + 1);                        \
-        cpu->rd.l = r65816_op_readdbr(cpu, cpu->aa.w + cpu->regs.y.w + 0);     \
-        cpu->rd.h = r65816_op_readdbr(cpu, cpu->aa.w + cpu->regs.y.w + 1);     \
-        r65816_op_##op##_w(cpu);                                               \
+    void r65816_op_read_idpy_##op##_w(r65816_cpu_t* cpu) {              \
+        cpu->dp = r65816_op_readpc(cpu);                                \
+        cpu->aa.l = r65816_op_readdp(cpu, cpu->dp + 0);                 \
+        cpu->aa.h = r65816_op_readdp(cpu, cpu->dp + 1);                 \
+        cpu->rd.l = r65816_op_readdbr(cpu, cpu->aa.w + cpu->regs.y.w + 0); \
+        cpu->rd.h = r65816_op_readdbr(cpu, cpu->aa.w + cpu->regs.y.w + 1); \
+        r65816_op_##op##_w(cpu);                                        \
     }
 
 r65816_op_read_idpy_gen(ora);
@@ -329,24 +329,24 @@ r65816_op_read_idpy_gen(sbc);
 
 #undef r65816_op_read_idpy_gen
 
-#define r65816_op_read_ildp_gen(op)                                            \
-    void r65816_op_read_ildp_##op##_b(r65816_cpu_t* cpu) {                            \
-        cpu->dp = r65816_op_readpc(cpu);                                       \
-        cpu->aa.l = r65816_op_readdp(cpu, cpu->dp + 0);                        \
-        cpu->aa.h = r65816_op_readdp(cpu, cpu->dp + 1);                        \
-        cpu->aa.b = r65816_op_readdp(cpu, cpu->dp + 2);                        \
-        cpu->rd.l = r65816_op_readlong(cpu, cpu->aa.d);                        \
-        r65816_op_##op##_b(cpu);                                               \
-    }                                                                   \
-                                                                        \
-    void r65816_op_read_ildp_##op##_w(r65816_cpu_t* cpu) {                            \
-        cpu->dp = r65816_op_readpc(cpu);                                       \
-        cpu->aa.l = r65816_op_readdp(cpu, cpu->dp + 0);                        \
-        cpu->aa.h = r65816_op_readdp(cpu, cpu->dp + 1);                        \
-        cpu->aa.b = r65816_op_readdp(cpu, cpu->dp + 2);                        \
-        cpu->rd.l = r65816_op_readlong(cpu, cpu->aa.d + 0);                    \
-        cpu->rd.h = r65816_op_readlong(cpu, cpu->aa.d + 1);                    \
-        r65816_op_##op##_w(cpu);                                               \
+#define r65816_op_read_ildp_gen(op)                         \
+    void r65816_op_read_ildp_##op##_b(r65816_cpu_t* cpu) {  \
+        cpu->dp = r65816_op_readpc(cpu);                    \
+        cpu->aa.l = r65816_op_readdp(cpu, cpu->dp + 0);     \
+        cpu->aa.h = r65816_op_readdp(cpu, cpu->dp + 1);     \
+        cpu->aa.b = r65816_op_readdp(cpu, cpu->dp + 2);     \
+        cpu->rd.l = r65816_op_readlong(cpu, cpu->aa.d);     \
+        r65816_op_##op##_b(cpu);                            \
+    }                                                       \
+                                                            \
+    void r65816_op_read_ildp_##op##_w(r65816_cpu_t* cpu) {  \
+        cpu->dp = r65816_op_readpc(cpu);                    \
+        cpu->aa.l = r65816_op_readdp(cpu, cpu->dp + 0);     \
+        cpu->aa.h = r65816_op_readdp(cpu, cpu->dp + 1);     \
+        cpu->aa.b = r65816_op_readdp(cpu, cpu->dp + 2);     \
+        cpu->rd.l = r65816_op_readlong(cpu, cpu->aa.d + 0); \
+        cpu->rd.h = r65816_op_readlong(cpu, cpu->aa.d + 1); \
+        r65816_op_##op##_w(cpu);                            \
     }
 
 
@@ -359,24 +359,24 @@ r65816_op_read_ildp_gen(cmp);
 r65816_op_read_ildp_gen(sbc);
 #undef r65816_op_read_ildp_gen
 
-#define r65816_op_read_ildpy_gen(op)                                           \
-    void r65816_op_read_ildpy_##op##_b(r65816_cpu_t* cpu) {                           \
-        cpu->dp = r65816_op_readpc(cpu);                                       \
-        cpu->aa.l = r65816_op_readdp(cpu, cpu->dp + 0);                        \
-        cpu->aa.h = r65816_op_readdp(cpu, cpu->dp + 1);                        \
-        cpu->aa.b = r65816_op_readdp(cpu, cpu->dp + 2);                        \
-        cpu->rd.l = r65816_op_readlong(cpu, cpu->aa.d + cpu->regs.y.w);        \
-        r65816_op_##op##_b(cpu);                                               \
+#define r65816_op_read_ildpy_gen(op)                                    \
+    void r65816_op_read_ildpy_##op##_b(r65816_cpu_t* cpu) {             \
+        cpu->dp = r65816_op_readpc(cpu);                                \
+        cpu->aa.l = r65816_op_readdp(cpu, cpu->dp + 0);                 \
+        cpu->aa.h = r65816_op_readdp(cpu, cpu->dp + 1);                 \
+        cpu->aa.b = r65816_op_readdp(cpu, cpu->dp + 2);                 \
+        cpu->rd.l = r65816_op_readlong(cpu, cpu->aa.d + cpu->regs.y.w); \
+        r65816_op_##op##_b(cpu);                                        \
     }                                                                   \
                                                                         \
-    void r65816_op_read_ildpy_##op##_w(r65816_cpu_t* cpu) {                           \
-        cpu->dp = r65816_op_readpc(cpu);                                       \
-        cpu->aa.l = r65816_op_readdp(cpu, cpu->dp + 0);                        \
-        cpu->aa.h = r65816_op_readdp(cpu, cpu->dp + 1);                        \
-        cpu->aa.b = r65816_op_readdp(cpu, cpu->dp + 2);                        \
-        cpu->rd.l = r65816_op_readlong(cpu, cpu->aa.d + cpu->regs.y.w + 0);    \
-        cpu->rd.h = r65816_op_readlong(cpu, cpu->aa.d + cpu->regs.y.w + 1);    \
-        r65816_op_##op##_w(cpu);                                               \
+    void r65816_op_read_ildpy_##op##_w(r65816_cpu_t* cpu) {             \
+        cpu->dp = r65816_op_readpc(cpu);                                \
+        cpu->aa.l = r65816_op_readdp(cpu, cpu->dp + 0);                 \
+        cpu->aa.h = r65816_op_readdp(cpu, cpu->dp + 1);                 \
+        cpu->aa.b = r65816_op_readdp(cpu, cpu->dp + 2);                 \
+        cpu->rd.l = r65816_op_readlong(cpu, cpu->aa.d + cpu->regs.y.w + 0); \
+        cpu->rd.h = r65816_op_readlong(cpu, cpu->aa.d + cpu->regs.y.w + 1); \
+        r65816_op_##op##_w(cpu);                                        \
     }
 
 
@@ -389,18 +389,18 @@ r65816_op_read_ildpy_gen(cmp);
 r65816_op_read_ildpy_gen(sbc);
 #undef r65816_op_read_ildpy_gen
 
-#define r65816_op_read_sr_gen(op)                                              \
-    void r65816_op_read_sr_##op##_b(r65816_cpu_t* cpu) {                              \
-        cpu->sp = r65816_op_readpc(cpu);                                       \
-        cpu->rd.l = r65816_op_readsp(cpu, cpu->sp);                            \
-        r65816_op_##op##_b(cpu);                                               \
-    }                                                                   \
-                                                                        \
-    void r65816_op_read_sr_##op##_w(r65816_cpu_t* cpu) {                              \
-        cpu->sp = r65816_op_readpc(cpu);                                       \
-        cpu->rd.l = r65816_op_readsp(cpu, cpu->sp + 0);                        \
-        cpu->rd.h = r65816_op_readsp(cpu, cpu->sp + 1);                        \
-        r65816_op_##op##_w(cpu);                                               \
+#define r65816_op_read_sr_gen(op)                           \
+    void r65816_op_read_sr_##op##_b(r65816_cpu_t* cpu) {    \
+        cpu->sp = r65816_op_readpc(cpu);                    \
+        cpu->rd.l = r65816_op_readsp(cpu, cpu->sp);         \
+        r65816_op_##op##_b(cpu);                            \
+    }                                                       \
+                                                            \
+    void r65816_op_read_sr_##op##_w(r65816_cpu_t* cpu) {    \
+        cpu->sp = r65816_op_readpc(cpu);                    \
+        cpu->rd.l = r65816_op_readsp(cpu, cpu->sp + 0);     \
+        cpu->rd.h = r65816_op_readsp(cpu, cpu->sp + 1);     \
+        r65816_op_##op##_w(cpu);                            \
     }
 
 r65816_op_read_sr_gen(ora);
@@ -413,22 +413,22 @@ r65816_op_read_sr_gen(sbc);
 #undef r65816_op_read_sr_gen
 
 
-#define r65816_op_read_isry_gen(op)                                            \
-    void r65816_op_read_isry_##op##_b(r65816_cpu_t* cpu) {                            \
-        cpu->sp = r65816_op_readpc(cpu);                                       \
-        cpu->aa.l = r65816_op_readsp(cpu, cpu->sp + 0);                        \
-        cpu->aa.h = r65816_op_readsp(cpu, cpu->sp + 1);                        \
-        cpu->rd.l = r65816_op_readdbr(cpu, cpu->aa.w + cpu->regs.y.w);         \
-        r65816_op_##op##_b(cpu);                                               \
+#define r65816_op_read_isry_gen(op)                                     \
+    void r65816_op_read_isry_##op##_b(r65816_cpu_t* cpu) {              \
+        cpu->sp = r65816_op_readpc(cpu);                                \
+        cpu->aa.l = r65816_op_readsp(cpu, cpu->sp + 0);                 \
+        cpu->aa.h = r65816_op_readsp(cpu, cpu->sp + 1);                 \
+        cpu->rd.l = r65816_op_readdbr(cpu, cpu->aa.w + cpu->regs.y.w);  \
+        r65816_op_##op##_b(cpu);                                        \
     }                                                                   \
                                                                         \
-    void r65816_op_read_isry_##op##_w(r65816_cpu_t* cpu) {                            \
-        cpu->sp = r65816_op_readpc(cpu);                                       \
-        cpu->aa.l = r65816_op_readsp(cpu, cpu->sp + 0);                        \
-        cpu->aa.h = r65816_op_readsp(cpu, cpu->sp + 1);                        \
-        cpu->rd.l = r65816_op_readdbr(cpu, cpu->aa.w + cpu->regs.y.w + 0);     \
-        cpu->rd.h = r65816_op_readdbr(cpu, cpu->aa.w + cpu->regs.y.w + 1);     \
-        r65816_op_##op##_w(cpu);                                               \
+    void r65816_op_read_isry_##op##_w(r65816_cpu_t* cpu) {              \
+        cpu->sp = r65816_op_readpc(cpu);                                \
+        cpu->aa.l = r65816_op_readsp(cpu, cpu->sp + 0);                 \
+        cpu->aa.h = r65816_op_readsp(cpu, cpu->sp + 1);                 \
+        cpu->rd.l = r65816_op_readdbr(cpu, cpu->aa.w + cpu->regs.y.w + 0); \
+        cpu->rd.h = r65816_op_readdbr(cpu, cpu->aa.w + cpu->regs.y.w + 1); \
+        r65816_op_##op##_w(cpu);                                        \
     }
 
 r65816_op_read_isry_gen(ora);

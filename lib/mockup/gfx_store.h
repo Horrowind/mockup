@@ -11,7 +11,7 @@ typedef struct {
 
 typedef struct {
     int num_pages;
-    gfx_page_t** pages;
+    gfx_page_t* pages;
 } gfx_store_t;
 
 void gfx_store_init(gfx_store_t* gfx_store, r65816_rom_t* rom);

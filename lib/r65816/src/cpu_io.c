@@ -32,7 +32,7 @@ void r65816_cpu_write(r65816_cpu_t* cpu, uint32_t addr, uint8_t data) {
             cpu->ram[addr-0x7E0000] = data;
         } else {
             if(addr & 0x008000) {
-                fprintf(stderr, "Err: %06x Wrote: %06x", cpu->regs.pc.d, addr);
+                fprintf(stderr, "Err: %06x Wrote: %06x\n", cpu->regs.pc.d, addr);
                 //Todo: ERROR
             } else {
                 cpu->ram[addr & 0x007FFF] = data;
@@ -43,7 +43,7 @@ void r65816_cpu_write(r65816_cpu_t* cpu, uint32_t addr, uint8_t data) {
             if(addr <= 0x004500) {
                 cpu->sreg[addr - 0x2000] = data;
             } else {
-                fprintf(stderr, "Err: %06x Wrote: %06x", cpu->regs.pc.d, addr);
+                fprintf(stderr, "Err: %06x Wrote: %06x\n", cpu->regs.pc.d, addr);
             }
         } else {
             cpu->ram[addr] = data;

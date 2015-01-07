@@ -55,10 +55,6 @@ namespace Mockup {
         setCentralWidget(m_view);
         m_filePath = "smw.smc";
         smw_init_path(&smw, m_filePath.toLatin1().data());
-        for(int i = 0; i < smw.gfx_pages.num_pages; i++) {
-            printf("Huhu %i: %i\n", i, smw.gfx_pages.pages[i]->length);
-
-        }
         //smw_deinit_path(&smw);
         
         // for(int i = 0; i < 512; i++) {
@@ -74,7 +70,7 @@ namespace Mockup {
         QTimer *timer = new QTimer(this);
         connect(timer, SIGNAL(timeout()), this, SLOT(update()));
         timer->start(8000/60);
-
+        
     }
     MainWindow::~MainWindow() {
         // delete m_dockMap8;
@@ -89,6 +85,7 @@ namespace Mockup {
         //     m_level.animate(m_frame + i);
         // }
         // draw_level(m_currentLevel);
+        close();
         m_scene.invalidate();
         m_sceneMap8.invalidate();
         m_sceneMap16.invalidate();

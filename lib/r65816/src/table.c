@@ -22,20 +22,20 @@ void r65816_initialize_opcode_table(r65816_cpu_t* cpu) {
         = cpu->op_table[table_Mx + id] = cpu->op_table[table_mX + id]   \
         = cpu->op_table[table_mx + id] = &r65816_op_##name;
 
-#define opE(  id, name       )                                          \
-    cpu->op_table[table_EM + id] = &r65816_op_##name##_e;                      \
-    cpu->op_table[table_MX + id] = cpu->op_table[table_Mx + id]         \
-        = cpu->op_table[table_mX + id]                                  \
+#define opE(  id, name       )                                  \
+    cpu->op_table[table_EM + id] = &r65816_op_##name##_e;       \
+    cpu->op_table[table_MX + id] = cpu->op_table[table_Mx + id] \
+        = cpu->op_table[table_mX + id]                          \
         = cpu->op_table[table_mx + id] = &r65816_op_##name##_n;
     
 #define opM(  id, name       )                                          \
     cpu->op_table[table_EM + id] = cpu->op_table[table_MX + id]         \
-        = cpu->op_table[table_Mx + id] = &r65816_op_##name##_b;                \
+        = cpu->op_table[table_Mx + id] = &r65816_op_##name##_b;         \
     cpu->op_table[table_mX + id] = cpu->op_table[table_mx + id] = &r65816_op_##name##_w;
     
 #define opX(  id, name       )                                          \
     cpu->op_table[table_EM + id] = cpu->op_table[table_MX + id]         \
-        = cpu->op_table[table_mX + id] = &r65816_op_##name##_b;                \
+        = cpu->op_table[table_mX + id] = &r65816_op_##name##_b;         \
     cpu->op_table[table_Mx + id] = cpu->op_table[table_mx + id] = &r65816_op_##name##_w;  
     
 

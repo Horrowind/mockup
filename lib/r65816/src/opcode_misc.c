@@ -133,7 +133,7 @@ r65816_op_flag_gen(sed, 0x08, 0x08);
             cpu->regs.x.h = 0x00;                           \
             cpu->regs.y.h = 0x00;                           \
         }                                                   \
-        r65816_update_table(cpu);                                  \
+        r65816_update_table(cpu);                           \
     }                                                       \
                                                             \
     void r65816_op_pflag_##name##_n(r65816_cpu_t* cpu) {    \
@@ -144,25 +144,25 @@ r65816_op_flag_gen(sed, 0x08, 0x08);
             cpu->regs.x.h = 0x00;                           \
             cpu->regs.y.h = 0x00;                           \
         }                                                   \
-        r65816_update_table(cpu);                                  \
+        r65816_update_table(cpu);                           \
     }                                                                   
 
 r65816_op_pflag_gen(rep, 0);
 r65816_op_pflag_gen(sep, 1);
 #undef r65816_op_pflag_gen
 
-#define r65816_op_transfer_gen(name, from, to)              \
-    void r65816_op_transfer_##name##_b(r65816_cpu_t* cpu) { \
-        cpu->regs.r[to].l = cpu->regs.r[from].l;            \
-        cpu->regs.p.n = (cpu->regs.r[to].l & 0x80);         \
-        cpu->regs.p.z = (cpu->regs.r[to].l == 0);           \
-    }                                                       \
-                                                            \
-    void r65816_op_transfer_##name##_w(r65816_cpu_t* cpu) { \
-        cpu->regs.r[to].w = cpu->regs.r[from].w;            \
-        cpu->regs.p.n = (cpu->regs.r[to].w & 0x8000);       \
-        cpu->regs.p.z = (cpu->regs.r[to].w == 0);           \
-    }
+#define r65816_op_transfer_gen(name, from, to)                          \
+    void r65816_op_transfer_##name##_b(r65816_cpu_t* cpu) {             \
+                                                           cpu->regs.r[to].l = cpu->regs.r[from].l; \
+                                                           cpu->regs.p.n = (cpu->regs.r[to].l & 0x80); \
+                                                           cpu->regs.p.z = (cpu->regs.r[to].l == 0); \
+                                                           }            \
+                                                                        \
+    void r65816_op_transfer_##name##_w(r65816_cpu_t* cpu) {             \
+                                                           cpu->regs.r[to].w = cpu->regs.r[from].w; \
+                                                           cpu->regs.p.n = (cpu->regs.r[to].w & 0x8000); \
+                                                           cpu->regs.p.z = (cpu->regs.r[to].w == 0); \
+                                                           }
 
 
 
