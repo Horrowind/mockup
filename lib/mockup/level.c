@@ -13,10 +13,10 @@ void level_init(level_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gfx_s
 
     level_header_init(&l->header, rom, num_level);
     palette_init(&l->palette, rom, num_level);
-    /* tileset_init_level(&l->tileset, rom, num_level, gfx_store); */
-    /* map8_init(&l->map8, &l->tileset); */
-    /* map16_init_bg(&l->map16_bg, rom, num_level, &l->map8); */
-    /* map16_init_fg(&l->map16_fg, rom, num_level, &l->map8); */
+    tileset_init_level(&l->tileset, rom, num_level, gfx_store);
+    map8_init(&l->map8, &l->tileset);
+    map16_init_bg(&l->map16_bg, rom, num_level, &l->map8);
+    map16_init_fg(&l->map16_fg, rom, num_level, &l->map8);
     //Todo
     int addr = 0;
     /* object_list_init_addr(l->layer1_objects, rom, addr); */

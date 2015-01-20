@@ -25,7 +25,7 @@ tile8_t tile8_from_3bpp(uint8_t* data) {
         bp1 = data[2 * k];
         bp2 = data[2 * k + 1];
         bp3 = data[16 + k];
-
+ 
         for(int l = 0; l < 8; l++) {
             int index = ((bp1 & (1 << (7 - l))) ? 1 : 0)
                 + ((bp2 & (1 << (7 - l))) ? 2 : 0)
@@ -127,11 +127,8 @@ void map8_init(map8_t* map8, tileset_t* tileset) {
             used_chr = tileset->fg3;
             break;
         }
-
         map8->tiles[tile] = tile8_from_3bpp(used_chr->data + 24 * (tile % 128));
     }
-    
-
 }
 
 void map8_deinit(map8_t* map8) {
