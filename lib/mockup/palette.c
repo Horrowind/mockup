@@ -4,9 +4,9 @@ void palette_init(palette_t* palette, r65816_rom_t* rom, int num_level) {
     r65816_cpu_t cpu;
     r65816_cpu_init(&cpu, rom);
 
-    cpu.ram[0x65] = cpu.rom->banks[2][0xE000 + 3 * num_level]; 
-    cpu.ram[0x66] = cpu.rom->banks[2][0xE001 + 3 * num_level];
-    cpu.ram[0x67] = cpu.rom->banks[2][0xE002 + 3 * num_level];
+    cpu.ram[0x65] = cpu.rom->banks[5][0xE000 + 3 * num_level]; 
+    cpu.ram[0x66] = cpu.rom->banks[5][0xE001 + 3 * num_level];
+    cpu.ram[0x67] = cpu.rom->banks[5][0xE002 + 3 * num_level];
 
     r65816_cpu_add_exec_bp(&cpu, 0x0583B8);
     r65816_cpu_run(&cpu, 0x0583AC);
@@ -15,7 +15,6 @@ void palette_init(palette_t* palette, r65816_rom_t* rom, int num_level) {
     for(int i = 0; i < 16; i++) {
         palette->data[i << 4] = 0;
     }
-    
     r65816_cpu_free(&cpu);
 }
 

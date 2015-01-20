@@ -13,8 +13,10 @@ int main() {
     CPU cpu_old("smw.smc", true);
     srand(time(0));
     r65816_cpu_t cpu_new;
-    r65816_cpu_load(&cpu_new, "smw.smc");
-    int addr = rand() % (cpu_new.rom->banksize * cpu_new.rom->num_banks);
+    r65816_rom_t rom;
+    r65816_rom_load(&rom, "smw.smc");
+    r65816_cpu_init(&cpu_new, &rom);
+    int addr = 0x0583AC;
     cpu_old.clear_ram();
     // for(int i = 0; i < 256; i++) {
     //     //printf("%x\n", cpu_new.opcode_table[i]);
@@ -29,6 +31,7 @@ int main() {
         printf("%s\n", output);
         cpu_old.step();
         r65816_cpu_step(&cpu_new);
+        getchar();
     }
     return 0;
 }

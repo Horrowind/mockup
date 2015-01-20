@@ -59,6 +59,8 @@ void r65816_cpu_run(r65816_cpu_t* cpu, uint32_t address) {
         cpu->stop_execution |= r65816_breakpoint_is_hit(
             cpu->breakpoints_exec,
             cpu->regs.pc.d);
+        //printf("%06x %x\n", cpu->regs.pc, cpu->ram[0x000FBE]);
+        //getchar();
     }
 }
 

@@ -1,3 +1,4 @@
+#include "stdio.h"
 #include "cpu.h"
 
 uint8_t r65816_cpu_read(r65816_cpu_t* cpu, uint32_t addr) {
@@ -33,6 +34,7 @@ void r65816_cpu_write(r65816_cpu_t* cpu, uint32_t addr, uint8_t data) {
         } else {
             if(addr & 0x008000) {
                 fprintf(stderr, "Err: %06x Wrote: %06x\n", cpu->regs.pc.d, addr);
+                getchar();
                 //Todo: ERROR
             } else {
                 cpu->ram[addr & 0x007FFF] = data;
@@ -44,6 +46,7 @@ void r65816_cpu_write(r65816_cpu_t* cpu, uint32_t addr, uint8_t data) {
                 cpu->sreg[addr - 0x2000] = data;
             } else {
                 fprintf(stderr, "Err: %06x Wrote: %06x\n", cpu->regs.pc.d, addr);
+                getchar();
             }
         } else {
             cpu->ram[addr] = data;

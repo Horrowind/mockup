@@ -9,7 +9,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})
 
 #SET ( CMAKE_C_COMPILER  "/usr/bin/clang" )
-SET ( CMAKE_C_FLAGS       "-g -std=c99 -Wno-overflow" )
+SET ( CMAKE_C_FLAGS       "-g -std=c99" )
 #SET ( CMAKE_CXX_COMPILER  "/usr/bin/clang++" )
 SET ( CMAKE_CXX_FLAGS     "-g -std=c++11" )
 
@@ -21,4 +21,4 @@ add_custom_target(run
 
 add_subdirectory(lib)
 add_subdirectory(app)
-#add_subdirectory(test)
+add_subdirectory(test)

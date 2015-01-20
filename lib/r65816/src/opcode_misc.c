@@ -19,7 +19,7 @@ void r65816_op_xba(r65816_cpu_t* cpu) {
     cpu->regs.a.l ^= cpu->regs.a.h;
     cpu->regs.a.h ^= cpu->regs.a.l;
     cpu->regs.a.l ^= cpu->regs.a.h;
-    cpu->regs.p.n = (cpu->regs.a.l & 0x80);
+    cpu->regs.p.n = !!(cpu->regs.a.l & 0x80);
     cpu->regs.p.z = (cpu->regs.a.l == 0);
 }
 #define r65816_op_move_gen(name, adjust)                                \
@@ -27,10 +27,8 @@ void r65816_op_xba(r65816_cpu_t* cpu) {
         cpu->dp = r65816_op_readpc(cpu);                                \
         cpu->sp = r65816_op_readpc(cpu);                                \
         cpu->regs.db = cpu->dp;                                         \
-        cpu->rd.l = r65816_op_readlong(cpu,                             \
-                                       (cpu->sp << 16) | cpu->regs.x.w); \
-        r65816_op_writelong(cpu,                                        \
-                            (cpu->dp << 16) | cpu->regs.y.w, cpu->rd.l); \
+        cpu->rd.l = r65816_op_readlong(cpu, (cpu->sp << 16) | cpu->regs.x.w); \
+        r65816_op_writelong(cpu, (cpu->dp << 16) | cpu->regs.y.w, cpu->rd.l); \
         cpu->regs.x.l += adjust;                                        \
         cpu->regs.y.l += adjust;                                        \
         if(cpu->regs.a.w--) cpu->regs.pc.w -= 3;                        \
@@ -109,10 +107,10 @@ void r65816_op_xce(r65816_cpu_t* cpu) {
     r65816_update_table(cpu);
 }
 
-#define r65816_op_flag_gen(name, mask, value)               \
-    void r65816_op_flag_##name(r65816_cpu_t* cpu) {         \
-        cpu->regs.p.b = (cpu->regs.p.b & ~mask) | value;    \
-    }                                                       \
+#define r65816_op_flag_gen(name, mask, value)              \
+    void r65816_op_flag_##name(r65816_cpu_t* cpu) {        \
+        cpu->regs.p.b = (cpu->regs.p.b & ~mask) | value;   \
+    }                                                      \
 
 r65816_op_flag_gen(clc, 0x01, 0x00);
 r65816_op_flag_gen(sec, 0x01, 0x01);
@@ -126,7 +124,7 @@ r65816_op_flag_gen(sed, 0x08, 0x08);
 #define r65816_op_pflag_gen(name, mode)                     \
     void r65816_op_pflag_##name##_e(r65816_cpu_t* cpu) {    \
         cpu->rd.l = r65816_op_readpc(cpu);                  \
-        cpu->regs.p.b = (mode ? cpu->regs.p.b | cpu->rd.l   \
+        cpu->regs.p.b = (mode ? cpu->regs.p.b | cpu->rd.l \
                          : cpu->regs.p.b & ~cpu->rd.l);     \
         cpu->regs.p.b |= 0x30;                              \
         if(cpu->regs.p.x) {                                 \
@@ -151,18 +149,18 @@ r65816_op_pflag_gen(rep, 0);
 r65816_op_pflag_gen(sep, 1);
 #undef r65816_op_pflag_gen
 
-#define r65816_op_transfer_gen(name, from, to)                          \
-    void r65816_op_transfer_##name##_b(r65816_cpu_t* cpu) {             \
-                                                           cpu->regs.r[to].l = cpu->regs.r[from].l; \
-                                                           cpu->regs.p.n = (cpu->regs.r[to].l & 0x80); \
-                                                           cpu->regs.p.z = (cpu->regs.r[to].l == 0); \
-                                                           }            \
-                                                                        \
-    void r65816_op_transfer_##name##_w(r65816_cpu_t* cpu) {             \
-                                                           cpu->regs.r[to].w = cpu->regs.r[from].w; \
-                                                           cpu->regs.p.n = (cpu->regs.r[to].w & 0x8000); \
-                                                           cpu->regs.p.z = (cpu->regs.r[to].w == 0); \
-                                                           }
+#define r65816_op_transfer_gen(name, from, to)              \
+    void r65816_op_transfer_##name##_b(r65816_cpu_t* cpu) { \
+        cpu->regs.r[to].l = cpu->regs.r[from].l;            \
+        cpu->regs.p.n = !!(cpu->regs.r[to].l & 0x80);       \
+        cpu->regs.p.z = (cpu->regs.r[to].l == 0);           \
+    }                                                       \
+                                                            \
+    void r65816_op_transfer_##name##_w(r65816_cpu_t* cpu) { \
+        cpu->regs.r[to].w = cpu->regs.r[from].w;            \
+        cpu->regs.p.n = !!(cpu->regs.r[to].w & 0x8000);     \
+        cpu->regs.p.z = (cpu->regs.r[to].w == 0);           \
+    }
 
 
 
@@ -179,40 +177,40 @@ r65816_op_transfer_gen(tyx, Y, X);
 #undef r65816_op_transfer_gen
 
 void r65816_op_tcs_e(r65816_cpu_t* cpu) {
-    cpu->regs.s.l = cpu->regs.a.l;
+cpu->regs.s.l = cpu->regs.a.l;
 }
 
 void r65816_op_tcs_n(r65816_cpu_t* cpu) {
-    cpu->regs.s.w = cpu->regs.a.w;
+cpu->regs.s.w = cpu->regs.a.w;
 }
 
 void r65816_op_tsx_b(r65816_cpu_t* cpu) {
-    cpu->regs.x.l = cpu->regs.s.l;
-    cpu->regs.p.n = (cpu->regs.x.l & 0x80);
-    cpu->regs.p.z = (cpu->regs.x.l == 0);
+cpu->regs.x.l = cpu->regs.s.l;
+cpu->regs.p.n = (cpu->regs.x.l & 0x80);
+cpu->regs.p.z = (cpu->regs.x.l == 0);
 }
 
 void r65816_op_tsx_w(r65816_cpu_t* cpu) {
-    cpu->regs.x.w = cpu->regs.s.w;
-    cpu->regs.p.n = (cpu->regs.x.w & 0x8000);
-    cpu->regs.p.z = (cpu->regs.x.w == 0);
+cpu->regs.x.w = cpu->regs.s.w;
+cpu->regs.p.n = !!(cpu->regs.x.w & 0x8000);
+cpu->regs.p.z = (cpu->regs.x.w == 0);
 }
 
 void r65816_op_txs_e(r65816_cpu_t* cpu) {
-    cpu->regs.s.l = cpu->regs.x.l;
+cpu->regs.s.l = cpu->regs.x.l;
 }
 
 void r65816_op_txs_n(r65816_cpu_t* cpu) {
-    cpu->regs.s.w = cpu->regs.x.w;
+cpu->regs.s.w = cpu->regs.x.w;
 }
-#define r65816_op_push_gen(name, n)                     \
-    void r65816_op_push_##name##_b(r65816_cpu_t* cpu) { \
-        r65816_op_writestack(cpu, cpu->regs.r[n].l);    \
-    }                                                   \
-                                                        \
-    void r65816_op_push_##name##_w(r65816_cpu_t* cpu) { \
-        r65816_op_writestack(cpu, cpu->regs.r[n].h);    \
-        r65816_op_writestack(cpu, cpu->regs.r[n].l);    \
+#define r65816_op_push_gen(name, n)                                     \
+    void r65816_op_push_##name##_b(r65816_cpu_t* cpu) {                 \
+        r65816_op_writestack(cpu, cpu->regs.r[n].l);                    \
+    }                                                                   \
+                                                                        \
+    void r65816_op_push_##name##_w(r65816_cpu_t* cpu) {                 \
+        r65816_op_writestack(cpu, cpu->regs.r[n].h);                    \
+        r65816_op_writestack(cpu, cpu->regs.r[n].l);                    \
     }                                           
 
 r65816_op_push_gen(pha, A);
@@ -246,14 +244,14 @@ void r65816_op_php(r65816_cpu_t* cpu) {
 #define r65816_op_pull_gen(name, num)                   \
     void r65816_op_pull_##name##_b(r65816_cpu_t* cpu) { \
         cpu->regs.r[num].l = r65816_op_readstack(cpu);  \
-        cpu->regs.p.n = (cpu->regs.r[num].l & 0x80);    \
+        cpu->regs.p.n = !!(cpu->regs.r[num].l & 0x80);  \
         cpu->regs.p.z = (cpu->regs.r[num].l == 0);      \
     }                                                   \
                                                         \
     void r65816_op_pull_##name##_w(r65816_cpu_t* cpu) { \
         cpu->regs.r[num].l = r65816_op_readstack(cpu);  \
         cpu->regs.r[num].h = r65816_op_readstack(cpu);  \
-        cpu->regs.p.n = (cpu->regs.r[num].w & 0x8000);  \
+        cpu->regs.p.n = !!(cpu->regs.r[num].w & 0x8000);    \
         cpu->regs.p.z = (cpu->regs.r[num].w == 0);      \
     }
 
@@ -266,7 +264,7 @@ r65816_op_pull_gen(ply, Y);
 void r65816_op_pld_e(r65816_cpu_t* cpu) {
     cpu->regs.d.l = r65816_op_readstackn(cpu);
     cpu->regs.d.h = r65816_op_readstackn(cpu);
-    cpu->regs.p.n = (cpu->regs.d.w & 0x8000);
+    cpu->regs.p.n = !!(cpu->regs.d.w & 0x8000);
     cpu->regs.p.z = (cpu->regs.d.w == 0);
     cpu->regs.s.h = 0x01;
 }
@@ -274,13 +272,13 @@ void r65816_op_pld_e(r65816_cpu_t* cpu) {
 void r65816_op_pld_n(r65816_cpu_t* cpu) {
     cpu->regs.d.l = r65816_op_readstackn(cpu);
     cpu->regs.d.h = r65816_op_readstackn(cpu);
-    cpu->regs.p.n = (cpu->regs.d.w & 0x8000);
+    cpu->regs.p.n = !!(cpu->regs.d.w & 0x8000);
     cpu->regs.p.z = (cpu->regs.d.w == 0);
 }
 
 void r65816_op_plb(r65816_cpu_t* cpu) {
     cpu->regs.db = r65816_op_readstack(cpu);
-    cpu->regs.p.n = (cpu->regs.db & 0x80);
+    cpu->regs.p.n = !!(cpu->regs.db & 0x80);
     cpu->regs.p.z = (cpu->regs.db == 0);
 }
 
