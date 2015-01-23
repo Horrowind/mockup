@@ -34,6 +34,8 @@ void level_deinit(level_t* l) {
     if(l->has_layer2_objects) object_list_deinit_addr(l->layer2_objects);
     if(l->has_layer2_bg) layer16_deinit(l->layer2_background);
     object_list_deinit_addr(l->layer1_objects);
+    map16_deinit(&l->map16_fg);
+    map16_deinit(&l->map16_bg);
 }
 
 /* void level_load_map16(level_t* l, r65816_cpu_t* cpu) { */

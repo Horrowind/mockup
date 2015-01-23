@@ -28,8 +28,6 @@ namespace Mockup {
         m_textDebug->setReadOnly(true);
         m_dockDebug->setWidget(m_textDebug);
 
-        //initializeDebug(m_textDebug);
-
         m_viewMap8 = new QGraphicsView(&m_sceneMap8);
         m_viewMap8->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         m_viewMap8->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -55,7 +53,7 @@ namespace Mockup {
         setCentralWidget(m_view);
         m_filePath = "smw.smc";
         smw_init_path(&smw, m_filePath.toLatin1().data());
-        //smw_deinit_path(&smw);
+        
         
         // for(int i = 0; i < 512; i++) {
         //     draw_level(filePath.toLatin1().data(), i);
@@ -73,6 +71,7 @@ namespace Mockup {
         
     }
     MainWindow::~MainWindow() {
+        smw_deinit_path(&smw);
         // delete m_dockMap8;
         // delete m_dockMap16;
         // delete m_view;
@@ -85,7 +84,7 @@ namespace Mockup {
         //     m_level.animate(m_frame + i);
         // }
         // draw_level(m_currentLevel);
-        close();
+        //close();
         m_scene.invalidate();
         m_sceneMap8.invalidate();
         m_sceneMap16.invalidate();

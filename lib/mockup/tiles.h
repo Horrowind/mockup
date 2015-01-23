@@ -20,10 +20,10 @@ typedef union {
 
 typedef tile_properties_t tile_flip_t;
 
-/* const tile_flip_t tile_flip_None = { .X = 0, .Y = 0}; */
-/* const tile_flip_t tile_flip_X    = { .X = 1, .Y = 0}; */
-/* const tile_flip_t tile_flip_Y    = { .X = 0, .Y = 1}; */
-/* const tile_flip_t tile_flip_XY   = { .X = 1, .Y = 1}; */
+const tile_flip_t tile_flip_None = { .X = 0, .Y = 0};
+const tile_flip_t tile_flip_X    = { .X = 1, .Y = 0};
+const tile_flip_t tile_flip_Y    = { .X = 0, .Y = 1};
+const tile_flip_t tile_flip_XY   = { .X = 1, .Y = 1};
 
 typedef struct {
     uint8_t pixels[64];
@@ -31,7 +31,8 @@ typedef struct {
 
 typedef struct {
     int length;
-    tile8_t* tiles;
+    uint8_t* tiles;
+    tileset_t* tileset;
 } map8_t;
 
 typedef struct {
@@ -63,7 +64,7 @@ void map8_deinit(map8_t* map8);
 
 void map16_init_bg(map16_t* map16, r65816_rom_t* rom, int num_level, map8_t* map8);
 void map16_init_fg(map16_t* map16, r65816_rom_t* rom, int num_level, map8_t* map8);
-
+void map16_deinit(map16_t* map16);
 void map16_to_pc(map16_t* map16, map16_pc_t* map16_pc);
 
 #endif //MOCKUP_TILES_HPP
