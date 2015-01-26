@@ -5,6 +5,7 @@
 #include "addresses.hpp"
 #include "misc.hpp"
 #include <Qt>
+#include <QString>
 #include "level.hpp"
 #include "encryption.hpp"
 
@@ -25,7 +26,7 @@ namespace Mockup {
         m_cpu.init();
 
         load_palette();
-        qDebug("Loaded Palette");
+        
         load_map8();
         load_map16();
         load_objects();
@@ -111,7 +112,7 @@ namespace Mockup {
                 break;
             }
 
-	    m_map8[tile] = Tile8::from3bpp(usedChr + 24 * (tile % 128));
+            m_map8[tile] = Tile8::from3bpp(usedChr + 24 * (tile % 128));
         }
     }
 
@@ -235,9 +236,6 @@ namespace Mockup {
         // m_cpu.m_ram[0x1933] = 1; //Object
         // m_cpu.run(0x0583CF, 0x0583D2);
     
-        
-        
-    
         if(m_layer1) {
             delete[] m_layer1;
             m_layer1 = NULL;
@@ -247,33 +245,47 @@ namespace Mockup {
             m_layer2 = NULL;
         }
 
-        // Layer 1
-        if(isVerticalLevel) {
-            m_layer1 = new uint16_t[512 * screens];
-            m_width = 32;
-            m_height = screens * 16;
-            for(int i = 0; i < 512 * screens; i++) {
-                int xy = i % 256; int x = xy % 16; int y = xy >> 4;
-                int sc = i >> 8;  int left = sc&1; int h = sc >> 1;
-            
-                int cx = left * 16 + x;
-                int cy = h * 16 + y;
-            
-                m_layer1[cy * 32 + cx] = m_cpu.m_ram[0x1C800 + i] * 256 + m_cpu.m_ram[0x0C800 + i];
-            }
+        if(m_cpu.m_ram[0x45] | m_cpu.m_ram[0x46] | m_cpu.m_ram[0x47] | m_cpu.m_ram[0x48]) {
+            m_width = 0x60*5;
+            m_height = 0x1b;
+            //m_width = 0x100 * m_cpu.m_ram[0x46] + m_cpu.m_ram[0x45];
+            //m_height = 0x100 * m_cpu.m_ram[0x48] + m_cpu.m_ram[0x47];
+            qDebug("%i", m_width);
+            qDebug("%i", m_height);
+
+            m_layer1 = new uint16_t[m_width * m_height];
+            for(int i = 0; i < m_width * m_height; i++) {
+                m_layer1[i] =  m_cpu.m_ram[0x1C800 + i] * 256 + m_cpu.m_ram[0x0C800 + i];
+            }       
         } else {
-            m_layer1 = new uint16_t[432 * screens];
-            m_width = screens * 16;
-            m_height = 27;
-            for(int i = 0; i < 432 * screens; i++) {
-                int xy = i % 432;
-                int sc = i / 432; 
-                int cx = (xy % 16);
-                int cy = xy >> 4;
-                m_layer1[(cy * screens + sc) * 16 + cx] = m_cpu.m_ram[0x1C800 + i] * 256 + m_cpu.m_ram[0x0C800 + i];
+        
+            // Layer 1
+            if(isVerticalLevel) {
+                m_layer1 = new uint16_t[512 * screens];
+                m_width = 32;
+                m_height = screens * 16;
+                for(int i = 0; i < 512 * screens; i++) {
+                    int xy = i % 256; int x = xy % 16; int y = xy >> 4;
+                    int sc = i >> 8;  int left = sc&1; int h = sc >> 1;
+            
+                    int cx = left * 16 + x;
+                    int cy = h * 16 + y;
+            
+                    m_layer1[cy * 32 + cx] = m_cpu.m_ram[0x1C800 + i] * 256 + m_cpu.m_ram[0x0C800 + i];
+                }
+            } else {
+                m_layer1 = new uint16_t[432 * screens];
+                m_width = screens * 16;
+                m_height = 27;
+                for(int i = 0; i < 432 * screens; i++) {
+                    int xy = i % 432;
+                    int sc = i / 432; 
+                    int cx = (xy % 16);
+                    int cy = xy >> 4;
+                    m_layer1[(cy * screens + sc) * 16 + cx] = m_cpu.m_ram[0x1C800 + i] * 256 + m_cpu.m_ram[0x0C800 + i];
+                }
             }
         }
-
         // Layer 2
         if(m_hasLayer2BG) {
             m_layer2 = new uint16_t[432*2];
@@ -303,8 +315,8 @@ namespace Mockup {
             int addrLayer2HighTableEntryPC = m_cpu.m_rom[0x003DA8 + 2 * levelmode];
             int addrLayer2High = m_cpu.m_rom[addrLayer2LowTableEntryPC] + (m_cpu.m_rom[addrLayer2LowTableEntryPC + 1] << 8); 
             if(isVerticalLevel) {
-                m_layer2 = new uint16_t[512 * screens];
-                for(int i = 0; i < 512 * screens; i++) {
+                m_layer2 = new uint16_t[m_width * m_height];
+                for(int i = 0; i < m_width * m_height; i++) {
                     int xy = i % 256; int x = xy % 16; int y = xy >> 4;
                     int sc = i >> 8;  int left = sc&1; int h = sc >> 1;
             
@@ -314,8 +326,8 @@ namespace Mockup {
                     m_layer2[cy * 32 + cx] = m_cpu.m_ram[addrLayer2Low + i] * 256 + m_cpu.m_ram[addrLayer2High + i];
                 }
             } else {
-                m_layer2 = new uint16_t[432 * screens];
-                for(int i = 0; i < 432 * screens; i++) {
+                m_layer2 = new uint16_t[m_width * m_height];
+                for(int i = 0; i < m_width * m_height; i++) {
                     int xy = i % 432;
                     int sc = i / 432; 
                     int cx = (xy % 16);
