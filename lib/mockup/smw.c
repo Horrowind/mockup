@@ -7,7 +7,7 @@ void smw_init(smw_t* smw, r65816_rom_t* rom) {
     gfx_store_init(&smw->gfx_pages, rom);
     for(int i = 0; i < 512; i++) {
         level_init(&smw->levels[i], rom, i, &smw->gfx_pages);
-        //printf("Level %03x done\n", i);
+        printf("Level %03x done\n", i);
     }
 }
 

@@ -9,8 +9,13 @@
 
 typedef union {
     struct {
-        uint8_t Y   : 1;
-        uint8_t X   : 1;
+        union {
+            struct {
+                uint8_t Y   : 1;
+                uint8_t X   : 1;
+            };
+            uint8_t YX : 2;
+        };
         uint8_t P   : 1;
         uint8_t CCC : 3;
         uint8_t TT  : 2;
@@ -20,10 +25,10 @@ typedef union {
 
 typedef tile_properties_t tile_flip_t;
 
-const tile_flip_t tile_flip_None = { .X = 0, .Y = 0};
-const tile_flip_t tile_flip_X    = { .X = 1, .Y = 0};
-const tile_flip_t tile_flip_Y    = { .X = 0, .Y = 1};
-const tile_flip_t tile_flip_XY   = { .X = 1, .Y = 1};
+/* const tile_flip_t tile_flip_None = { .X = 0, .Y = 0}; */
+/* const tile_flip_t tile_flip_X    = { .X = 1, .Y = 0}; */
+/* const tile_flip_t tile_flip_Y    = { .X = 0, .Y = 1}; */
+/* const tile_flip_t tile_flip_XY   = { .X = 1, .Y = 1}; */
 
 typedef struct {
     uint8_t pixels[64];
@@ -31,12 +36,11 @@ typedef struct {
 
 typedef struct {
     int length;
-    uint8_t* tiles;
-    tileset_t* tileset;
+    tile8_t* tiles;
 } map8_t;
 
 typedef struct {
-    tile8_t* tiles[4];
+    tile8_t* tile8s[4];
     tile_properties_t properties[4];
 } tile16_t;
 

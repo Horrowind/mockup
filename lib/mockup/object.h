@@ -8,29 +8,35 @@
 typedef struct {
     uint32_t x;
     uint32_t y;
+    uint32_t z_index;
     union {
         uint8_t number;
         uint8_t settings;
+        struct {
+            uint8_t width : 4;
+            uint8_t height : 4;
     };
     uint8_t extended : 1;
-    int     z_index;
 } object_t;
 
-typedef struct object_entry {
-    object_t object;
-    struct object_entry* next;
+typedef struct {
+    int length;
+    object_t* object;
 } object_list_t;
 
 
 
-/* void object_list_init(object_list_t* object_list); */
-/* void object_list_deinit(object_list_t* object_list); */
+void object_list_init(object_list_t* object_list);
+void object_list_deinit(object_list_t* object_list);
 
 void object_list_init_addr(object_list_t* object_list, r65816_rom_t* rom, uint32_t addr);
 void object_list_deinit_addr(object_list_t* object_list);
 
-void object_list_init_data(object_list_t* object_list, uint8_t* data);
-void object_list_deinit_data(object_list_t* object_list);
+void object_list_init_level_data(object_list_t* object_list, uint8_t* data);
+void object_list_deinit_level_data(object_list_t* object_list);
+
+void object_list_level_data_length(object_list_t* object_list);
+void object_list_to_level_data(object_list_t* object_list, uint8_t* data);
 
 void object_list_add(object_list_t* object_list, object_t object);
 void object_list_del(object_list_t* object_list, object_t* object);

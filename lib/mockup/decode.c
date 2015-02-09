@@ -23,7 +23,7 @@ void decode_rle1(const uint8_t* data, uint8_t* output) {
     output = tmp;
 }
 
-int decode_rle1_unkown_size(const uint8_t* data, uint8_t** output) {
+int decode_rle1_get_size(const uint8_t* data) {
     int size = 0, pos = 0;
     uint8_t cmd, length;
     while((cmd = data[pos]) != 0xFF || data[pos + 1] != 0xFF) {
@@ -31,9 +31,6 @@ int decode_rle1_unkown_size(const uint8_t* data, uint8_t** output) {
         size += length + 1;
         pos += 2 + (cmd >> 7) * (cmd & 0x7F);
     }
-
-    *output = malloc(size);
-    decode_rle1(data, *output);
     return size;
 }
 
@@ -93,7 +90,7 @@ void decode_lz2(const uint8_t* data, uint8_t* output) {
     }
 }
 
-int decode_lz2_unknown_size(const uint8_t* data, uint8_t** output) {
+int decode_lz2_get_size(const uint8_t* data) {
     uint8_t cmd, length;
     int pos = 0, size = 0;
     while((cmd = data[pos]) != 0xFF) {
@@ -133,7 +130,5 @@ int decode_lz2_unknown_size(const uint8_t* data, uint8_t** output) {
         }
         size += length;
     }
-    *output = malloc(size);
-    decode_lz2(data, *output);
     return size;
 }

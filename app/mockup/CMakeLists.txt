@@ -7,6 +7,7 @@ ADD_EXECUTABLE(mockup
   main_window.cpp
 )
 message(STATUS ${MOCKUPLIB_INCLUDE_DIR})
+message(STATUS ${R65816_INCLUDE_DIR})
 target_include_directories(mockup PUBLIC ${R65816_INCLUDE_DIR})
 target_include_directories(mockup PUBLIC ${MOCKUPLIB_INCLUDE_DIR})
 

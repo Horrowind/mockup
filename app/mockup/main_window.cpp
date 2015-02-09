@@ -84,7 +84,7 @@ namespace Mockup {
         //     m_level.animate(m_frame + i);
         // }
         // draw_level(m_currentLevel);
-        //close();
+        close();
         m_scene.invalidate();
         m_sceneMap8.invalidate();
         m_sceneMap16.invalidate();

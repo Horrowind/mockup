@@ -68,7 +68,7 @@ void tile16_to_pc(tile16_t* tile16, tile16_pc_t* tile16_pc) {
             for(int i = 0; i < 8; i++) {
                 int sx  = tile16->properties[pos].X ?  7 : 0;
                 for(int j = 0; j < 8; j++) {
-                    tile16_pc->data[16* l + (2 * k + i) * 8 + j] = tile16->tiles[pos]->pixels[sy * 8 + sx];
+                    tile16_pc->data[16* l + (2 * k + i) * 8 + j] = tile16->tile8s[pos]->pixels[sy * 8 + sx];
                     sx += itx;
                 }
                 sy += ity;
@@ -95,7 +95,7 @@ void tile16_to_pc(tile16_t* tile16, tile16_pc_t* tile16_pc) {
 tile16_t tile16_from_tile8(tile8_t* t[4], tile_properties_t properties[4]) {
     tile16_t tile;
     for(int i = 0; i < 4; i++) {
-        tile.tiles[i] = t[i];
+        tile.tile8s[i] = t[i];
         tile.properties[i] = properties[i];
     }
     return tile;
@@ -112,25 +112,17 @@ void map16_init_fg(map16_t* map16, r65816_rom_t* rom, int num_level, map8_t* map
 
     r65816_cpu_add_exec_bp(&cpu, 0x0583B8);
     r65816_cpu_run(&cpu, 0x0583AC);
-    
-    int bgPalette = cpu.ram[0x1930];
-              
-    for(int i = 0; i < 512; i++) {
+    map16->length = 512;
+    map16->tiles = malloc(512 * sizeof(tile16_t));
+    for(int i = 0; i < map16->length; i++) {
         int map16lookupSNES = 0x0D0000 + cpu.ram[2 * i + 0x0FBF] * 256 + cpu.ram[2 * i + 0x0FBE];
         int map16lookupPC   = ((map16lookupSNES & 0x7f0000) >> 1) + (map16lookupSNES & 0x7fff);
-            
-        tile8_t   tiles[4];
-        uint8_t palettes[4];
-        tile_flip_t flip;
-        int tile;
-        for(int j = 0; j < 4; j++) {
-            flip.XY     = (l->rom->data[map16lookupPC + j * 2 + 1] & 0b11000000) >> 6;
-            palettes[j] = (l->rom->data[map16lookupPC + j * 2 + 1] & 0b00011100) >> 2;
-            tile        =  l->rom->data[map16lookupPC + j * 2] | ((l->rom->data[map16lookupPC + j * 2 + 1] & 0b00000011) << 8);
-            tiles[j]    =  tile8_flip(l->map8[tile], flip);
-        }
 
-        l->map16_fg[i] = tile16_from_tile8(tiles, palettes);
+        for(int j = 0; j < 4; j++) {
+            map16->tiles[i].properties[j] = (tile_properties_t)rom->data[map16lookupPC + j * 2 + 1];
+            uint16_t num_tile             = rom->data[map16lookupPC + j * 2] | ((rom->data[map16lookupPC + j * 2 + 1] & 0b00000011) << 8);
+            map16->tiles[i].tile8s[j]     = &map8->tiles[num_tile];
+        }
     }
 
     r65816_cpu_free(&cpu);
@@ -146,25 +138,19 @@ void map16_init_bg(map16_t* map16, r65816_rom_t* rom, int num_level, map8_t* map
 
     r65816_cpu_add_exec_bp(&cpu, 0x0583B8);
     r65816_cpu_run(&cpu, 0x0583AC);
-    
-    int bgPalette = cpu.ram[0x1930];
 
+    map16->length = 512;
+    map16->tiles = malloc(512 * sizeof(tile16_t));
     for(int i = 0; i < 512; i++) {
         int map16lookupSNES = 0x0D9100 + i*8;
         int map16lookupPC   = ((map16lookupSNES & 0x7f0000) >> 1) + (map16lookupSNES & 0x7fff);
 
-        tile8_t   tiles[4];
-        uint8_t palettes[4];
-        tile_flip_t flip;
-        int tile;
         for(int j = 0; j < 4; j++) {
-            flip.XY     = (l->rom->data[map16lookupPC + j * 2 + 1] & 0b11000000) >> 6;
-            palettes[j] = (l->rom->data[map16lookupPC + j * 2 + 1] & 0b00011100) >> 2;
-            tile        =  l->rom->data[map16lookupPC + j * 2] | ((l->rom->data[map16lookupPC + j * 2 + 1] & 0b00000011) << 8);
-            tiles[j]    =  tile8_flip(l->map8[tile], flip);
+            map16->tiles[i].properties[j] = (tile_properties_t)rom->banks[0xD][9100 + i * 8 + j * 2 + 1];
+            uint16_t num_tile             = rom->banks[0xD][9100 + i * 8 + j * 2];
+            num_tile                     |= (rom->banks[0xD][9100 + i * 8 + j * 2 + 1] & 0b00000011) << 8;
+            map16->tiles[i].tile8s[j]     = &map8->tiles[num_tile];
         }
-
-       	l->map16_bg[i] = tile16_from_tile8(tiles, palettes);
     }
 
     r65816_cpu_free(&cpu);
