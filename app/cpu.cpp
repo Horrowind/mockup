@@ -39,7 +39,7 @@ void CPU::run(uint32_t addrFrom, uint32_t addrTo) {
         if(m_debug) {
             char output[256];
             disassemble_opcode(output, regs.pc);
-            printf(output);
+            printf("%s\n", output);
         }
         step();
     }
@@ -58,6 +58,15 @@ uint8_t CPU::op_read(uint32_t addr) {
     }
     if(addr >= 0x002000) {
         if(addr <= 0x004500) {
+            if(addr == 0x2134) {
+                return ((int16_t)m7a * (int8_t)(m7b >> 8));
+            }
+            if(addr == 0x2135) {
+                return ((int16_t)m7a * (int8_t)(m7b >> 8)) >>  8;
+            }
+            if(addr == 0x2136) {
+                return ((int16_t)m7a * (int8_t)(m7b >> 8)) >> 16;
+            }
             return m_sreg[addr - 0x2000];
         } else {
             fprintf(stderr, "Err: %06x Read: %06x", regs.pc, addr);
@@ -75,6 +84,8 @@ void CPU::op_write(uint32_t addr, uint8_t data) {
             m_ram[addr-0x7E0000] = data;
         } else {
             if(addr & 0x008000) {
+                char output[256];
+                disassemble_opcode(output, regs.pc);
                 fprintf(stderr, "Err: %06x Wrote: %06x", regs.pc, addr);
                 getchar();
                 //Todo: ERROR
@@ -85,6 +96,14 @@ void CPU::op_write(uint32_t addr, uint8_t data) {
     } else {
         if(addr >= 0x002000) {
             if(addr <= 0x004500) {
+                if(addr == 0x211b) {
+                    m7a = (data << 8) | mode7_latchdata;
+                    mode7_latchdata = data;
+                } 
+                if(addr == 0x211c) {
+                    m7b = (data << 8) | mode7_latchdata;
+                    mode7_latchdata = data;
+                } 
                 m_sreg[addr - 0x2000] = data;
             } else {
                 fprintf(stderr, "Err: %06x Wrote: %06x", regs.pc, addr);
@@ -98,7 +117,7 @@ void CPU::op_write(uint32_t addr, uint8_t data) {
 
 void CPU::clear_ram() {
     regs.s = 0x0100;
-    memset(m_ram, 0, 20000);
+    memset(m_ram, 0, 0x20000);
 }
 
 void CPU::step() {

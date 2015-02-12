@@ -30,11 +30,11 @@ namespace Mockup {
         load_map8();
         load_map16();
         load_objects();
-        load_gfx3233();
+        // load_gfx3233();
 
-        for(int i = 0; i < 8; i++) {
-            animate(i);
-        }
+        // for(int i = 0; i < 8; i++) {
+        //     animate(i);
+        // }
     }
     
     void Level::load_palette() {
@@ -186,18 +186,16 @@ namespace Mockup {
     void Level::load_objects() {
         m_cpu.clear_ram();
         
-        for(int i = 0; i < 0x14 * 27 * 16; i++) {
-            m_cpu.m_ram[0x0C800 + i] = 0x25;
-            m_cpu.m_ram[0x1C800 + i] = 0;
-        }
-
-        m_cpu.m_ram[0x1933] = 0; //Object
+        m_cpu.m_ram[0x10c] = m_levelnum / 256;
+        m_cpu.m_ram[0x10b] = m_levelnum & 0xFF;
+        
         m_cpu.m_ram[0x65] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum]; 
         m_cpu.m_ram[0x66] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum + 1];
         m_cpu.m_ram[0x67] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum + 2];
 
-        m_cpu.run(0x0583AC, 0x0583B8);
-
+        //m_cpu.run(0x0583AC, 0x0583B8);
+        m_cpu.run(0x05801E, 0x058416);
+        m_cpu.setDebug(false);
         
         int levelmode = m_cpu.m_ram[0x1925];
         int bgColorAddr = 0x30A0 + 2 * m_cpu.m_ram[0x192F];
@@ -227,15 +225,15 @@ namespace Mockup {
             break;
         }
 
-        m_cpu.run(0x0583CF, 0x0583D2);
+        // m_cpu.run(0x0583CF, 0x0583D2);
         int screens = m_cpu.m_ram[0x5D];
         bool isVerticalLevel = m_cpu.m_ram[0x5B] & 0x01;
 
-        m_cpu.run(0x0583AC, 0x0583B8);
-        m_hasLayer2BG = (m_cpu.m_rom[0x02E600 + 3 * m_levelnum + 2] == 0xFF);
+        // m_cpu.run(0x0583AC, 0x0583B8);
+        // m_hasLayer2BG = (m_cpu.m_rom[0x02E600 + 3 * m_levelnum + 2] == 0xFF);
         // m_cpu.m_ram[0x1933] = 1; //Object
         // m_cpu.run(0x0583CF, 0x0583D2);
-    
+        //m_cpu.run(0x0585FF, 0x0585603);
         if(m_layer1) {
             delete[] m_layer1;
             m_layer1 = NULL;
@@ -245,18 +243,37 @@ namespace Mockup {
             m_layer2 = NULL;
         }
 
-        if(m_cpu.m_ram[0x45] | m_cpu.m_ram[0x46] | m_cpu.m_ram[0x47] | m_cpu.m_ram[0x48]) {
-            m_width = 0x60*5;
-            m_height = 0x1b;
-            //m_width = 0x100 * m_cpu.m_ram[0x46] + m_cpu.m_ram[0x45];
-            //m_height = 0x100 * m_cpu.m_ram[0x48] + m_cpu.m_ram[0x47];
+        if((m_cpu.m_ram[0x45] | m_cpu.m_ram[0x46] | m_cpu.m_ram[0x47] | m_cpu.m_ram[0x48])) {
+            printf("huhu\n");
+            m_width = 0x60;
+            m_height = 0x1b*5;
+            //m_width = 0x3bb;
+            //m_height = 0xf;
+            // FILE* fp1 = fopen("106l.bin", "r");
+            // FILE* fp2 = fopen("106h.bin", "r");
+
             qDebug("%i", m_width);
             qDebug("%i", m_height);
 
             m_layer1 = new uint16_t[m_width * m_height];
+
+            // for(int i = 0; i < m_width; i++) {
+            //     printf("%03x ", i);
+            //     for(int j = 0; j < 16; j++)
+            //         printf(" %2x", m_cpu.m_ram[0x0C800 + 16*i+j]);
+            //     printf("\n");
+            // }
+            
             for(int i = 0; i < m_width * m_height; i++) {
+                // m_layer1[i] =  fgetc(fp2) * 256 + fgetc(fp1);
                 m_layer1[i] =  m_cpu.m_ram[0x1C800 + i] * 256 + m_cpu.m_ram[0x0C800 + i];
-            }       
+                
+            }
+
+            //fclose(fp1);
+            //fclose(fp2);
+            // m_width *= 16;
+            // m_height *= 27;
         } else {
         
             // Layer 1
@@ -287,55 +304,55 @@ namespace Mockup {
             }
         }
         // Layer 2
-        if(m_hasLayer2BG) {
-            m_layer2 = new uint16_t[432*2];
-            int addr = m_cpu.m_rom[0x02E600 + 3 * m_levelnum + 2];
-            int offset = 0;
-            if(addr == 0xFF) addr = 0x0C;
-            addr = (addr << 8) | m_cpu.m_rom[0x02E600 + 3 * m_levelnum + 1];
-            addr = (addr << 8) | m_cpu.m_rom[0x02E600 + 3 * m_levelnum + 0];
-            if((addr & 0xFFFF) >= 0xE8FE) offset = 0x100;                              //See CODE_058046
-            int pos = 0;
-            while((m_cpu.op_read(addr) != 0xFF || m_cpu.op_read(addr + 1) != 0xFF) && pos < 432 * 2) {
-                uint8_t cmd = m_cpu.op_read(addr);
-                uint8_t length = cmd & 0b01111111;
-                if(cmd & 0x80) {
-                    for(int i = 0; i <= length; i++) m_layer2[pos + i] = offset + m_cpu.op_read(addr + 1);
-                    pos += length + 1;
-                    addr += 2;
-                } else {
-                    for(int i = 0; i <= length; i++) m_layer2[pos + i] = offset + m_cpu.op_read(addr + i + 1);
-                    pos += length + 1;
-                    addr += length + 2;
-                }
-            }
-        } else if(m_hasLayer2Objects) {
-            int addrLayer2LowTableEntryPC = m_cpu.m_rom[0x003DA8 + 2 * levelmode];
-            int addrLayer2Low = m_cpu.m_rom[addrLayer2LowTableEntryPC] + (m_cpu.m_rom[addrLayer2LowTableEntryPC + 1] << 8);
-            int addrLayer2HighTableEntryPC = m_cpu.m_rom[0x003DA8 + 2 * levelmode];
-            int addrLayer2High = m_cpu.m_rom[addrLayer2LowTableEntryPC] + (m_cpu.m_rom[addrLayer2LowTableEntryPC + 1] << 8); 
-            if(isVerticalLevel) {
-                m_layer2 = new uint16_t[m_width * m_height];
-                for(int i = 0; i < m_width * m_height; i++) {
-                    int xy = i % 256; int x = xy % 16; int y = xy >> 4;
-                    int sc = i >> 8;  int left = sc&1; int h = sc >> 1;
+        // if(m_hasLayer2BG) {
+        //     m_layer2 = new uint16_t[432*2];
+        //     int addr = m_cpu.m_rom[0x02E600 + 3 * m_levelnum + 2];
+        //     int offset = 0;
+        //     if(addr == 0xFF) addr = 0x0C;
+        //     addr = (addr << 8) | m_cpu.m_rom[0x02E600 + 3 * m_levelnum + 1];
+        //     addr = (addr << 8) | m_cpu.m_rom[0x02E600 + 3 * m_levelnum + 0];
+        //     if((addr & 0xFFFF) >= 0xE8FE) offset = 0x100;                              //See CODE_058046
+        //     int pos = 0;
+        //     while((m_cpu.op_read(addr) != 0xFF || m_cpu.op_read(addr + 1) != 0xFF) && pos < 432 * 2) {
+        //         uint8_t cmd = m_cpu.op_read(addr);
+        //         uint8_t length = cmd & 0b01111111;
+        //         if(cmd & 0x80) {
+        //             for(int i = 0; i <= length; i++) m_layer2[pos + i] = offset + m_cpu.op_read(addr + 1);
+        //             pos += length + 1;
+        //             addr += 2;
+        //         } else {
+        //             for(int i = 0; i <= length; i++) m_layer2[pos + i] = offset + m_cpu.op_read(addr + i + 1);
+        //             pos += length + 1;
+        //             addr += length + 2;
+        //         }
+        //     }
+        // } else if(m_hasLayer2Objects) {
+        //     int addrLayer2LowTableEntryPC = m_cpu.m_rom[0x003DA8 + 2 * levelmode];
+        //     int addrLayer2Low = m_cpu.m_rom[addrLayer2LowTableEntryPC] + (m_cpu.m_rom[addrLayer2LowTableEntryPC + 1] << 8);
+        //     int addrLayer2HighTableEntryPC = m_cpu.m_rom[0x003DA8 + 2 * levelmode];
+        //     int addrLayer2High = m_cpu.m_rom[addrLayer2LowTableEntryPC] + (m_cpu.m_rom[addrLayer2LowTableEntryPC + 1] << 8); 
+        //     if(isVerticalLevel) {
+        //         m_layer2 = new uint16_t[m_width * m_height];
+        //         for(int i = 0; i < m_width * m_height; i++) {
+        //             int xy = i % 256; int x = xy % 16; int y = xy >> 4;
+        //             int sc = i >> 8;  int left = sc&1; int h = sc >> 1;
             
-                    int cx = left * 16 + x;
-                    int cy = h * 16 + y;
+        //             int cx = left * 16 + x;
+        //             int cy = h * 16 + y;
             
-                    m_layer2[cy * 32 + cx] = m_cpu.m_ram[addrLayer2Low + i] * 256 + m_cpu.m_ram[addrLayer2High + i];
-                }
-            } else {
-                m_layer2 = new uint16_t[m_width * m_height];
-                for(int i = 0; i < m_width * m_height; i++) {
-                    int xy = i % 432;
-                    int sc = i / 432; 
-                    int cx = (xy % 16);
-                    int cy = xy >> 4;
-                    m_layer2[(cy * screens + sc) * 16 + cx] = m_cpu.m_ram[addrLayer2Low + i] * 256 + m_cpu.m_ram[addrLayer2High + i];
-                }
-            }
-        }
+        //             m_layer2[cy * 32 + cx] = m_cpu.m_ram[addrLayer2Low + i] * 256 + m_cpu.m_ram[addrLayer2High + i];
+        //         }
+        //     } else {
+        //         m_layer2 = new uint16_t[m_width * m_height];
+        //         for(int i = 0; i < m_width * m_height; i++) {
+        //             int xy = i % 432;
+        //             int sc = i / 432; 
+        //             int cx = (xy % 16);
+        //             int cy = xy >> 4;
+        //             m_layer2[(cy * screens + sc) * 16 + cx] = m_cpu.m_ram[addrLayer2Low + i] * 256 + m_cpu.m_ram[addrLayer2High + i];
+        //         }
+        //     }
+        // }
     }
 
     void Level::renderLineFG(uint8_t* line, int linenum) {

@@ -36,6 +36,9 @@ private:
 
     uint8 disassembler_read(uint32 addr);
     bool m_debug;
+
+    uint16_t m7a, m7b;
+    uint8_t mode7_latchdata;
 };
 
 #endif //CPU_H

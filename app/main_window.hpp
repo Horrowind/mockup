@@ -52,7 +52,7 @@ namespace Mockup {
         QGraphicsScene m_sceneMap16;
 
 
-        int            m_currentLevel = 0x105;
+        int            m_currentLevel = 0x106;
         uint8_t        m_frame = 0;
         Level          m_level;
         QString        m_filePath;

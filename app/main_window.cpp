@@ -68,8 +68,10 @@ namespace Mockup {
         //     image.save("png/" + QString::number(i, 16) + ".png");
         // }
 
+        printf("huhu2\n");
         
         draw_level(m_currentLevel);
+        printf("huhu2\n");
 
         QTimer *timer = new QTimer(this);
         connect(timer, SIGNAL(timeout()), this, SLOT(update()));
@@ -114,15 +116,15 @@ namespace Mockup {
         //Background Color
         m_scene.setBackgroundBrush(QBrush(QColor::fromRgba(m_level.getBackgroundColor())));
 
-        //Background
-        QImage imgBG(m_level.getWidth()*16, m_level.getHeight()*16, QImage::Format_Indexed8);
-        for(int i = 0; i < 256; i++) imgBG.setColor(i, palette[i]);
-        imgBG.fill(QColor(0, 0, 0, 0));
+        // //Background
+        // QImage imgBG(m_level.getWidth()*16, m_level.getHeight()*16, QImage::Format_Indexed8);
+        // for(int i = 0; i < 256; i++) imgBG.setColor(i, palette[i]);
+        // imgBG.fill(QColor(0, 0, 0, 0));
            
-        for(int i = 0; i < m_level.getHeight()*16; i++) {
-            m_level.renderLineBG(imgBG.scanLine(i), i); 
-        }
-        QGraphicsItem* itemBG = m_scene.addPixmap(QPixmap::fromImage(imgBG));
+        // for(int i = 0; i < m_level.getHeight()*16; i++) {
+        //     m_level.renderLineBG(imgBG.scanLine(i), i); 
+        // }
+        // QGraphicsItem* itemBG = m_scene.addPixmap(QPixmap::fromImage(imgBG));
 
         //Foreground
         QImage imgFG(m_level.getWidth()*16, m_level.getHeight()*16, QImage::Format_Indexed8);
@@ -138,7 +140,7 @@ namespace Mockup {
         //Map8
         QImage imgMap8(128, 256, QImage::Format_Indexed8);
         for(int i = 0; i < 256; i++) imgMap8.setColor(i, palette[i]);
-        imgBG.fill(QColor(0, 0, 0, 0));
+        //imgBG.fill(QColor(0, 0, 0, 0));
         for(int i = 0; i < 512; i++) {
             Tile8 tile = m_level.getMap8(i);
             for(int j = 0; j < 64; j++) {
@@ -150,7 +152,7 @@ namespace Mockup {
         //Map16
         QImage imgMap16(256, 256, QImage::Format_Indexed8);
         for(int i = 0; i < 256; i++) imgMap16.setColor(i, palette[i]);
-        imgBG.fill(QColor(255, 255, 255, 255));
+        //imgBG.fill(QColor(255, 255, 255, 255));
         for(int i = 0; i < 256; i++) {
             Tile16 tile = m_level.getMap16bg(i);
             for(int j = 0; j < 256; j++) {
