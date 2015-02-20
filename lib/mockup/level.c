@@ -10,7 +10,6 @@
 
 void level_init(level_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gfx_store) {
     l->rom = rom;
-
     level_header_init(&l->header, rom, num_level);
     palette_init(&l->palette, rom, num_level);
     tileset_init_level(&l->tileset, rom, num_level, gfx_store);

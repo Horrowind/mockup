@@ -5,14 +5,14 @@
 #include "opcode_pc.h"
 
 #define r65816_op_branch_gen(name, bit, val)                            \
-    inline void r65816_op_branch_##name(r65816_cpu_t* cpu) {                   \
-        /*if((bool)(cpu->regs.p & bit) != val) { */              \
-        if((cpu->regs.p.b & bit) != val) {                       \
+    inline void r65816_op_branch_##name(r65816_cpu_t* cpu) {            \
+        /*if((bool)(cpu->regs.p & bit) != val) { */                     \
+        if((1 && (cpu->regs.p.b & bit)) != val) {                       \
             cpu->rd.l = r65816_op_readpc(cpu);                          \
-        } else {                                                 \
+        } else {                                                        \
             cpu->rd.l = r65816_op_readpc(cpu);                          \
-            cpu->regs.pc.w = cpu->regs.pc.d + (int8_t)cpu->rd.l; \
-        }                                                        \
+            cpu->regs.pc.w = cpu->regs.pc.d + (int8_t)cpu->rd.l;        \
+        }                                                               \
     }
 
 r65816_op_branch_gen(bpl, 0x80, 0);
@@ -21,10 +21,17 @@ r65816_op_branch_gen(bvc, 0x40, 0);
 r65816_op_branch_gen(bvs, 0x40, 1);
 r65816_op_branch_gen(bcc, 0x01, 0);
 r65816_op_branch_gen(bcs, 0x01, 1);
-r65816_op_branch_gen(bne, 0x02, 0);
+//r65816_op_branch_gen(bne, 0x02, 0);
 r65816_op_branch_gen(beq, 0x02, 1);
 #undef r65816_op_branch_gen
-
+inline void r65816_op_branch_bne(r65816_cpu_t* cpu) {               \
+    if((1 && (cpu->regs.p.b & 0x02)) != 0) {                        \
+        cpu->rd.l = r65816_op_readpc(cpu);                          \
+    } else {                                                        \
+        cpu->rd.l = r65816_op_readpc(cpu);                          \
+        cpu->regs.pc.w = cpu->regs.pc.d + (int8_t)cpu->rd.l;        \
+    }                                                               \
+}
 
 inline void r65816_op_bra(r65816_cpu_t* cpu) {
     cpu->rd.l = r65816_op_readpc(cpu);

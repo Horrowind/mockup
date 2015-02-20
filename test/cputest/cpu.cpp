@@ -12,7 +12,7 @@ CPU::CPU(const char* path, bool debug) {
     fseek(fp, 0, SEEK_END);
 	m_size = (unsigned int) ftell(fp) - 512;
 	m_rom = new uint8_t[m_size];
-    fseek(fp, 512, SEEK_SET);
+    fseek(fp, 0, SEEK_SET);
     fread((char*)m_rom, 1, m_size, fp);
     fclose(fp);
     m_ram = new uint8_t[0x20000];
@@ -126,6 +126,10 @@ int CPU::get_cur_pos() {
 
 void CPU::set_cur_pos(int addr) {
     regs.pc = addr;
+}
+
+void CPU::show_state(char* output) {
+    disassemble_opcode(output, regs.pc);
 }
 
 bool CPU::filled_stack() {

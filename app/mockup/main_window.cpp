@@ -51,7 +51,7 @@ namespace Mockup {
         addDockWidget(Qt::BottomDockWidgetArea, m_dockDebug);
         m_view = new QGraphicsView(&m_scene);
         setCentralWidget(m_view);
-        m_filePath = "smw.smc";
+        m_filePath = "smw.sfc";
         smw_init_path(&smw, m_filePath.toLatin1().data());
         
         

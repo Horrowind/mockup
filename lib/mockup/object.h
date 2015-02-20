@@ -15,6 +15,7 @@ typedef struct {
         struct {
             uint8_t width : 4;
             uint8_t height : 4;
+        };
     };
     uint8_t extended : 1;
 } object_t;

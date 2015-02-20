@@ -53,7 +53,7 @@ void r65816_op_read_bit_const_w(r65816_cpu_t* cpu) {
         cpu->aa.l = r65816_op_readpc(cpu);                  \
         cpu->aa.h = r65816_op_readpc(cpu);                  \
         cpu->rd.l = r65816_op_readdbr(cpu, cpu->aa.w);      \
-        r65816_op_##op##_w(cpu);                            \
+        r65816_op_##op##_b(cpu);                            \
     }                                                       \
                                                             \
     void r65816_op_read_addr_##op##_w(r65816_cpu_t* cpu) {  \

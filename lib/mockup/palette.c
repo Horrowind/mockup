@@ -1,7 +1,7 @@
 #include "palette.h"
 
 void palette_init(palette_t* palette, r65816_rom_t* rom, int num_level) {
-    r65816_cpu_t cpu;
+    r65816_cpu_t cpu = {.regs.p.b = 0x24};
     r65816_cpu_init(&cpu, rom);
 
     cpu.ram[0x65] = cpu.rom->banks[5][0xE000 + 3 * num_level]; 

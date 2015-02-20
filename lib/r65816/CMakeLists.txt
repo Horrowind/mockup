@@ -2,7 +2,7 @@
 
 #find_package(LLVM 3.6 REQUIRED CONFIG)
 
-set(BUILD_OLD TRUE)
+#set(BUILD_OLD TRUE)
 if(NOT BUILD_OLD) 
   add_library(r65816_obj OBJECT
     src/table.c

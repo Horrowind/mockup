@@ -31,7 +31,7 @@ typedef struct cpu {
 
 void r65816_cpu_init(r65816_cpu_t* cpu, r65816_rom_t* rom);
 void r65816_cpu_load(r65816_cpu_t* cpu, const char* path);
-void r65816_cpu_clear_ram(r65816_cpu_t* cpu);
+void r65816_cpu_clear(r65816_cpu_t* cpu);
 void r65816_cpu_free(r65816_cpu_t* cpu);
 
 void r65816_cpu_write(r65816_cpu_t* cpu, uint32_t addr, uint8_t data);

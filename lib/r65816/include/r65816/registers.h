@@ -15,7 +15,9 @@ typedef struct r65816_reg24 r65816_reg24_t;
 struct r65816_reg16 {
     union {
         uint16_t w;
-        uint8_t l, h;
+        struct {
+            uint8_t l, h;
+        };
     };
 };
 typedef struct r65816_reg16 r65816_reg16_t;

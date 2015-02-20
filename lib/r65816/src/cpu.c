@@ -9,24 +9,16 @@
 #include "algorithms.h"
 
 void r65816_cpu_init(r65816_cpu_t* cpu, r65816_rom_t* rom) {
+    cpu->regs.p.b = 0x24;
     cpu->rom = rom;
     cpu->ram = malloc(0x20000);
     cpu->sreg = malloc(0x2500);
-    memset(cpu->sreg, 0, 0x2500);
     cpu->regs.pc.d = 0x000000;
-    cpu->regs.a.w = 0x0000;
-    cpu->regs.x.h = 0x00;
-    cpu->regs.y.h = 0x00;
-    cpu->regs.s.h = 0x01;
-    cpu->regs.d.w = 0x0000;
-    cpu->regs.db = 0x00;
-    cpu->regs.p.b = 0x24;
-    cpu->regs.e = 0;
-    cpu->regs.mdr = 0x00;
     cpu->breakpoints_exec = NULL;
     cpu->breakpoints_read = NULL;
     cpu->breakpoints_write = NULL;
-    r65816_cpu_clear_ram(cpu);
+    
+    r65816_cpu_clear(cpu);
     r65816_initialize_opcode_table(cpu);
     r65816_update_table(cpu);
 }
@@ -39,9 +31,19 @@ void r65816_cpu_free(r65816_cpu_t* cpu) {
     r65816_breakpoint_clear(&cpu->breakpoints_write);
 }
 
-void r65816_cpu_clear_ram(r65816_cpu_t* cpu) {
+void r65816_cpu_clear(r65816_cpu_t* cpu) {
+    cpu->regs.a.w = 0x0000;
+    cpu->regs.x.w = 0x0000;
+    cpu->regs.y.w = 0x0000;
+    cpu->regs.z.w = 0x0000;
     cpu->regs.s.w = 0x0100;
+    cpu->regs.d.w = 0x0000;
+    cpu->regs.db = 0x00;
+    cpu->regs.p.b = 0x24;
+    cpu->regs.e = 0;
+    cpu->regs.mdr = 0x00;
     memset(cpu->ram, 0, 20000);
+    memset(cpu->sreg, 0, 0x2500);
 }
 
 void r65816_cpu_step(r65816_cpu_t* cpu) {
@@ -52,15 +54,14 @@ void r65816_cpu_run(r65816_cpu_t* cpu, uint32_t address) {
     cpu->regs.pc.d = address;
     cpu->stop_execution = 0;
     while(!cpu->stop_execution) {
-        char output[256];
-        r65816_cpu_disassemble_opcode(cpu, output, cpu->regs.pc.d);
-        printf("%s\n", output);
+        /* char output[256]; */
+        /* r65816_cpu_disassemble_opcode(cpu, output, cpu->regs.pc.d); */
+        /* printf("%s\n", output); */
         r65816_cpu_step(cpu);
         cpu->stop_execution |= r65816_breakpoint_is_hit(
             cpu->breakpoints_exec,
-            cpu->regs.pc.d);
-        //printf("%06x %x\n", cpu->regs.pc, cpu->ram[0x000FBE]);
-        //getchar();
+            cpu->regs.pc.d) | (cpu->regs.pc.d == 0x0583b8);
+
     }
 }
 

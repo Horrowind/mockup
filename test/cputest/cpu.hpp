@@ -28,7 +28,8 @@ public:
 
     uint8_t op_read(uint32_t addr);
     void op_write(uint32_t addr, uint8_t data);
-
+    void show_state(char* output);
+    
 private:
     void op_io();
     void last_cycle();

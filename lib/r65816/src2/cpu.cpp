@@ -8,7 +8,7 @@ extern "C" {
 #include "cpu_old.hpp"
 
 void r65816_cpu_init(r65816_cpu_t* cpu, r65816_rom_t* rom) {
-    CPU* cpu_old = new CPU(rom, false);
+    CPU* cpu_old = new CPU(rom, true);
     cpu->rom = rom;
     cpu->ram = cpu_old->m_ram;
     cpu->sreg = (uint8_t*) cpu_old; 

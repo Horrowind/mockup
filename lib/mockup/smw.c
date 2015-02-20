@@ -1,8 +1,6 @@
 #include "smw.h"
 
 void smw_init(smw_t* smw, r65816_rom_t* rom) {
-    r65816_cpu_t cpu;
-    r65816_cpu_init(&cpu, rom);
     smw->rom = rom;
     gfx_store_init(&smw->gfx_pages, rom);
     for(int i = 0; i < 512; i++) {
