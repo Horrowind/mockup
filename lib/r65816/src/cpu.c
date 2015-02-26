@@ -14,9 +14,9 @@ void r65816_cpu_init(r65816_cpu_t* cpu, r65816_rom_t* rom) {
     cpu->ram = malloc(0x20000);
     cpu->sreg = malloc(0x2500);
     cpu->regs.pc.d = 0x000000;
-    cpu->breakpoints_exec = NULL;
-    cpu->breakpoints_read = NULL;
-    cpu->breakpoints_write = NULL;
+    r65816_breakpoint_init(&cpu->breakpoints_exec);
+    r65816_breakpoint_init(&cpu->breakpoints_read);
+    r65816_breakpoint_init(&cpu->breakpoints_write);
     
     r65816_cpu_clear(cpu);
     r65816_initialize_opcode_table(cpu);
@@ -26,9 +26,9 @@ void r65816_cpu_init(r65816_cpu_t* cpu, r65816_rom_t* rom) {
 void r65816_cpu_free(r65816_cpu_t* cpu) {
     free(cpu->ram);
     free(cpu->sreg);
-    r65816_breakpoint_clear(&cpu->breakpoints_exec);
-    r65816_breakpoint_clear(&cpu->breakpoints_read);
-    r65816_breakpoint_clear(&cpu->breakpoints_write);
+    r65816_breakpoint_deinit(&cpu->breakpoints_exec);
+    r65816_breakpoint_deinit(&cpu->breakpoints_read);
+    r65816_breakpoint_deinit(&cpu->breakpoints_write);
 }
 
 void r65816_cpu_clear(r65816_cpu_t* cpu) {

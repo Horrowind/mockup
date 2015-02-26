@@ -5,13 +5,14 @@
 #include "stdlib.h"
 
 typedef struct r65816_breakpoint {
-    struct r65816_breakpoint* next;
-    uint32_t address;
+    int length;
+    uint32_t* address;
 } r65816_breakpoint_t;
 
 
-uint8_t r65816_breakpoint_is_hit(r65816_breakpoint_t* head, uint32_t address);
-void r65816_breakpoint_add(r65816_breakpoint_t** head_ptr, uint32_t address);
-void r65816_breakpoint_clear(r65816_breakpoint_t** head_ptr);
+void r65816_breakpoint_init(r65816_breakpoint_t* brk);
+uint8_t r65816_breakpoint_is_hit(r65816_breakpoint_t* brk, uint32_t address);
+void r65816_breakpoint_add(r65816_breakpoint_t* brk, uint32_t address);
+void r65816_breakpoint_deinit(r65816_breakpoint_t* brk);
 
 #endif //LIBR65816_BREAKPOINT_H
