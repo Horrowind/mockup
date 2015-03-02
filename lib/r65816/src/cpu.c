@@ -58,9 +58,8 @@ void r65816_cpu_run(r65816_cpu_t* cpu, uint32_t address) {
         /* r65816_cpu_disassemble_opcode(cpu, output, cpu->regs.pc.d); */
         /* printf("%s\n", output); */
         r65816_cpu_step(cpu);
-        cpu->stop_execution |= r65816_breakpoint_is_hit(
-            cpu->breakpoints_exec,
-            cpu->regs.pc.d) | (cpu->regs.pc.d == 0x0583b8);
+        cpu->stop_execution |= r65816_breakpoint_is_hit(cpu->breakpoints_exec, cpu->regs.pc.d)
+            | (cpu->regs.pc.d == 0x0583b8);
 
     }
 }

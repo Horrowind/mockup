@@ -11,7 +11,7 @@ typedef struct r65816_breakpoint {
 
 
 void r65816_breakpoint_init(r65816_breakpoint_t* brk);
-uint8_t r65816_breakpoint_is_hit(r65816_breakpoint_t* brk, uint32_t address);
+uint8_t r65816_breakpoint_is_hit(r65816_breakpoint_t brk, uint32_t address);
 void r65816_breakpoint_add(r65816_breakpoint_t* brk, uint32_t address);
 void r65816_breakpoint_deinit(r65816_breakpoint_t* brk);
 
