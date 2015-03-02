@@ -2,7 +2,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-/* #include <libxml/tree.h> */
+#include "dismap.h"
+
+#define PRELABEL  1
+#define LABEL     2
+#define POSTLABEL 3
+#define HEX       4
+#define CODE      5
+#define DATA      6
+#define COMMENT   7
 
 int main(int argc, char* argv[]) {
     /* xmlDocPtr doc = xmlNewDoc("1.0"); */
@@ -15,20 +23,32 @@ int main(int argc, char* argv[]) {
     /* } */
     FILE* fp = fopen(argv[1], "r");
     if(fp == 0) return -1;
-    int state = 34;
+    fseek(fp, 0, SEEK_END);
+    unsigned int size = ftell(fp);
+    unsigned char* buffer = malloc(size);
+    rewind(fp);
+    for(int i = 0; i < size; i++) buffer[i] = fgetc(fp);
+
+    dismap_t dismap;
+    dismap_init(&dismap);
+    
+    
+    int state = LABEL;
+
     char c;
     while(!feof(fp)) {
         c = fgetc(fp);
         if(c == '\n') {
-            state = 34;
+            printf("\n");
+            state = PRELABEL;
         } else if(c == ';') {
             printf("Comment: ");
             while((c = fgetc(fp)) != '\n') printf("%c", c);
             printf("\n");
-            state = 34;
+            state = STATE;
         } else {
-            if(state == 0) {
-                if(c == '.') {
+            if(state >= 0 && c != ' ') {
+                if(c != '.') {
                     printf("Code: ");
                 } else {
                     printf("Data: ");
@@ -52,4 +72,5 @@ int main(int argc, char* argv[]) {
             }
         }
     }
+    printf("\n");
 }
