@@ -21,7 +21,7 @@
 namespace Mockup {
     
 
-    MainWindow::MainWindow(int level) : m_level("smw.smc", level) {
+    MainWindow::MainWindow(int level) : m_level("smw.sfc", level) {
         m_currentLevel = level;
         setDocumentMode(true);
         grabKeyboard();

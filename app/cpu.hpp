@@ -24,6 +24,8 @@ public:
     bool filled_stack();
 
     void run(uint32_t addrFrom, uint32_t addrTo);
+    void runjsr(uint32_t addrFrom);
+    void runjsl(uint32_t addrFrom);
     void clear_ram();
 
     uint8_t op_read(uint32_t addr);

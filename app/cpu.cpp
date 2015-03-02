@@ -10,9 +10,10 @@ CPU::CPU(const char* path, bool debug) {
     FILE* fp = fopen(path, "r");
     if(!fp) return;
     fseek(fp, 0, SEEK_END);
-	m_size = (unsigned int) ftell(fp) - 512;
+    int headersize = ftell(fp) % 0x8000;
+	m_size = (unsigned int) ftell(fp) - headersize;
 	m_rom = new uint8_t[m_size];
-    fseek(fp, 512, SEEK_SET);
+    fseek(fp, headersize, SEEK_SET);
     fread((char*)m_rom, 1, m_size, fp);
     fclose(fp);
     m_ram = new uint8_t[0x20000];
@@ -39,7 +40,20 @@ void CPU::run(uint32_t addrFrom, uint32_t addrTo) {
         if(m_debug) {
             char output[256];
             disassemble_opcode(output, regs.pc);
-            printf(output);
+            printf("%s\n", output);
+        }
+        step();
+    }
+}
+
+void CPU::runjsr(uint32_t addrFrom) {
+    regs.pc = addrFrom;
+    regs.s = 0x100;
+    while(regs.s != 0x100 || op_read(regs.pc) != 0x60) {
+        if(m_debug) {
+            char output[256];
+            disassemble_opcode(output, regs.pc);
+            printf("%s\n", output);
         }
         step();
     }
@@ -109,7 +123,7 @@ void CPU::init() {
     regs.pc = 0x000000;
     regs.x.h = 0x00;
     regs.y.h = 0x00;
-    regs.s.h = 0x01;
+    regs.s = 0x0100;
     regs.d = 0x0000;
     regs.db = 0x00;
     regs.p = 0x24;

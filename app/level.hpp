@@ -43,6 +43,7 @@ namespace Mockup {
         void load_palette();
         void load_objects();
         void load_gfx3233();
+        void load_sprites();
 
         uint16_t* m_layer1 = NULL;
         uint16_t* m_layer2 = NULL;

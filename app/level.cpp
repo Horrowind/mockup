@@ -25,11 +25,11 @@ namespace Mockup {
         m_cpu.init();
 
         load_palette();
-        qDebug("Loaded Palette");
         load_map8();
         load_map16();
         load_objects();
         load_gfx3233();
+        load_sprites();
 
         for(int i = 0; i < 8; i++) {
             animate(i);
@@ -323,6 +323,41 @@ namespace Mockup {
                     m_layer2[(cy * screens + sc) * 16 + cx] = m_cpu.m_ram[addrLayer2Low + i] * 256 + m_cpu.m_ram[addrLayer2High + i];
                 }
             }
+        }
+    }
+
+    void Level::load_sprites() {
+        int spritenum = 0;
+        while(true) {
+
+            m_cpu.clear_ram();
+            m_cpu.m_ram[0x65] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum]; 
+            m_cpu.m_ram[0x66] = m_cpu.m_rom[0x02E001 + 3 * m_levelnum];
+            m_cpu.m_ram[0x67] = m_cpu.m_rom[0x02E002 + 3 * m_levelnum];
+            m_cpu.run(0x0583AC, 0x0583B8);
+            
+            m_cpu.m_ram[0xCE] = m_cpu.m_rom[0x02EC00 + 2 * m_levelnum]; 
+            m_cpu.m_ram[0xCF] = m_cpu.m_rom[0x02EC01 + 2 * m_levelnum];
+            m_cpu.m_ram[0xD0] = 0x07;
+            int spritelookupSNES  = ((m_cpu.m_ram[0xD0] << 16) | (m_cpu.m_ram[0xCF] << 8) | m_cpu.m_ram[0xCE]) + 1;
+            int spritelookupPC = ((spritelookupSNES & 0x7f0000) >> 1) + (spritelookupSNES & 0x7fff);
+            if(m_cpu.m_rom[spritelookupPC + 3*spritenum] == 0xFF) break;
+
+            //Sets RAM 0x01 to the screen number of the sprite.
+            m_cpu.m_ram[0x01] = (m_cpu.m_rom[spritelookupPC + 3*spritenum] & 0x2) << 3;
+            m_cpu.m_ram[0x01] |= m_cpu.m_rom[spritelookupPC + 3*spritenum + 1] & 0xF;
+            m_cpu.regs.x = 4;
+            m_cpu.regs.y = spritenum;
+            m_cpu.regs.p = 0x30;
+            m_cpu.setDebug(true);
+            m_cpu.run(0x02A82E, 0x02A84B);
+            m_cpu.setDebug(false);
+            
+            m_cpu.runjsr(0x018172);
+            for(int i = 0; i < 12; i++)
+                printf("%02x", m_cpu.m_ram[0x9E + i]);
+            printf("\n");
+            spritenum++;
         }
     }
 
