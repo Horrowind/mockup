@@ -13,7 +13,8 @@ namespace Mockup {
     };
     
     struct Tile16 {
-        uint32_t pixels[256];
+        Tile16();
+        uint8_t pixels[256];
         static Tile16 fromTile8(Tile8 t[4], const uint8_t (&palette)[4]);
     };
     

@@ -51,6 +51,11 @@ namespace Mockup {
         QGraphicsView* m_viewMap16;
         QGraphicsScene m_sceneMap16;
 
+        QDockWidget*   m_dockPalette;
+        QGraphicsView* m_viewPalette;
+        QGraphicsScene m_scenePalette;
+
+        
 
         int            m_currentLevel = 0x105;
         uint8_t        m_frame = 0;

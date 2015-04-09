@@ -1,5 +1,6 @@
 #include "tiles.hpp"
 
+#include <cstring>
 #include <iostream>
 
 namespace Mockup {
@@ -62,6 +63,10 @@ namespace Mockup {
         return tile;
     }
 
+    Tile16::Tile16() {
+        memset(pixels, 0, sizeof(pixels));
+    }
+    
     Tile16 Tile16::fromTile8(Tile8 t[4], const uint8_t (&pal)[4]) {
         Tile16 tile;
         for(int i = 0; i < 8; i++) {

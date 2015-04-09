@@ -59,6 +59,19 @@ void CPU::runjsr(uint32_t addrFrom) {
     }
 }
 
+void CPU::runjsl(uint32_t addrFrom) {
+    regs.pc = addrFrom;
+    regs.s = 0x100;
+    while(regs.s != 0x100 || op_read(regs.pc) != 0x6B) {
+        if(m_debug) {
+            char output[256];
+            disassemble_opcode(output, regs.pc);
+            printf("%s\n", output);
+        }
+        step();
+    }
+}
+
 uint8_t CPU::op_read(uint32_t addr) {
     
     if(addr & 0xFF8000) {

@@ -26,6 +26,7 @@ namespace Mockup {
 
         load_palette();
         load_map8();
+        load_map8_sprite();
         load_map16();
         load_objects();
         load_gfx3233();
@@ -62,7 +63,7 @@ namespace Mockup {
         m_cpu.run(0x0583AC, 0x0583B8);
         
         int tileset = m_cpu.m_ram[0x1931];
-        auto address = 0x00292B + tileset * 4;
+        int address = 0x00292B + tileset * 4;
         int fg1 = m_cpu.m_rom[address + 0x00];
         int fg2 = m_cpu.m_rom[address + 0x01];
         int bg1 = m_cpu.m_rom[address + 0x02];
@@ -111,10 +112,77 @@ namespace Mockup {
                 break;
             }
 
-	    m_map8[tile] = Tile8::from3bpp(usedChr + 24 * (tile % 128));
+            m_map8[tile] = Tile8::from3bpp(usedChr + 24 * (tile % 128));
         }
     }
 
+    void Level::load_map8_sprite() {
+        m_cpu.clear_ram();
+        m_cpu.m_ram[0x65] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum]; 
+        m_cpu.m_ram[0x66] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum + 1];
+        m_cpu.m_ram[0x67] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum + 2];
+    
+        m_cpu.run(0x0583AC, 0x0583B8);
+        
+        int tileset = m_cpu.m_ram[0x192B];
+
+        int address = 0x028C3 + tileset * 4;
+        int fg1 = m_cpu.m_rom[address + 0x00];
+        int fg2 = m_cpu.m_rom[address + 0x01];
+        int bg1 = m_cpu.m_rom[address + 0x02];
+        int fg3 = m_cpu.m_rom[address + 0x03];
+
+        printf("%02x %02x %02x %02x\n", fg1, fg2, bg1, fg3);
+
+        uint8_t fg1Chr[3072], fg2Chr[3072], bg1Chr[3072], fg3Chr[3072];
+
+        int addrFG1 = m_cpu.m_rom[originalGraphicsFilesBankByteTableLocationPC + fg1];
+        addrFG1 = (addrFG1 << 8) | m_cpu.m_rom[originalGraphicsFilesHighByteTableLocationPC + fg1];
+        addrFG1 = (addrFG1 << 8) | m_cpu.m_rom[originalGraphicsFilesLowByteTableLocationPC + fg1];
+        int addrFG1PC = ((addrFG1 & 0x7f0000) >> 1) + (addrFG1 & 0x7fff);
+        decryptLZ2(m_cpu.m_rom + addrFG1PC, fg1Chr);
+
+        int addrFG2 = m_cpu.m_rom[originalGraphicsFilesBankByteTableLocationPC + fg2];
+        addrFG2 = (addrFG2 << 8) | m_cpu.m_rom[originalGraphicsFilesHighByteTableLocationPC + fg2];
+        addrFG2 = (addrFG2 << 8) | m_cpu.m_rom[originalGraphicsFilesLowByteTableLocationPC + fg2];
+        int addrFG2PC = ((addrFG2 & 0x7f0000) >> 1) + (addrFG2 & 0x7fff);
+        decryptLZ2(m_cpu.m_rom + addrFG2PC, fg2Chr);
+
+        int addrBG1 = m_cpu.m_rom[originalGraphicsFilesBankByteTableLocationPC + bg1];
+        addrBG1 = (addrBG1 << 8) | m_cpu.m_rom[originalGraphicsFilesHighByteTableLocationPC + bg1];
+        addrBG1 = (addrBG1 << 8) | m_cpu.m_rom[originalGraphicsFilesLowByteTableLocationPC + bg1];
+        int addrBG1PC = ((addrBG1 & 0x7f0000) >> 1) + (addrBG1 & 0x7fff);
+        decryptLZ2(m_cpu.m_rom + addrBG1PC, bg1Chr);
+
+        int addrFG3 = m_cpu.m_rom[originalGraphicsFilesBankByteTableLocationPC + fg3];
+        addrFG3 = (addrFG3 << 8) | m_cpu.m_rom[originalGraphicsFilesHighByteTableLocationPC + fg3];
+        addrFG3 = (addrFG3 << 8) | m_cpu.m_rom[originalGraphicsFilesLowByteTableLocationPC + fg3];
+        int addrFG3PC = ((addrFG3 & 0x7f0000) >> 1) + (addrFG3 & 0x7fff);
+        decryptLZ2(m_cpu.m_rom + addrFG3PC, fg3Chr);
+
+        for(int tile = 0; tile < 512; tile++) {
+            uint8_t* usedChr;
+            switch(tile >> 7) {
+            case 0b000:
+                usedChr = fg1Chr;
+                break;
+            case 0b001:
+                usedChr = fg2Chr;
+                break;
+            case 0b010:
+                usedChr = bg1Chr;
+                break;
+            case 0b011:
+                usedChr = fg3Chr;
+                break;
+            }
+
+            m_map8_sprite[tile] = Tile8::from3bpp(usedChr + 24 * (tile % 128));
+        }
+    }
+
+
+    
     void Level::load_map16() {
         m_cpu.clear_ram();
         m_cpu.m_ram[0x65] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum]; 
@@ -326,41 +394,252 @@ namespace Mockup {
         }
     }
 
-    void Level::load_sprites() {
-        int spritenum = 0;
-        while(true) {
+    // void Level::load_sprites() {
+    //     m_sprites.clear();
+    //     int spritenum = 0;
+    //     while(true) {
+    //         m_cpu.clear_ram();
+    //         m_cpu.m_ram[0x65] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum]; 
+    //         m_cpu.m_ram[0x66] = m_cpu.m_rom[0x02E001 + 3 * m_levelnum];
+    //         m_cpu.m_ram[0x67] = m_cpu.m_rom[0x02E002 + 3 * m_levelnum];
+    //         m_cpu.run(0x0583AC, 0x0583B8);
+            
+    //         m_cpu.m_ram[0xCE] = m_cpu.m_rom[0x02EC00 + 2 * m_levelnum]; 
+    //         m_cpu.m_ram[0xCF] = m_cpu.m_rom[0x02EC01 + 2 * m_levelnum];
+    //         m_cpu.m_ram[0xD0] = 0x07;
+    //         int spritelookupSNES  = ((m_cpu.m_ram[0xD0] << 16) | (m_cpu.m_ram[0xCF] << 8) | m_cpu.m_ram[0xCE]);
+    //         int spritelookupPC = ((spritelookupSNES & 0x7f0000) >> 1) + (spritelookupSNES & 0x7fff);
+    //         if(m_cpu.m_rom[spritelookupPC + 3*spritenum + 1] == 0xFF) break;
 
+    //         //Sets RAM 0x01 to the screen number of the sprite.
+    //         int screen = (m_cpu.m_rom[spritelookupPC + 3*spritenum + 1] & 0x2) << 3;
+    //         screen |= m_cpu.m_rom[spritelookupPC + 3*spritenum + 2] & 0xF;
+    //         m_cpu.m_ram[0x01] = screen;
+    //         m_cpu.m_ram[0x1b] = screen;
+    //         m_cpu.m_ram[0x1c] = 0xb0;
+    //         m_cpu.m_ram[0x1692] =  m_cpu.m_rom[spritelookupPC];
+    //         m_cpu.regs.x = 4;
+    //         m_cpu.regs.y = 3*spritenum+2;
+    //         m_cpu.regs.p = 0x30;
+    //         m_cpu.regs.db = 2;
+            
+            
+    //         m_cpu.runjsl(0x02A751);
+            
+            
+    //         for(int i = 0x0; i < 0x12; i++) {
+    //             //printf("%02x %02x\n", i, m_cpu.m_ram[i + 0x9E]);
+    //             if(m_cpu.m_ram[i + 0x9E] != 0) m_cpu.regs.x = i;
+    //         }
+    //         printf("Sprite %i: %02x\n\n", spritenum, m_cpu.m_ram[m_cpu.regs.x + 0x9E]);
+    //         m_cpu.regs.db = 1;
+    //         m_cpu.m_ram[0x1b] = screen;
+    //         m_cpu.runjsr(0x018172);
+    //         m_cpu.runjsr(0x0185C3);
+    //         m_cpu.regs.db = 0;
+            
+    //         for(int i = 0; i < 0x200; i+=4) {
+    //             if(m_cpu.m_ram[i + 0x200] | m_cpu.m_ram[i + 0x201] | m_cpu.m_ram[i + 0x202] | m_cpu.m_ram[i + 0x203]) {
+    //                 sprite_tile sprite;
+    //                 sprite.x = (screen << 8) + m_cpu.m_ram[i + 0x200];
+    //                 sprite.y = ((m_cpu.m_ram[0x1d] << 8) | m_cpu.m_ram[0x1c]) + m_cpu.m_ram[i + 0x201];
+    //                 sprite.palette = 8 + ((m_cpu.m_ram[i + 0x203] >> 1) & 0x7);
+    //                 uint8_t extrabits = (m_cpu.m_ram[(i / 4) + 0x400] >> (i % 4)) & 0x03;
+    //                 //Does not take $2101 into account
+    //                 if(extrabits & 0x02) {
+    //                     int number = ((m_cpu.m_ram[i + 0x203] << 8) |  m_cpu.m_ram[i + 0x202]) & 0x1FF;
+    //                     printf("Number: %02x\n", number);
+    //                     uint8_t flipx = m_cpu.m_ram[i + 0x203] & 0x40;
+    //                     uint8_t flipy = m_cpu.m_ram[i + 0x203] & 0x80;
+    //                     uint8_t pal[4] = {sprite.palette, 0, 0, 0};
+    //                     Tile8 tiles[4];
+    //                     tiles[0] = getMap8Sprite(number).mirrored(flipx, flipy);
+    //                     tiles[1] = Tile8();
+    //                     tiles[2] = Tile8();
+    //                     tiles[3] = Tile8();
+
+    //                     sprite.tile = Tile16::fromTile8(tiles, pal);
+    //                 } else {
+    //                     int number = ((m_cpu.m_ram[i + 0x203] << 8) |  m_cpu.m_ram[i + 0x202]) & 0x1FF;
+    //                     bool flipx = m_cpu.m_ram[i + 0x203] & 0x40;
+    //                     bool flipy = m_cpu.m_ram[i + 0x203] & 0x80;
+    //                     printf("Number: %02x %1x%1x, %1x\n", number, flipx, flipy, sprite.palette);
+    //                     uint8_t pal[4] = {sprite.palette, sprite.palette, sprite.palette, sprite.palette};
+    //                     Tile8 tiles[4];
+    //                     if(flipx) {
+    //                         if(flipy) {
+    //                             tiles[0] = getMap8Sprite(number +17).mirrored(flipx, flipy);
+    //                             tiles[1] = getMap8Sprite(number + 1).mirrored(flipx, flipy);
+    //                             tiles[2] = getMap8Sprite(number +16).mirrored(flipx, flipy);
+    //                             tiles[3] = getMap8Sprite(number + 0).mirrored(flipx, flipy);
+    //                         } else {
+    //                             tiles[0] = getMap8Sprite(number + 1).mirrored(flipx, flipy);
+    //                             tiles[1] = getMap8Sprite(number +17).mirrored(flipx, flipy);
+    //                             tiles[2] = getMap8Sprite(number + 0).mirrored(flipx, flipy);
+    //                             tiles[3] = getMap8Sprite(number +16).mirrored(flipx, flipy);
+    //                         }
+    //                     } else {
+    //                         if(flipy) {
+    //                             tiles[0] = getMap8Sprite(number +16).mirrored(flipx, flipy);
+    //                             tiles[1] = getMap8Sprite(number + 0).mirrored(flipx, flipy);
+    //                             tiles[2] = getMap8Sprite(number +17).mirrored(flipx, flipy);
+    //                             tiles[3] = getMap8Sprite(number + 1).mirrored(flipx, flipy);
+    //                         } else {
+    //                             tiles[0] = getMap8Sprite(number + 0).mirrored(flipx, flipy);
+    //                             tiles[1] = getMap8Sprite(number +16).mirrored(flipx, flipy);
+    //                             tiles[2] = getMap8Sprite(number + 1).mirrored(flipx, flipy);
+    //                             tiles[3] = getMap8Sprite(number +17).mirrored(flipx, flipy);
+    //                         }
+    //                     }
+    //                     sprite.tile = Tile16::fromTile8(tiles, pal);
+    //                 }
+                    
+    //                 m_sprites.push_back(sprite);
+    //             }
+    //         }
+            
+    //         spritenum++;
+    //     }
+    // }
+
+    void Level::load_sprites() {
+        m_sprites.clear();
+        int spritenum = 0;
+        uint8_t low  = m_cpu.m_rom[0x02EC00 + 2 * m_levelnum]; 
+        uint8_t high = m_cpu.m_rom[0x02EC01 + 2 * m_levelnum];
+        uint8_t bank = 0x07;
+        int spritelookupSNES  = (bank << 16) | (high << 8) | low;
+        int spritelookupPC = ((spritelookupSNES & 0x7f0000) >> 1) + (spritelookupSNES & 0x7fff);
+        while(m_cpu.m_rom[spritelookupPC + 3*spritenum + 1] != 0xFF) {
             m_cpu.clear_ram();
             m_cpu.m_ram[0x65] = m_cpu.m_rom[0x02E000 + 3 * m_levelnum]; 
             m_cpu.m_ram[0x66] = m_cpu.m_rom[0x02E001 + 3 * m_levelnum];
             m_cpu.m_ram[0x67] = m_cpu.m_rom[0x02E002 + 3 * m_levelnum];
-            m_cpu.run(0x0583AC, 0x0583B8);
-            
-            m_cpu.m_ram[0xCE] = m_cpu.m_rom[0x02EC00 + 2 * m_levelnum]; 
-            m_cpu.m_ram[0xCF] = m_cpu.m_rom[0x02EC01 + 2 * m_levelnum];
-            m_cpu.m_ram[0xD0] = 0x07;
-            int spritelookupSNES  = ((m_cpu.m_ram[0xD0] << 16) | (m_cpu.m_ram[0xCF] << 8) | m_cpu.m_ram[0xCE]) + 1;
-            int spritelookupPC = ((spritelookupSNES & 0x7f0000) >> 1) + (spritelookupSNES & 0x7fff);
-            if(m_cpu.m_rom[spritelookupPC + 3*spritenum] == 0xFF) break;
+
+            m_cpu.m_ram[0xD1] = m_cpu.m_ram[0x94] = 0x00; // player x position
+			m_cpu.m_ram[0xD2] = m_cpu.m_ram[0x95] = 0x00;
+			m_cpu.m_ram[0xD3] = m_cpu.m_ram[0x96] = 0x40; // player y position
+			m_cpu.m_ram[0xD4] = m_cpu.m_ram[0x97] = 0x01;
+            m_cpu.m_ram[0x15EA] = 0x30;
 
             //Sets RAM 0x01 to the screen number of the sprite.
-            m_cpu.m_ram[0x01] = (m_cpu.m_rom[spritelookupPC + 3*spritenum] & 0x2) << 3;
-            m_cpu.m_ram[0x01] |= m_cpu.m_rom[spritelookupPC + 3*spritenum + 1] & 0xF;
-            m_cpu.regs.x = 4;
-            m_cpu.regs.y = spritenum;
-            m_cpu.regs.p = 0x30;
-            m_cpu.setDebug(true);
-            m_cpu.run(0x02A82E, 0x02A84B);
-            m_cpu.setDebug(false);
+            int screen = (m_cpu.m_rom[spritelookupPC + 3*spritenum + 1] & 0x2) << 3;
+            screen |= m_cpu.m_rom[spritelookupPC + 3*spritenum + 2] & 0xF;
+            int spritex = (screen << 4) | ((m_cpu.m_rom[spritelookupPC + 3*spritenum + 2] & 0xF0) >> 4);
             
-            m_cpu.runjsr(0x018172);
-            for(int i = 0; i < 12; i++)
-                printf("%02x", m_cpu.m_ram[0x9E + i]);
-            printf("\n");
+            m_cpu.m_ram[0x1a] = 0;//(spritex << 4) & 0xFF;
+            m_cpu.m_ram[0x1b] = 0;//((spritex) & 0xFF0) >> 4;
+            m_cpu.m_ram[0x1c] = 0xc0;
+            m_cpu.m_ram[0x1d] = 0x00;
+
+            m_cpu.m_ram[0x14] = 0x01; // set frame counter to something fancy.
+			m_cpu.m_ram[0x13] = 0x01;
+            
+            //Create a new sprite list in scratch ram with one sprite in it.
+            m_cpu.m_ram[0xCE] = 0x7b;
+            m_cpu.m_ram[0xCF] = 0x9c;
+            m_cpu.m_ram[0xD0] = 0x7f;
+
+
+
+            //Copy sprite to scratch ram
+            m_cpu.m_ram[0x19c7b] = m_cpu.m_rom[spritelookupPC];
+            m_cpu.m_ram[0x19c7c] = m_cpu.m_rom[spritelookupPC + 3*spritenum + 1];
+            m_cpu.m_ram[0x19c7d] = m_cpu.m_rom[spritelookupPC + 3*spritenum + 2] & 0xF0;
+            m_cpu.m_ram[0x19c7e] = m_cpu.m_rom[spritelookupPC + 3*spritenum + 3];
+            m_cpu.m_ram[0x19c7f] = 0xff;
+
+
+            printf("Sprite %i - %02x: %04x\n\n", spritenum, m_cpu.m_rom[spritelookupPC + 3*spritenum + 3], spritex);
+            //printf("%02x %02x\n", m_cpu.m_ram[0x1a], m_cpu.m_ram[0x1b]);
+
+            if(m_cpu.m_ram[0x19c7e] == 0xB9) m_cpu.setDebug(true);
+            m_cpu.runjsl(0x2a751);
+            int spriteindex;                        
+            for(int i = 0x0; i < 0x12; i++) {
+                if(m_cpu.m_ram[i + 0x9E] != 0) m_cpu.regs.x = spriteindex = i;
+                //m_cpu.m_ram[0x163E + i] = 0x1;
+                m_cpu.m_ram[0x1FE2 + i] = 0;
+            }
+
+
+
+            m_cpu.regs.db = 1;
+
+            m_cpu.runjsr(0x0185C3);
+            if(m_cpu.m_ram[0x19c7e] == 0xB9) m_cpu.setDebug(false);
+
+
+            m_cpu.m_ram[0x1a] = (spritex << 4) & 0xFF;
+            m_cpu.m_ram[0x1b] = screen;
+
+            m_cpu.regs.db = 0;
+            
+            for(int i = 0; i < 0x200; i+=4) {
+                if((m_cpu.m_ram[i + 0x200] | m_cpu.m_ram[i + 0x202] | m_cpu.m_ram[i + 0x203]) && (m_cpu.m_ram[i + 0x201] != 0xf0)) {
+                    sprite_tile sprite;
+                    sprite.x = ((m_cpu.m_ram[0x1b] << 8) | m_cpu.m_ram[0x1a]) + m_cpu.m_ram[i + 0x200] - 9;
+                    sprite.y = ((m_cpu.m_ram[0x1d] << 8) | m_cpu.m_ram[0x1c]) + m_cpu.m_ram[i + 0x201];
+                    sprite.palette = 8 + ((m_cpu.m_ram[i + 0x203] >> 1) & 0x7);
+                    uint8_t extrabits = (m_cpu.m_ram[(i / 4) + 0x400] >> (i % 4)) & 0x03;
+                    //Does not take $2101 into account
+                    if(extrabits & 0x02) {
+                        int number = ((m_cpu.m_ram[i + 0x203] << 8) |  m_cpu.m_ram[i + 0x202]) & 0x1FF;
+                        printf("Number: %02x\n", number);
+                        uint8_t flipx = m_cpu.m_ram[i + 0x203] & 0x40;
+                        uint8_t flipy = m_cpu.m_ram[i + 0x203] & 0x80;
+                        uint8_t pal[4] = {sprite.palette, 0, 0, 0};
+                        Tile8 tiles[4];
+                        tiles[0] = getMap8Sprite(number).mirrored(flipx, flipy);
+                        tiles[1] = Tile8();
+                        tiles[2] = Tile8();
+                        tiles[3] = Tile8();
+
+                        sprite.tile = Tile16::fromTile8(tiles, pal);
+                    } else {
+                        int number = ((m_cpu.m_ram[i + 0x203] << 8) |  m_cpu.m_ram[i + 0x202]) & 0x1FF;
+                        bool flipx = m_cpu.m_ram[i + 0x203] & 0x40;
+                        bool flipy = m_cpu.m_ram[i + 0x203] & 0x80;
+                        printf("Number: %02x (%02x, %02x) %1x\n", number, sprite.x, sprite.y, sprite.palette);
+                        uint8_t pal[4] = {sprite.palette, sprite.palette, sprite.palette, sprite.palette};
+                        Tile8 tiles[4];
+                        if(flipx) {
+                            if(flipy) {
+                                tiles[0] = getMap8Sprite(number +17).mirrored(flipx, flipy);
+                                tiles[1] = getMap8Sprite(number + 1).mirrored(flipx, flipy);
+                                tiles[2] = getMap8Sprite(number +16).mirrored(flipx, flipy);
+                                tiles[3] = getMap8Sprite(number + 0).mirrored(flipx, flipy);
+                            } else {
+                                tiles[0] = getMap8Sprite(number + 1).mirrored(flipx, flipy);
+                                tiles[1] = getMap8Sprite(number +17).mirrored(flipx, flipy);
+                                tiles[2] = getMap8Sprite(number + 0).mirrored(flipx, flipy);
+                                tiles[3] = getMap8Sprite(number +16).mirrored(flipx, flipy);
+                            }
+                        } else {
+                            if(flipy) {
+                                tiles[0] = getMap8Sprite(number +16).mirrored(flipx, flipy);
+                                tiles[1] = getMap8Sprite(number + 0).mirrored(flipx, flipy);
+                                tiles[2] = getMap8Sprite(number +17).mirrored(flipx, flipy);
+                                tiles[3] = getMap8Sprite(number + 1).mirrored(flipx, flipy);
+                            } else {
+                                tiles[0] = getMap8Sprite(number + 0).mirrored(flipx, flipy);
+                                tiles[1] = getMap8Sprite(number +16).mirrored(flipx, flipy);
+                                tiles[2] = getMap8Sprite(number + 1).mirrored(flipx, flipy);
+                                tiles[3] = getMap8Sprite(number +17).mirrored(flipx, flipy);
+                            }
+                        }
+                        sprite.tile = Tile16::fromTile8(tiles, pal);
+                    }
+                    
+                    m_sprites.push_front(sprite);
+                }
+            }
+            
             spritenum++;
         }
     }
 
+    
     void Level::renderLineFG(uint8_t* line, int linenum) {
         int gy = linenum>>4;
         int by = linenum%16;
@@ -435,6 +714,10 @@ namespace Mockup {
 
     Tile8 Level::getMap8(int i) {
         return m_map8[i];
+    }
+
+    Tile8 Level::getMap8Sprite(int i) {
+        return m_map8_sprite[i];
     }
 
     Tile8 Level::getGFX3233(int i) {

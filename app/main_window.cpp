@@ -38,9 +38,9 @@ namespace Mockup {
         m_viewMap8 = new QGraphicsView(&m_sceneMap8);
         m_viewMap8->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         m_viewMap8->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-        m_viewMap8->setMinimumSize(128, 256);
-        m_viewMap8->setMaximumSize(128, 256);
-      
+        m_viewMap8->setMinimumSize(256, 256);
+        m_viewMap8->setMaximumSize(256, 256);
+       
         m_dockMap8 = new QDockWidget("Map 8", this);
         m_dockMap8->setWidget(m_viewMap8);
         
@@ -52,9 +52,19 @@ namespace Mockup {
       
         m_dockMap16 = new QDockWidget("Map 16", this);
         m_dockMap16->setWidget(m_viewMap16);
+
+        m_viewPalette = new QGraphicsView(&m_scenePalette);
+        m_viewPalette->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        m_viewPalette->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        m_viewPalette->setMinimumSize(256, 256);
+        m_viewPalette->setMaximumSize(256, 256);
+
+        m_dockPalette = new QDockWidget("Palette", this);
+        m_dockPalette->setWidget(m_viewPalette);
         
         addDockWidget(Qt::BottomDockWidgetArea, m_dockMap8);
         addDockWidget(Qt::BottomDockWidgetArea, m_dockMap16);
+        addDockWidget(Qt::BottomDockWidgetArea, m_dockPalette);
         addDockWidget(Qt::BottomDockWidgetArea, m_dockDebug);
         m_view = new QGraphicsView(&m_scene);
         setCentralWidget(m_view);
@@ -107,7 +117,7 @@ namespace Mockup {
         m_sceneMap8.clear();
         m_sceneMap16.clear();
         m_view->setSceneRect(0, 0, m_level.getWidth() * 16 , m_level.getHeight() * 16);
-        m_viewMap8->setSceneRect(0, 0, 128, 256);
+        m_viewMap8->setSceneRect(0, 0, 256, 256);
         uint32_t palette[256]; 
         memcpy(&palette, m_level.getPalette(), 1024);
 
@@ -133,16 +143,31 @@ namespace Mockup {
             m_level.renderLineFG(imgFG.scanLine(i), i); 
         }
         
+        //Sprites
+        for(sprite_tile sprite : m_level.m_sprites) {
+            for(int j = 0; j < 256; j++) {
+                int x = sprite.x + (j % 16);
+                int y = sprite.y + (j / 16);
+                if(x < m_level.getWidth()*16 && y < m_level.getHeight()*16)
+                    imgFG.setPixel(x, y, sprite.tile.pixels[j]);
+            }
+        }
+
         QGraphicsItem* itemFG = m_scene.addPixmap(QPixmap::fromImage(imgFG));
 
         //Map8
-        QImage imgMap8(128, 256, QImage::Format_Indexed8);
+        QImage imgMap8(256, 256, QImage::Format_Indexed8);
         for(int i = 0; i < 256; i++) imgMap8.setColor(i, palette[i]);
-        imgBG.fill(QColor(0, 0, 0, 0));
         for(int i = 0; i < 512; i++) {
             Tile8 tile = m_level.getMap8(i);
             for(int j = 0; j < 64; j++) {
                 imgMap8.setPixel((i % 16) * 8 + (j % 8), (i / 16) * 8 + (j / 8), tile.pixels[j]);
+            }
+        }
+        for(int i = 0; i < 512; i++) {
+            Tile8 tile = m_level.getMap8Sprite(i);
+            for(int j = 0; j < 64; j++) {
+                imgMap8.setPixel(128 + (i % 16) * 8 + (j % 8), (i / 16) * 8 + (j / 8), tile.pixels[j]);
             }
         }
         QGraphicsItem* itemMap8 = m_sceneMap8.addPixmap(QPixmap::fromImage(imgMap8));
@@ -150,7 +175,6 @@ namespace Mockup {
         //Map16
         QImage imgMap16(256, 256, QImage::Format_Indexed8);
         for(int i = 0; i < 256; i++) imgMap16.setColor(i, palette[i]);
-        imgBG.fill(QColor(255, 255, 255, 255));
         for(int i = 0; i < 256; i++) {
             Tile16 tile = m_level.getMap16bg(i);
             for(int j = 0; j < 256; j++) {
@@ -158,6 +182,18 @@ namespace Mockup {
             }
         }
         QGraphicsItem* itemMap16 = m_sceneMap16.addPixmap(QPixmap::fromImage(imgMap16));
+
+        //Palette
+        QImage imgPalette(256, 256, QImage::Format_Indexed8);
+        for(int i = 0; i < 256; i++) imgPalette.setColor(i, palette[i]);
+        for(int i = 0; i < 256; i++) {
+            for(int j = 0; j < 256; j++) {
+                imgPalette.setPixel((i % 16) * 16 + (j % 16), (i / 16) * 16 + (j / 16), i);
+            }
+        }
+        QGraphicsItem* itemPalette = m_scenePalette.addPixmap(QPixmap::fromImage(imgPalette));
+
+        
     }
     
  
