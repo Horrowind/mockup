@@ -17,10 +17,7 @@ void r65816_cpu_init(r65816_cpu_t* cpu, r65816_rom_t* rom) {
     r65816_breakpoint_init(&cpu->breakpoints_exec);
     r65816_breakpoint_init(&cpu->breakpoints_read);
     r65816_breakpoint_init(&cpu->breakpoints_write);
-    
     r65816_cpu_clear(cpu);
-    r65816_initialize_opcode_table(cpu);
-    r65816_update_table(cpu);
 }
 
 void r65816_cpu_free(r65816_cpu_t* cpu) {
@@ -44,6 +41,8 @@ void r65816_cpu_clear(r65816_cpu_t* cpu) {
     cpu->regs.mdr = 0x00;
     memset(cpu->ram, 0, 20000);
     memset(cpu->sreg, 0, 0x2500);
+    r65816_initialize_opcode_table(cpu);
+    r65816_update_table(cpu);
 }
 
 void r65816_cpu_step(r65816_cpu_t* cpu) {
@@ -58,9 +57,7 @@ void r65816_cpu_run(r65816_cpu_t* cpu, uint32_t address) {
         /* r65816_cpu_disassemble_opcode(cpu, output, cpu->regs.pc.d); */
         /* printf("%s\n", output); */
         r65816_cpu_step(cpu);
-        cpu->stop_execution |= r65816_breakpoint_is_hit(cpu->breakpoints_exec, cpu->regs.pc.d)
-            | (cpu->regs.pc.d == 0x0583b8);
-
+        cpu->stop_execution |= r65816_breakpoint_is_hit(cpu->breakpoints_exec, cpu->regs.pc.d);
     }
 }
 

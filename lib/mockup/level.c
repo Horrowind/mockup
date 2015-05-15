@@ -16,8 +16,9 @@ void level_init(level_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gfx_s
     map8_init(&l->map8, &l->tileset);
     map16_init_fg(&l->map16_fg, rom, num_level, &l->map8);
     map16_init_bg(&l->map16_bg, rom, num_level, &l->map8);
+
+
     //Todo
-    int addr = 0;
     /* object_list_init_addr(l->layer1_objects, rom, addr); */
 
     /* for(int i = 0; i < 8; i++) { */

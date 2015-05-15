@@ -25,6 +25,9 @@ typedef struct cpu {
     r65816_breakpoint_t breakpoints_exec;
     r65816_breakpoint_t breakpoints_read;
     r65816_breakpoint_t breakpoints_write;
+
+    uint32_t breakpoint_address;
+    uint8_t breakpoint_data;
     uint8_t stop_execution;
 } r65816_cpu_t;
 
