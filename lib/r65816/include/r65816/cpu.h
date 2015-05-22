@@ -41,11 +41,16 @@ void r65816_cpu_write(r65816_cpu_t* cpu, uint32_t addr, uint8_t data);
 uint8_t r65816_cpu_read(r65816_cpu_t* cpu, uint32_t addr);
 
 void r65816_cpu_step(r65816_cpu_t* cpu);
-void r65816_cpu_run(r65816_cpu_t* cpu, uint32_t address);
+void r65816_cpu_run(r65816_cpu_t* cpu);
+void r65816_cpu_run_from(r65816_cpu_t* cpu, uint32_t address);
 
 void r65816_cpu_add_exec_bp(r65816_cpu_t* cpu, uint32_t address);
 void r65816_cpu_add_read_bp(r65816_cpu_t* cpu, uint32_t address);
 void r65816_cpu_add_write_bp(r65816_cpu_t* cpu, uint32_t address);
+
+void r65816_cpu_add_exec_bp_range(r65816_cpu_t* cpu, uint32_t address_low, uint32_t address_high);
+void r65816_cpu_add_read_bp_range(r65816_cpu_t* cpu, uint32_t address_low, uint32_t address_high);
+void r65816_cpu_add_write_bp_range(r65816_cpu_t* cpu, uint32_t address_low, uint32_t address_high);
 
 void r65816_cpu_show_state(r65816_cpu_t* cpu, char ouput[256]);
 void r65816_cpu_disassemble_opcode(r65816_cpu_t* cpu, char* output, uint32_t addr);

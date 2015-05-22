@@ -4,7 +4,7 @@ add_library(libmockup
   gfx_store.c
   layer.c
   level.c
-  object.c
+#  object.c
   palette.c
   tiles.c
   tileset.c

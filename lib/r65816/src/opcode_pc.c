@@ -33,6 +33,15 @@ inline void r65816_op_branch_bne(r65816_cpu_t* cpu) {               \
     }                                                               \
 }
 
+/* inline void r65816_op_branch_beq(r65816_cpu_t* cpu) {               \ */
+/*     if((1 && (cpu->regs.p.b & 0x02)) != 1) {                        \ */
+/*         cpu->rd.l = r65816_op_readpc(cpu);                          \ */
+/*     } else {                                                        \ */
+/*         cpu->rd.l = r65816_op_readpc(cpu);                          \ */
+/*         cpu->regs.pc.w = cpu->regs.pc.d + (int8_t)cpu->rd.l;        \ */
+/*     }                                                               \ */
+/* } */
+
 inline void r65816_op_bra(r65816_cpu_t* cpu) {
     cpu->rd.l = r65816_op_readpc(cpu);
     cpu->aa.w = cpu->regs.pc.d + (int8_t)cpu->rd.l;

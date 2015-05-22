@@ -6,34 +6,144 @@
 #include "addresses.h"
 #include "misc.h"
 #include "decode.h"
+#include "tileset.h"
 #include "level.h"
 
 void level_init(level_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gfx_store) {
     l->rom = rom;
-    level_header_init(&l->header, rom, num_level);
-    palette_init(&l->palette, rom, num_level);
-    tileset_init_level(&l->tileset, rom, num_level, gfx_store);
-    map8_init(&l->map8, &l->tileset);
-    map16_init_fg(&l->map16_fg, rom, num_level, &l->map8);
-    map16_init_bg(&l->map16_bg, rom, num_level, &l->map8);
 
+    //TODO: level header init
+    r65816_cpu_t cpu = {.regs.p.b = 0x24};
+    r65816_cpu_init(&cpu, rom);
 
-    //Todo
-    /* object_list_init_addr(l->layer1_objects, rom, addr); */
+    cpu.ram[0x10c] = num_level / 256;
+    cpu.ram[0x10b] = num_level & 0xFF;
+    
+    cpu.ram[0x65] = cpu.rom->banks[5][0xE000 + 3 * num_level]; 
+    cpu.ram[0x66] = cpu.rom->banks[5][0xE001 + 3 * num_level];
+    cpu.ram[0x67] = cpu.rom->banks[5][0xE002 + 3 * num_level];
+
+    uint32_t level_address_snes = (cpu.ram[0x67] << 16) | (cpu.ram[0x66] << 8) | cpu.ram[0x65];
+    uint32_t level_address_pc = ((level_address_snes & 0x7f0000) >> 1) + (level_address_snes & 0x7fff);
+    
+    r65816_cpu_add_exec_bp(&cpu, 0x0583B8);
+    r65816_cpu_run_from(&cpu, 0x05801E);
+
+    // --- palette init -----
+    memcpy(l->palette.data, cpu.ram + 0x0703, 512);
+    
+    for(int i = 0; i < 16; i++) {
+        l->palette.data[i << 4] = 0;
+    }
+
+    // --- tileset init -----
+    
+    int num_tileset = cpu.ram[0x1931];
+    int tileset_addr = 0x292B + num_tileset * 4;
+    uint8_t fg1 = rom->data[tileset_addr];
+    uint8_t fg2 = rom->data[tileset_addr + 1];
+    uint8_t bg1 = rom->data[tileset_addr + 2];
+    uint8_t fg3 = rom->data[tileset_addr + 3];
+    if(fg1 >= gfx_store->num_pages) return;
+    if(fg2 >= gfx_store->num_pages) return;
+    if(bg1 >= gfx_store->num_pages) return;
+    if(fg3 >= gfx_store->num_pages) return;
+
+    l->tileset.fg1 = &gfx_store->pages[fg1];
+    l->tileset.fg2 = &gfx_store->pages[fg2];
+    l->tileset.bg1 = &gfx_store->pages[bg1];
+    l->tileset.fg3 = &gfx_store->pages[fg3];
+    
+    l->map8.length = 512;
+    l->map8.tiles = malloc(512 * sizeof(tile8_t));
+    for(int tile = 0; tile < 512; tile++) {
+        gfx_page_t* used_chr;
+        switch(tile >> 7) {
+        case 0:
+            used_chr = l->tileset.fg1;
+            break;
+        case 1:
+            used_chr = l->tileset.fg2;
+            break;
+        case 2:
+            used_chr = l->tileset.bg1;
+            break;
+        case 3:
+            used_chr = l->tileset.fg3;
+            break;
+        }
+        l->map8.tiles[tile] = tile8_from_3bpp(used_chr->data + 24 * (tile % 128));
+    }
+
+    
+    // --- map16 fg init ----
+
+    l->map16_fg.length = 512;
+    l->map16_fg.tiles = malloc(512 * sizeof(tile16_t));
+    for(int i = 0; i < l->map16_fg.length; i++) {
+        int map16lookupSNES = 0x0D0000 + cpu.ram[2 * i + 0x0FBF] * 256 + cpu.ram[2 * i + 0x0FBE];
+        int map16lookupPC   = ((map16lookupSNES & 0x7f0000) >> 1) + (map16lookupSNES & 0x7fff);
+
+        for(int j = 0; j < 4; j++) {
+            l->map16_fg.tiles[i].properties[j] = (tile_properties_t)rom->data[map16lookupPC + j * 2 + 1];
+            uint16_t num_tile = rom->data[map16lookupPC + j * 2] | ((rom->data[map16lookupPC + j * 2 + 1] & 0b00000011) << 8);
+            l->map16_fg.tiles[i].tile8s[j] = &(l->map8.tiles[num_tile]);
+        }
+    }
+    
+    // --- map16 bg init ----
+
+    l->map16_bg.length = 512;
+    l->map16_bg.tiles = malloc(512 * sizeof(tile16_t));
+    for(int i = 0; i < 512; i++) {
+        int map16lookupSNES = 0x0D9100 + i*8;
+        int map16lookupPC   = ((map16lookupSNES & 0x7f0000) >> 1) + (map16lookupSNES & 0x7fff);
+
+        for(int j = 0; j < 4; j++) {
+            l->map16_bg.tiles[i].properties[j] = (tile_properties_t)rom->banks[0xD][9101 + i * 8 + j * 2];
+            uint16_t num_tile =  rom->banks[0xD][9100 + i * 8 + j * 2];
+            num_tile         |= (rom->banks[0xD][9101 + i * 8 + j * 2] & 0b00000011) << 8;
+            l->map16_bg.tiles[i].tile8s[j] = &(l->map8.tiles[num_tile]);
+        }
+    }
+
+    // --- object init ------
+
+    const uint32_t load_level_data_routine_end =  0x05809D; 
+    const uint32_t load_level_data_routine_end2 =  0x0586E2; 
+    
+    r65816_cpu_add_exec_bp(&cpu, load_level_data_routine_end);
+    r65816_cpu_add_exec_bp(&cpu, load_level_data_routine_end2);
+    r65816_cpu_add_exec_bp(&cpu, 0x0586C5);
+    r65816_cpu_add_write_bp_range(&cpu, 0x7EC800, 0x7EFFFF);
+    r65816_cpu_add_write_bp_range(&cpu, 0x7FC800, 0x7FFFFF);
+    r65816_cpu_run(&cpu); // start level loading routine
+    while((cpu.regs.pc.d != load_level_data_routine_end) && (cpu.regs.pc.d != load_level_data_routine_end2)) {
+        if(cpu.regs.pc.d == 0x586C5) { // we have a new object
+            if(cpu.ram[0x5A] == 0) { // it is an extended object
+                //printf("Extended object: %02x\n", cpu.ram[0x59]);
+            } else {
+                //printf("Normal object: %02x\n", cpu.ram[0x5A]);
+            }
+        } else { // a new tile was written to the level data RAM location
+            //printf("Tile %02x at %06x\n", cpu.breakpoint_data, cpu.breakpoint_address);
+        }
+        r65816_cpu_run(&cpu);
+    }
+    
 
     /* for(int i = 0; i < 8; i++) { */
     /*     level_animate(l, i); */
     /* } */
-}
 
-void level_header_init(level_header_t* header, r65816_rom_t* rom, int num_level) {
-    
+    r65816_cpu_free(&cpu);
 }
 
 void level_deinit(level_t* l) {
-    if(l->has_layer2_objects) object_list_deinit_addr(l->layer2_objects);
-    if(l->has_layer2_bg) layer16_deinit(l->layer2_background);
-    object_list_deinit_addr(l->layer1_objects);
+    //TODO: Do more explicit then handling function calls.
+    //if(l->has_layer2_objects) object_list_deinit_addr(l->layer2_objects);
+    //if(l->has_layer2_bg) layer16_deinit(l->layer2_background);
+    //object_list_deinit_addr(l->layer1_objects);
     map16_deinit(&l->map16_fg);
     map16_deinit(&l->map16_bg);
 }

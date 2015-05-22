@@ -111,7 +111,7 @@ void map16_init_fg(map16_t* map16, r65816_rom_t* rom, int num_level, map8_t* map
     cpu.ram[0x67] = cpu.rom->banks[5][0xE002 + 3 * num_level];
 
     r65816_cpu_add_exec_bp(&cpu, 0x0583B8);
-    r65816_cpu_run(&cpu, 0x0583AC);
+    r65816_cpu_run_from(&cpu, 0x0583AC);
     map16->length = 512;
     map16->tiles = malloc(512 * sizeof(tile16_t));
     for(int i = 0; i < map16->length; i++) {
@@ -137,7 +137,7 @@ void map16_init_bg(map16_t* map16, r65816_rom_t* rom, int num_level, map8_t* map
     cpu.ram[0x67] = cpu.rom->banks[5][0xE002 + 3 * num_level];
 
     r65816_cpu_add_exec_bp(&cpu, 0x0583B8);
-    r65816_cpu_run(&cpu, 0x0583AC);
+    r65816_cpu_run_from(&cpu, 0x0583AC);
 
     map16->length = 512;
     map16->tiles = malloc(512 * sizeof(tile16_t));

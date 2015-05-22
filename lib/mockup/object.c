@@ -6,7 +6,6 @@
 void object_list_init_level_data(object_list_t* object_list, r65816_rom_t* rom, uint8_t* data) {
     object_list->length = object_list_level_data_length(object_list, data);
     object_list->objects = malloc(object_list->length);
-    object_list->rom = rom;
     int index = 0;
     
     uint8_t screen = 0;
@@ -17,7 +16,6 @@ void object_list_init_level_data(object_list_t* object_list, r65816_rom_t* rom, 
     r65816_cpu_add_exec_bp(0x0583B8);
     r65816_breakpoint_add_range(cpu.breakpoints_write, 0xC800, 0xFFFF);
     r65816_breakpoint_add_range(cpu.breakpoints_write, 0x1C800, 0x1FFFF);
-    const uint32_t freeram = 0x1A000;
     while((c1 = *data) != 0xFF) {
         c2 = *(data + 1);
         c3 = *(data + 2);

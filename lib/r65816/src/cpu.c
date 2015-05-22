@@ -21,11 +21,17 @@ void r65816_cpu_init(r65816_cpu_t* cpu, r65816_rom_t* rom) {
 }
 
 void r65816_cpu_free(r65816_cpu_t* cpu) {
+    printf("huhu ram?!\n");
     free(cpu->ram);
+    printf("huhu sreg?!\n");
     free(cpu->sreg);
+    printf("huhu bp_exec?!\n");
     r65816_breakpoint_deinit(&cpu->breakpoints_exec);
+    printf("huhu bp_read?!\n");
     r65816_breakpoint_deinit(&cpu->breakpoints_read);
+    printf("huhu bp_write?!\n");
     r65816_breakpoint_deinit(&cpu->breakpoints_write);
+    printf("huhu?!\n");
 }
 
 void r65816_cpu_clear(r65816_cpu_t* cpu) {
@@ -49,7 +55,18 @@ void r65816_cpu_step(r65816_cpu_t* cpu) {
     (cpu->opcode_table[r65816_op_readpc(cpu)])(cpu);
 }
 
-void r65816_cpu_run(r65816_cpu_t* cpu, uint32_t address) {
+void r65816_cpu_run(r65816_cpu_t* cpu) {
+    cpu->stop_execution = 0;
+    while(!cpu->stop_execution) {
+        /* char output[256]; */
+        /* r65816_cpu_disassemble_opcode(cpu, output, cpu->regs.pc.d); */
+        /* printf("%s\n", output); */
+        r65816_cpu_step(cpu);
+        cpu->stop_execution |= r65816_breakpoint_is_hit(cpu->breakpoints_exec, cpu->regs.pc.d);
+    }
+}
+
+void r65816_cpu_run_from(r65816_cpu_t* cpu, uint32_t address) {
     cpu->regs.pc.d = address;
     cpu->stop_execution = 0;
     while(!cpu->stop_execution) {
@@ -60,6 +77,7 @@ void r65816_cpu_run(r65816_cpu_t* cpu, uint32_t address) {
         cpu->stop_execution |= r65816_breakpoint_is_hit(cpu->breakpoints_exec, cpu->regs.pc.d);
     }
 }
+
 
 void r65816_cpu_add_exec_bp(r65816_cpu_t* cpu, uint32_t addr) {
     r65816_breakpoint_add(&cpu->breakpoints_exec, addr);
@@ -72,6 +90,19 @@ void r65816_cpu_add_read_bp(r65816_cpu_t* cpu, uint32_t addr) {
 void r65816_cpu_add_write_bp(r65816_cpu_t* cpu, uint32_t addr) {
     r65816_breakpoint_add(&cpu->breakpoints_write, addr);
 }
+
+void r65816_cpu_add_exec_bp_range(r65816_cpu_t* cpu, uint32_t addr_low, uint32_t addr_high) {
+    r65816_breakpoint_add_range(&cpu->breakpoints_exec, addr_low, addr_high);
+}
+
+void r65816_cpu_add_read_bp_range(r65816_cpu_t* cpu, uint32_t addr_low, uint32_t addr_high) {
+    r65816_breakpoint_add_range(&cpu->breakpoints_read, addr_low, addr_high);
+}
+
+void r65816_cpu_add_write_bp_range(r65816_cpu_t* cpu, uint32_t addr_low, uint32_t addr_high) {
+    r65816_breakpoint_add_range(&cpu->breakpoints_write, addr_low, addr_high);
+}
+
 
 void r65816_cpu_show_state(r65816_cpu_t* cpu, char* output) {
     r65816_cpu_disassemble_opcode(cpu, output, cpu->regs.pc.d);

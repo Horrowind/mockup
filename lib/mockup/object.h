@@ -14,10 +14,9 @@ typedef struct {
     uint8_t bb_minx;
     uint8_t bb_miny;
     uint8_t bb_maxx;
-    uint8_t bb_maxx;
+    uint8_t bb_maxy;
     uint8_t zindex;
 
-    r65816_rom_t rom;
 } object_t;
 
 typedef struct {

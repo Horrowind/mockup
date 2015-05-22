@@ -2,12 +2,12 @@
 #include "stdlib.h"
 
 #include "breakpoint.h"
-
+#include "stdio.h"
 
 //TODO: Implement a better allocation strategy.
 void r65816_breakpoint_init(r65816_breakpoint_t* brk) {
     brk->length = 0;
-    brk->address = malloc(2*sizeof(uint32_t));
+    brk->address = malloc(1);
 }
 
 
@@ -26,7 +26,8 @@ void r65816_breakpoint_add(r65816_breakpoint_t* brk, uint32_t address) {
 }
 
 void r65816_breakpoint_add_range(r65816_breakpoint_t* brk, uint32_t address_low, uint32_t address_high) {
-    realloc(brk->address, (brk->length + 1) * 2 * sizeof(uint32_t));
+    printf("Test: %i\n", brk->length + 1);
+    realloc(brk->address, (brk->length + 1) * sizeof(struct {uint32_t a; uint32_t b;}));
     brk->address[brk->length].low = address_low;
     brk->address[brk->length].high = address_high;
     brk->length += 1;
