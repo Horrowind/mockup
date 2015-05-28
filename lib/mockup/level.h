@@ -11,7 +11,7 @@
 
 typedef struct {
     uint8_t bg_palette      : 3;
-    uint8_t length          : 5;
+    uint8_t screens         : 5;
     uint8_t bg_color        : 3;
     uint8_t level_mode      : 5;
     uint8_t layer3_priority : 1;
@@ -28,7 +28,7 @@ typedef struct {
 
 typedef struct {
     level_header_t header;
-    object_list_t* layer1_objects;
+    object_list_t layer1_objects;
     //sprite_list_t* sprites;
 
     union {
@@ -46,18 +46,14 @@ typedef struct {
     map16_t   map16_bg;
 
     r65816_rom_t* rom;
+
+    int num_level;
+    int height;
+    int width;
 } level_t;
 
 void level_init(level_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gfx_store);
-void level_header_init(level_header_t* header, r65816_rom_t* rom, int num_level);
 void level_deinit(level_t* l);
 
-void level_init_path(level_t* l, const char* path, int levelnum);
-void level_deinit_path(level_t* l);
-
-
-/* void level_load_palette(level_t* l, palette_t* palette); */
-/* void level_load_palette(level_t* l, object_t* objects); */
-
-void level_animate_map8(level_t* l, uint8_t frame, map8_t* map8);
+void level_animate(level_t* l, uint8_t frame, gfx_store_t* gfx_store);
 #endif //MOCKUP_LEVEL

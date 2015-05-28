@@ -2,7 +2,7 @@
 #include "cpu.h"
 
 uint8_t r65816_cpu_read(r65816_cpu_t* cpu, uint32_t addr) {
-    if(r65816_breakpoint_is_hit(cpu->breakpoints_write, addr) && !cpu->stop_execution) {
+    if(r65816_breakpoint_list_is_hit(cpu->breakpoints_write, addr) && !cpu->stop_execution) {
         cpu->stop_execution = 1;
         cpu->breakpoint_address = addr;
         cpu->breakpoint_data = 0;
@@ -41,7 +41,7 @@ void r65816_cpu_write(r65816_cpu_t* cpu, uint32_t addr, uint8_t data) {
     /*     cpu->breakpoint_data = data; */
     /* } */
     
-    if(r65816_breakpoint_is_hit(cpu->breakpoints_write, addr) && !cpu->stop_execution) {
+    if(r65816_breakpoint_list_is_hit(cpu->breakpoints_write, addr) && !cpu->stop_execution) {
         cpu->stop_execution = 1;
         cpu->breakpoint_address = addr;
         cpu->breakpoint_data = data;

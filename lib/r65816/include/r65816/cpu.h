@@ -22,9 +22,9 @@ typedef struct cpu {
     void (**opcode_table)(struct cpu*);
     void (*op_table[5 * 256])(struct cpu*);
 
-    r65816_breakpoint_t breakpoints_exec;
-    r65816_breakpoint_t breakpoints_read;
-    r65816_breakpoint_t breakpoints_write;
+    r65816_breakpoint_list_t breakpoints_exec;
+    r65816_breakpoint_list_t breakpoints_read;
+    r65816_breakpoint_list_t breakpoints_write;
 
     uint32_t breakpoint_address;
     uint8_t breakpoint_data;

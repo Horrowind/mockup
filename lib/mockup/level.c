@@ -8,33 +8,39 @@
 #include "decode.h"
 #include "tileset.h"
 #include "level.h"
+#include "pool.h"
+
+typedef struct {
+    uint16_t x;
+    uint16_t y;
+    uint16_t tile;
+} level_tile_t;
 
 void level_init(level_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gfx_store) {
     l->rom = rom;
+    l->num_level = num_level;
 
-    //TODO: level header init
     r65816_cpu_t cpu = {.regs.p.b = 0x24};
     r65816_cpu_init(&cpu, rom);
 
     cpu.ram[0x10c] = num_level / 256;
     cpu.ram[0x10b] = num_level & 0xFF;
     
-    cpu.ram[0x65] = cpu.rom->banks[5][0xE000 + 3 * num_level]; 
-    cpu.ram[0x66] = cpu.rom->banks[5][0xE001 + 3 * num_level];
-    cpu.ram[0x67] = cpu.rom->banks[5][0xE002 + 3 * num_level];
+    cpu.ram[0x65] = rom->banks[5][0xE000 + 3 * num_level]; 
+    cpu.ram[0x66] = rom->banks[5][0xE001 + 3 * num_level];
+    cpu.ram[0x67] = rom->banks[5][0xE002 + 3 * num_level];
+
+    cpu.ram[0x68] = rom->banks[5][0xE600 + 3 * num_level]; 
+    cpu.ram[0x69] = rom->banks[5][0xE601 + 3 * num_level];
+    cpu.ram[0x60] = rom->banks[5][0xE602 + 3 * num_level];
+
+    r65816_cpu_add_exec_bp(&cpu, 0x0583B8);
+    r65816_cpu_run_from(&cpu, 0x05801E);
 
     uint32_t level_address_snes = (cpu.ram[0x67] << 16) | (cpu.ram[0x66] << 8) | cpu.ram[0x65];
     uint32_t level_address_pc = ((level_address_snes & 0x7f0000) >> 1) + (level_address_snes & 0x7fff);
     
-    r65816_cpu_add_exec_bp(&cpu, 0x0583B8);
-    r65816_cpu_run_from(&cpu, 0x05801E);
-
-    // --- palette init -----
-    memcpy(l->palette.data, cpu.ram + 0x0703, 512);
-    
-    for(int i = 0; i < 16; i++) {
-        l->palette.data[i << 4] = 0;
-    }
+    memcpy(&(l->header), rom->data + level_address_pc, 5);
 
     // --- tileset init -----
     
@@ -56,151 +62,234 @@ void level_init(level_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gfx_s
     
     l->map8.length = 512;
     l->map8.tiles = malloc(512 * sizeof(tile8_t));
-    for(int tile = 0; tile < 512; tile++) {
-        gfx_page_t* used_chr;
-        switch(tile >> 7) {
-        case 0:
-            used_chr = l->tileset.fg1;
-            break;
-        case 1:
-            used_chr = l->tileset.fg2;
-            break;
-        case 2:
-            used_chr = l->tileset.bg1;
-            break;
-        case 3:
-            used_chr = l->tileset.fg3;
-            break;
-        }
-        l->map8.tiles[tile] = tile8_from_3bpp(used_chr->data + 24 * (tile % 128));
+    for(int tile = 0; tile < 128; tile++) {
+        l->map8.tiles[tile] = tile8_from_3bpp(l->tileset.fg1->data + 24 * (tile % 128));
     }
-
+    for(int tile = 128; tile < 256; tile++) {
+        l->map8.tiles[tile] = tile8_from_3bpp(l->tileset.fg2->data + 24 * (tile % 128));
+    }
+    for(int tile = 256; tile < 384; tile++) {
+        l->map8.tiles[tile] = tile8_from_3bpp(l->tileset.bg1->data + 24 * (tile % 128));
+    }
+    for(int tile = 384; tile < 512; tile++) {
+        l->map8.tiles[tile] = tile8_from_3bpp(l->tileset.fg3->data + 24 * (tile % 128));
+    }
     
     // --- map16 fg init ----
 
     l->map16_fg.length = 512;
-    l->map16_fg.tiles = malloc(512 * sizeof(tile16_t));
+    l->map16_fg.tiles = malloc(l->map16_fg.length * sizeof(tile16_t));
     for(int i = 0; i < l->map16_fg.length; i++) {
         int map16lookupSNES = 0x0D0000 + cpu.ram[2 * i + 0x0FBF] * 256 + cpu.ram[2 * i + 0x0FBE];
         int map16lookupPC   = ((map16lookupSNES & 0x7f0000) >> 1) + (map16lookupSNES & 0x7fff);
 
         for(int j = 0; j < 4; j++) {
             l->map16_fg.tiles[i].properties[j] = (tile_properties_t)rom->data[map16lookupPC + j * 2 + 1];
-            uint16_t num_tile = rom->data[map16lookupPC + j * 2] | ((rom->data[map16lookupPC + j * 2 + 1] & 0b00000011) << 8);
+            uint16_t num_tile =  rom->data[map16lookupPC + j * 2];
+            num_tile         |= (rom->data[map16lookupPC + j * 2 + 1] & 0x03) << 8;
+            if(num_tile == 0x3FF) num_tile = 0;
             l->map16_fg.tiles[i].tile8s[j] = &(l->map8.tiles[num_tile]);
         }
     }
-    
     // --- map16 bg init ----
 
     l->map16_bg.length = 512;
-    l->map16_bg.tiles = malloc(512 * sizeof(tile16_t));
-    for(int i = 0; i < 512; i++) {
+    l->map16_bg.tiles = malloc(l->map16_bg.length * sizeof(tile16_t));
+    for(int i = 0; i < l->map16_bg.length; i++) {
         int map16lookupSNES = 0x0D9100 + i*8;
-        int map16lookupPC   = ((map16lookupSNES & 0x7f0000) >> 1) + (map16lookupSNES & 0x7fff);
-
+        int map16lookupPC   = ((map16lookupSNES & 0x7f0000) >> 1) + (map16lookupSNES & 0x7fff);        
         for(int j = 0; j < 4; j++) {
-            l->map16_bg.tiles[i].properties[j] = (tile_properties_t)rom->banks[0xD][9101 + i * 8 + j * 2];
-            uint16_t num_tile =  rom->banks[0xD][9100 + i * 8 + j * 2];
-            num_tile         |= (rom->banks[0xD][9101 + i * 8 + j * 2] & 0b00000011) << 8;
+            l->map16_bg.tiles[i].properties[j] = (tile_properties_t)(rom->data[map16lookupPC + j * 2 + 1]);
+            uint16_t num_tile =  rom->data[map16lookupPC + j * 2];
+            num_tile         |= (rom->data[map16lookupPC + j * 2 + 1] & 0x03) << 8;
+            if(num_tile >= 0x200) num_tile = 0;
             l->map16_bg.tiles[i].tile8s[j] = &(l->map8.tiles[num_tile]);
         }
     }
 
     // --- object init ------
 
-    const uint32_t load_level_data_routine_end =  0x05809D; 
-    const uint32_t load_level_data_routine_end2 =  0x0586E2; 
+    const uint32_t load_level_data_routine_end  = 0x05809D; 
+    const uint32_t load_level_data_routine_end2 = 0x0586E2; 
     
     r65816_cpu_add_exec_bp(&cpu, load_level_data_routine_end);
     r65816_cpu_add_exec_bp(&cpu, load_level_data_routine_end2);
     r65816_cpu_add_exec_bp(&cpu, 0x0586C5);
     r65816_cpu_add_write_bp_range(&cpu, 0x7EC800, 0x7EFFFF);
     r65816_cpu_add_write_bp_range(&cpu, 0x7FC800, 0x7FFFFF);
+
+    pool_t object_pool;
+    pool_t tiles_pool;
+    pool_init(&object_pool);
+    pool_init(&tiles_pool);
+    
+    int xmax = 0, ymax = 0, xmin = 65535, ymin = 65535;
+    int tile_count = 0;
+    int obj_count = 0;
+    object_t* object = NULL;
+
     r65816_cpu_run(&cpu); // start level loading routine
-    while((cpu.regs.pc.d != load_level_data_routine_end) && (cpu.regs.pc.d != load_level_data_routine_end2)) {
-        if(cpu.regs.pc.d == 0x586C5) { // we have a new object
-            if(cpu.ram[0x5A] == 0) { // it is an extended object
-                //printf("Extended object: %02x\n", cpu.ram[0x59]);
-            } else {
-                //printf("Normal object: %02x\n", cpu.ram[0x5A]);
+    if(cpu.ram[0x5B] & 0x01) { // if the level is a vertical level
+        l->width = 32;
+        l->height = l->header.screens * 16;
+        /* while((cpu.regs.pc.d != load_level_data_routine_end) && (cpu.regs.pc.d != load_level_data_routine_end2)) { */
+        /*     if(cpu.regs.pc.d == 0x586C5) { // we have a new object */
+        /*         if(cpu.ram[0x5A] == 0) { // it is an extended object */
+        /*             printf("Extended object: %02x\n", cpu.ram[0x59]); */
+        /*         } else { */
+        /*             printf("Normal object: %02x\n", cpu.ram[0x5A]); */
+        /*         } */
+        /*     } else { // a new tile was written to the level data RAM location */
+        /*         printf("Tile %02x at %06x\n", cpu.breakpoint_data, cpu.breakpoint_address); */
+            
+        /*     } */
+        /*     r65816_cpu_run(&cpu); */
+        /* } */
+    } else { // the level is not a vertical level
+        l->width = l->header.screens * 16;
+        l->height = 27;
+        while((cpu.regs.pc.d != load_level_data_routine_end) && (cpu.regs.pc.d != load_level_data_routine_end2)) {
+            if(cpu.regs.pc.d == 0x586C5) { // we have a new object
+                if(tile_count > 0) {
+                    object->bb_xmin = xmin; 
+                    object->bb_ymin = ymin; 
+                    object->bb_xmax = xmax; 
+                    object->bb_ymax = ymax;
+                    object->x = (cpu.ram[0x1928] << 4) | (cpu.ram[0x57] & 0x0F);
+                    object->y = ((cpu.ram[0x57] & 0xF0) >> 4) | (cpu.ram[0x0A] << 4);
+                    //TODO: set z_index
+                    object->num = cpu.ram[0x5A];
+                    object->settings = cpu.ram[0x59];
+                    int width  = xmax - xmin + 1;
+                    int height = ymax - ymin + 1;
+                    object->tiles = malloc(sizeof(uint16_t) * width * height);
+                    for(int i = 0; i < tile_count; i++) {
+                        uint16_t x = ((level_tile_t*)tiles_pool.data)[i].x - xmin;
+                        uint16_t y = ((level_tile_t*)tiles_pool.data)[i].y - ymin;
+                        uint16_t tilenum = ((level_tile_t*)tiles_pool.data)[i].tile;
+                        int index = y * width + x;
+                        if(tilenum & 0xFF) {
+                            object->tiles[index] = (object->tiles[index] & 0xFF00) | tilenum;
+                        } else {
+                            object->tiles[index] = (object->tiles[index] & 0x00FF) | (tilenum << 8);
+                        }
+                    }
+                    pool_empty(&tiles_pool);
+                    tile_count = 0;
+                }
+                object = (object_t*)pool_alloc(&object_pool, sizeof(object_t));
+                xmax = 0; ymax = 0; xmin = 65535; ymin = 65535;
+                obj_count++;
+            } else { // a new tile was written to the level data RAM location
+                //record access to this ram location
+                level_tile_t* level_tile = (level_tile_t*)pool_alloc(&tiles_pool, sizeof(level_tile_t));
+                tile_count++;
+                int pure_addr = (cpu.breakpoint_address & 0xFFFF) - 0xC800;
+                int screen_addr = pure_addr % 432;
+                int screen = pure_addr / 432;
+                level_tile->x = (screen_addr & 0x0F) | (screen << 16);
+                level_tile->y = (screen_addr & 0xFF0) >> 4;
+                if(level_tile->x < xmin) xmin = level_tile->x;
+                if(level_tile->x > xmax) xmax = level_tile->x;
+                if(level_tile->y < ymin) ymin = level_tile->y;
+                if(level_tile->y > ymax) ymax = level_tile->y;
+                level_tile->tile = cpu.breakpoint_data | (pure_addr > 0x7F0000 ? 0x100 : 0); 
             }
-        } else { // a new tile was written to the level data RAM location
-            //printf("Tile %02x at %06x\n", cpu.breakpoint_data, cpu.breakpoint_address);
+            r65816_cpu_run(&cpu);
         }
-        r65816_cpu_run(&cpu);
+    }
+    pool_deinit(&tiles_pool);
+    l->layer1_objects.length  = obj_count;
+    l->layer1_objects.objects = (object_t*)object_pool.data;
+
+    // --- palette init -----
+
+    cpu.regs.p.b = 0x24;
+    r65816_cpu_add_exec_bp(&cpu, 0x00ACEC);
+    r65816_cpu_run_from(&cpu, 0x00ABED);
+    memcpy(l->palette.data, cpu.ram + 0x0703, 512);
+
+    for(int i = 0; i < 256; i += 16) {
+        l->palette.data[i] = 0;
+    }
+
+    for(int i = 0; i < 8; i++) {
+        level_animate(l, i, gfx_store);
     }
     
-
-    /* for(int i = 0; i < 8; i++) { */
-    /*     level_animate(l, i); */
-    /* } */
-
     r65816_cpu_free(&cpu);
 }
 
 void level_deinit(level_t* l) {
-    //TODO: Do more explicit then handling function calls.
-    //if(l->has_layer2_objects) object_list_deinit_addr(l->layer2_objects);
-    //if(l->has_layer2_bg) layer16_deinit(l->layer2_background);
-    //object_list_deinit_addr(l->layer1_objects);
-    map16_deinit(&l->map16_fg);
-    map16_deinit(&l->map16_bg);
+    // The commented should work but segfaults
+    /* for(int i = 0; i < l->layer1_objects.length; i++) { */
+    /*     free(l->layer1_objects.objects[i].tiles); */
+    /* } */
+    free(l->layer1_objects.objects);
+    free(l->map16_bg.tiles);
+    free(l->map16_fg.tiles);
+    free(l->map8.tiles);
 }
 
-/* void level_load_map16(level_t* l, r65816_cpu_t* cpu) { */
-/*     r65816_cpu_t cpu; */
-/*     r65816_cpu_init(&cpu, l->rom); */
-    
-/*     cpu.ram[0x65] = l->rom->data[0x02E000 + 3 * l->levelnum]; */
-/*     cpu.ram[0x66] = l->rom->data[0x02E000 + 3 * l->levelnum + 1]; */
-/*     cpu.ram[0x67] = l->rom->data[0x02E000 + 3 * l->levelnum + 2]; */
 
-/*     // Run the palette loading routine. */
-/*     r65816_cpu_add_exec_bp(&cpu, 0x0583B8); */
-/*     r65816_cpu_run(&cpu, 0x0583AC); */
-    
-/*     int bgPalette = cpu.ram[0x1930]; */
-              
-/*     for(int i = 0; i < 512; i++) { */
-/*         int map16lookupSNES = 0x0D0000 + cpu.ram[2 * i + 0x0FBF] * 256 + cpu.ram[2 * i + 0x0FBE]; */
-/*         int map16lookupPC   = ((map16lookupSNES & 0x7f0000) >> 1) + (map16lookupSNES & 0x7fff); */
-            
-/*         tile8_t   tiles[4]; */
-/*         uint8_t palettes[4]; */
-/*         tile_flip_t flip; */
-/*         int tile; */
-/*         for(int j = 0; j < 4; j++) { */
-/*             flip.XY     = (l->rom->data[map16lookupPC + j * 2 + 1] & 0b11000000) >> 6; */
-/*             palettes[j] = (l->rom->data[map16lookupPC + j * 2 + 1] & 0b00011100) >> 2; */
-/*             tile        =  l->rom->data[map16lookupPC + j * 2] | ((l->rom->data[map16lookupPC + j * 2 + 1] & 0b00000011) << 8); */
-/*             tiles[j]    =  tile8_flip(l->map8[tile], flip); */
-/*         } */
+void level_animate(level_t* l, uint8_t frame, gfx_store_t* gfx_store) {
+    //std::cout<<"Frame: " << (int)frame << std::endl;
+    r65816_cpu_t cpu;
+    r65816_cpu_init(&cpu, l->rom);
 
-/*         l->map16_fg[i] = tile16_from_tile8(tiles, palettes); */
-/*     } */
+    cpu.ram[0x14] = frame;
+    r65816_cpu_add_exec_bp(&cpu, 0x00A42F);
+    r65816_cpu_run_from(&cpu, 0x00A418);
+    int pos = cpu.sreg[0x0121];
+    uint32_t tmp_color = cpu.sreg[0x0122];
+    r65816_cpu_step(&cpu);
+    r65816_cpu_step(&cpu);
+    l->palette.data[pos] = tmp_color | (cpu.sreg[0x0122] << 8);
 
-/*     for(int i = 0; i < 512; i++) { */
-/*         int map16lookupSNES = 0x0D9100 + i*8; */
-/*         int map16lookupPC   = ((map16lookupSNES & 0x7f0000) >> 1) + (map16lookupSNES & 0x7fff); */
+    r65816_cpu_clear(&cpu);
+    cpu.ram[0x65] = l->rom->banks[5][0xE000 + 3 * l->num_level];
+    cpu.ram[0x66] = l->rom->banks[5][0xE001 + 3 * l->num_level];
+    cpu.ram[0x67] = l->rom->banks[5][0xE002 + 3 * l->num_level];
+    r65816_cpu_add_exec_bp(&cpu, 0x0583B8);
+    r65816_cpu_run_from(&cpu, 0x0583AC);
+    cpu.ram[0x0014] = frame;
+    cpu.ram[0x14AD] = 0;
+    cpu.ram[0x14AE] = 0;
+    cpu.ram[0x14AF] = 0;
+    cpu.regs.p.b = 0;
+    cpu.regs.p.x = 1;
+    cpu.regs.p.m = 1;
+    //cpu.regs.d = 0x3000;
 
-/*         tile8_t   tiles[4]; */
-/*         uint8_t palettes[4]; */
-/*         tile_flip_t flip; */
-/*         int tile; */
-/*         for(int j = 0; j < 4; j++) { */
-/*             flip.XY     = (l->rom->data[map16lookupPC + j * 2 + 1] & 0b11000000) >> 6; */
-/*             palettes[j] = (l->rom->data[map16lookupPC + j * 2 + 1] & 0b00011100) >> 2; */
-/*             tile        =  l->rom->data[map16lookupPC + j * 2] | ((l->rom->data[map16lookupPC + j * 2 + 1] & 0b00000011) << 8); */
-/*             tiles[j]    =  tile8_flip(l->map8[tile], flip); */
+    r65816_cpu_add_exec_bp(&cpu, 0x00A601);
+    r65816_cpu_run_from(&cpu, 0x00A5FD);
 
-/*         } */
+    uint16_t source[3], dest[3];
+    // get the dma source addresses. It works... note that 1000 is decimal.
+    source[0] = ((cpu.ram[0x0D77] << 8) + cpu.ram[0x0D76]) / 32 - 1000; 
+    source[1] = ((cpu.ram[0x0D79] << 8) + cpu.ram[0x0D78]) / 32 - 1000;
+    source[2] = ((cpu.ram[0x0D7B] << 8) + cpu.ram[0x0D7A]) / 32 - 1000;
 
-/*        	l->map16_bg[i] = tile16_from_tile8(tiles, palettes); */
-/*     } */
+    dest[0] = ((cpu.ram[0x0D7D] << 8) | cpu.ram[0x0D7C]) / 16;
+    dest[1] = ((cpu.ram[0x0D7F] << 8) | cpu.ram[0x0D7E]) / 16;
+    dest[2] = ((cpu.ram[0x0D81] << 8) | cpu.ram[0x0D80]) / 16;
+	       
+    for(int i = 0; i < 3; i++) {
+        if(dest[i] == 0 || ((source[i] & 0xFF00) == 0xFF00)) continue;
+        if(dest[i] == 0x80) {                                              //See CODE_00A3DA
+            l->map8.tiles[dest[i]     ] = tile8_from_3bpp(gfx_store->pages[0x33].data + 24 * (source[i] + 0));
+            l->map8.tiles[dest[i] +  1] = tile8_from_3bpp(gfx_store->pages[0x33].data + 24 * (source[i] + 1));
+            l->map8.tiles[dest[i] + 16] = tile8_from_3bpp(gfx_store->pages[0x33].data + 24 * (source[i] + 2));
+            l->map8.tiles[dest[i] + 17] = tile8_from_3bpp(gfx_store->pages[0x33].data + 24 * (source[i] + 3));
+        } else {
+            for(int j = 0; j < 4; j++) {
+                l->map8.tiles[dest[i] + j] = tile8_from_3bpp(gfx_store->pages[0x33].data + 24 * (source[i] + j));
+            }
+        }
+    }
+}
 
-/*     r65816_cpu_free(&cpu); */
-/* } */
+
 
 /* void level_load_objects(level_t* l, r65816_cpu_t* cpu) { */
 /*     r65816_cpu_t cpu; */
@@ -353,111 +442,3 @@ void level_deinit(level_t* l) {
 /* void level_get_layer1(r65816_cpu* cpu, uint8_t frame, layer16_t* layer) { */
         
 /* } */
-
-
-/* int Level::getHeight() { */
-/*     return l->height; */
-/* } */
-
-/* int Level::getWidth() { */
-/*     return l->width; */
-/* } */
-
-/* bool Level::hasLayer2BG() { */
-/*     return l->hasLayer2BG; */
-/* } */
-
-/* bool Level::hasLayer2Objects() { */
-/*     return l->hasLayer2Objects; */
-/* } */
-
-/* bool Level::isVerticalLevel() { */
-/*     return l->isVerticalLevel; */
-/* } */
-
-/* uint32_t* Level::getPalette() { */
-/*     return l->palette; */
-/* } */
-
-/* uint32_t Level::getBackgroundColor() { */
-/*     return l->backgroundColor; */
-/* } */
-
-
-/* Tile8 Level::getMap8(int i) { */
-/*     return l->map8[i]; */
-/* } */
-
-/* Tile8 Level::getGFX3233(int i) { */
-/*     return l->gfx3233[i]; */
-/* } */
-
-
-/* Tile16 Level::getMap16fg(int i) { */
-/*     return l->map16fg[i]; */
-/* } */
-
-/* Tile16 Level::getMap16bg(int i) { */
-/*     return l->map16bg[i]; */
-/* } */
-
-/* uint16_t Level::getTile16(int x, int y) { */
-/*     return l->layer1[y * l->width + x]; */
-/* } */
-
-
-/* void Level::animate(uint8_t frame) { */
-/*     //std::cout<<"Frame: " << (int)frame << std::endl; */
-/*     l->cpu.clear_ram(); */
-/*     cpu.ram[0x14] = frame; */
-/*     l->cpu.run(0x00A418, 0x00A42F); */
-/*     int pos = l->cpu.op_read(0x2121); */
-/*     uint32_t snesColor = l->cpu.op_read(0x2122); */
-/*     l->cpu.step(); l->cpu.step(); */
-/*     snesColor = snesColor | (l->cpu.op_read(0x2122) << 8); */
-/*     l->palette[pos] = convertColor(snesColor); */
-
-/*     l->cpu.clear_ram(); */
-/*     cpu.ram[0x65] = l->rom->data[0x02E000 + 3 * l->levelnum];  */
-/*     cpu.ram[0x66] = l->rom->data[0x02E000 + 3 * l->levelnum + 1]; */
-/*     cpu.ram[0x67] = l->rom->data[0x02E000 + 3 * l->levelnum + 2]; */
-/*     l->cpu.run(0x0583AC, 0x0583B8); */
-/*     cpu.ram[0x0014] = frame; */
-/*     cpu.ram[0x14AD] = 0; */
-/*     cpu.ram[0x14AE] = 0; */
-/*     cpu.ram[0x14AF] = 0; */
-/*     l->cpu.regs.p = 0; */
-/*     l->cpu.regs.p.x = true; */
-/*     l->cpu.regs.p.m = true; */
-/*     //l->cpu.regs.d = 0x3000; */
-
-/*     //        l->cpu.setDebug(true); */
-/*     l->cpu.run(0x00A5FD, 0x00A601); */
-/*     //        l->cpu.setDebug(false); */
-
-/*     uint16_t source[3], dest[3]; */
-/*     source[0] = ((cpu.ram[0x0D77] << 8) + cpu.ram[0x0D76] - 0x2000) / 32;  */
-/*     source[1] = ((cpu.ram[0x0D79] << 8) + cpu.ram[0x0D78] - 0x2000) / 32;  */
-/*     source[2] = ((cpu.ram[0x0D7B] << 8) + cpu.ram[0x0D7A] - 0x2000) / 32;  */
-
-/*     dest[0] = ((cpu.ram[0x0D7D] << 8) | cpu.ram[0x0D7C]) / 16; */
-/*     dest[1] = ((cpu.ram[0x0D7F] << 8) | cpu.ram[0x0D7E]) / 16;  */
-/*     dest[2] = ((cpu.ram[0x0D81] << 8) | cpu.ram[0x0D80]) / 16; */
-	       
-/*     for(int i = 0; i < 3; i++) { */
-/* 	if(dest[i] == 0 || ((source[i] & 0xFF00) == 0xFF00)) continue; */
-/* 	if(dest[i] == 0x80) {                                              //See CODE_00A3DA */
-/* 	    l->map8[dest[i]] = l->gfx3233[source[i]]; */
-/* 	    l->map8[dest[i] + 1] = l->gfx3233[source[i] + 1]; */
-/* 	    l->map8[dest[i] + 16] = l->gfx3233[source[i] + 2]; */
-/* 	    l->map8[dest[i] + 17] = l->gfx3233[source[i] + 3]; */
-/* 	} else { */
-/* 	    for(int j = 0; j < 4; j++) { */
-/* 		l->map8[dest[i] + j] = l->gfx3233[source[i] +j]; */
-/* 	    } */
-/* 	} */
-/*     } */
-/*     load_map16(); */
-	
-/* } */
-

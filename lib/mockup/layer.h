@@ -9,7 +9,10 @@ typedef struct {
     int width;
 
     uint16_t* data;
-    
+} rect_t;
+
+typedef struct {
+    rect_t rect;
     tile16_t* map;
     int map_length;
     

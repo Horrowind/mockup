@@ -120,7 +120,7 @@ void map16_init_fg(map16_t* map16, r65816_rom_t* rom, int num_level, map8_t* map
 
         for(int j = 0; j < 4; j++) {
             map16->tiles[i].properties[j] = (tile_properties_t)rom->data[map16lookupPC + j * 2 + 1];
-            uint16_t num_tile             = rom->data[map16lookupPC + j * 2] | ((rom->data[map16lookupPC + j * 2 + 1] & 0b00000011) << 8);
+            uint16_t num_tile             = rom->data[map16lookupPC + j * 2] | ((rom->data[map16lookupPC + j * 2 + 1] & 0x03) << 8);
             map16->tiles[i].tile8s[j]     = &map8->tiles[num_tile];
         }
     }

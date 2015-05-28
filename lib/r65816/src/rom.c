@@ -159,5 +159,8 @@ uint8_t r65816_rom_expand(r65816_rom_t* rom, uint8_t size) {
     rom->data = ptr;
     rom->header->rom_size = size;
     rom->num_banks = snes_header_sizes[size] / rom->banksize;
+    for(int i = 0; i < rom->num_banks; i++) {
+        rom->banks[i] = rom->data + i * rom->banksize - 0x8000;
+    }
     return 0;
 }

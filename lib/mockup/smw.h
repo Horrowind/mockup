@@ -15,7 +15,9 @@ typedef struct {
 void smw_init(smw_t* smw, r65816_rom_t* rom);
 void smw_deinit(smw_t* smw);
 
-void smw_init_path(smw_t* smw, const char* path);
-void smw_deinit_path(smw_t* smw);
+void smw_init_all(smw_t* smw, r65816_rom_t* rom);
+void smw_deinit_all(smw_t* smw);
+
+void smw_level_load(smw_t* smw, int level_num);
 
 #endif //MOCKUP_SMW_ROM_H

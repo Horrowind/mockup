@@ -40,6 +40,7 @@ void decode_lz2(const uint8_t* data, uint8_t* output) {
     int pos = 0, pos_out = 0, copy_pos;
         
     while((cmd = data[pos]) != 0xFF) {
+        //printf("huhu: %08x", output + pos_out);
         if((cmd & 0xE0) == 0xE0) {
             pos++;
             length = ((cmd & 0x03) << 8) + (int)data[pos] + 1;

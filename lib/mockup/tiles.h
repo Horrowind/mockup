@@ -9,16 +9,11 @@
 
 typedef union {
     struct {
-        union {
-            struct {
-                uint8_t Y   : 1;
-                uint8_t X   : 1;
-            };
-            uint8_t YX : 2;
-        };
-        uint8_t P   : 1;
-        uint8_t CCC : 3;
         uint8_t TT  : 2;
+        uint8_t CCC : 3;
+        uint8_t P   : 1;
+        uint8_t X   : 1;
+        uint8_t Y   : 1;
     };
     uint8_t YXPCCCTT;
 } tile_properties_t;

@@ -13,6 +13,6 @@ typedef struct {
 } palette_pc_t;
 
 void palette_init(palette_t* palette, r65816_rom_t* rom, int num_level);
-uint32_t palette_to_pc(palette_t* palette, uint8_t index);
+uint32_t palette_to_pc(palette_t* palette, palette_pc_t* palette_pc);
 
 #endif //MOCKUP_PALETTE_H

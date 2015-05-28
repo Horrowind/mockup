@@ -34,7 +34,7 @@ namespace Mockup {
         
     private:
         
-        //void draw_level(int level);
+        void draw_level(int level);
 
         QGraphicsView* m_view;
         QGraphicsScene m_scene;
@@ -46,13 +46,23 @@ namespace Mockup {
         QGraphicsView* m_viewMap8;
         QGraphicsScene m_sceneMap8;
 
-        QDockWidget*   m_dockMap16;
-        QGraphicsView* m_viewMap16;
-        QGraphicsScene m_sceneMap16;
+        QDockWidget*   m_dockMap16FG;
+        QGraphicsView* m_viewMap16FG;
+        QGraphicsScene m_sceneMap16FG;
 
+        QDockWidget*   m_dockMap16BG;
+        QGraphicsView* m_viewMap16BG;
+        QGraphicsScene m_sceneMap16BG;
+
+        
         QString        m_filePath;
 
-        smw_t smw;
+        int            m_currentLevel;
+        int            m_frame;
+
+        smw_t          m_smw;
+        r65816_rom_t   m_rom;
+        
     };
 }
 #endif //MOCKUP_MAIN_WINDOW_HPP
