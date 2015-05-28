@@ -6,7 +6,6 @@
 
 
 //TODO: Remove magic numbers.
-//TODO: Better allocation strategy.
 void gfx_store_init(gfx_store_t* gfx_store, r65816_rom_t* rom) {
 
     int sum_length = 0;

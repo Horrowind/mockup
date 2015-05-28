@@ -14,6 +14,7 @@ typedef struct {
     uint16_t x;
     uint16_t y;
     uint16_t tile;
+    uint16_t is_top;
 } level_tile_t;
 
 void level_init(level_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gfx_store) {
@@ -127,11 +128,11 @@ void level_init(level_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gfx_s
     int tile_count = 0;
     int obj_count = 0;
     object_t* object = NULL;
-
     r65816_cpu_run(&cpu); // start level loading routine
     if(cpu.ram[0x5B] & 0x01) { // if the level is a vertical level
         l->width = 32;
         l->height = l->header.screens * 16;
+        
         /* while((cpu.regs.pc.d != load_level_data_routine_end) && (cpu.regs.pc.d != load_level_data_routine_end2)) { */
         /*     if(cpu.regs.pc.d == 0x586C5) { // we have a new object */
         /*         if(cpu.ram[0x5A] == 0) { // it is an extended object */
@@ -163,21 +164,24 @@ void level_init(level_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gfx_s
                     int width  = xmax - xmin + 1;
                     int height = ymax - ymin + 1;
                     object->tiles = malloc(sizeof(uint16_t) * width * height);
+                    for(int i = 0; i < width * height; i++) object->tiles[i] = 0x25;
                     for(int i = 0; i < tile_count; i++) {
                         uint16_t x = ((level_tile_t*)tiles_pool.data)[i].x - xmin;
                         uint16_t y = ((level_tile_t*)tiles_pool.data)[i].y - ymin;
                         uint16_t tilenum = ((level_tile_t*)tiles_pool.data)[i].tile;
+                        uint16_t is_top = ((level_tile_t*)tiles_pool.data)[i].is_top;
                         int index = y * width + x;
-                        if(tilenum & 0xFF) {
-                            object->tiles[index] = (object->tiles[index] & 0xFF00) | tilenum;
+                        if(is_top) {
+                            object->tiles[index] = (object->tiles[index] & 0x00FF) | tilenum;
                         } else {
-                            object->tiles[index] = (object->tiles[index] & 0x00FF) | (tilenum << 8);
+                            object->tiles[index] = (object->tiles[index] & 0xFF00) | tilenum;
                         }
                     }
                     pool_empty(&tiles_pool);
                     tile_count = 0;
                 }
                 object = (object_t*)pool_alloc(&object_pool, sizeof(object_t));
+                object->tiles = NULL;
                 xmax = 0; ymax = 0; xmin = 65535; ymin = 65535;
                 obj_count++;
             } else { // a new tile was written to the level data RAM location
@@ -187,18 +191,49 @@ void level_init(level_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gfx_s
                 int pure_addr = (cpu.breakpoint_address & 0xFFFF) - 0xC800;
                 int screen_addr = pure_addr % 432;
                 int screen = pure_addr / 432;
-                level_tile->x = (screen_addr & 0x0F) | (screen << 16);
+                level_tile->x = (screen_addr & 0x0F) | (screen * 16);
                 level_tile->y = (screen_addr & 0xFF0) >> 4;
                 if(level_tile->x < xmin) xmin = level_tile->x;
                 if(level_tile->x > xmax) xmax = level_tile->x;
                 if(level_tile->y < ymin) ymin = level_tile->y;
                 if(level_tile->y > ymax) ymax = level_tile->y;
-                level_tile->tile = cpu.breakpoint_data | (pure_addr > 0x7F0000 ? 0x100 : 0); 
+                level_tile->is_top = cpu.breakpoint_address > 0x7F0000;
+                level_tile->tile = level_tile->is_top ? (cpu.breakpoint_data << 8) : cpu.breakpoint_data; 
             }
             r65816_cpu_run(&cpu);
         }
+        if(tile_count > 0) {
+            object->bb_xmin = xmin; 
+            object->bb_ymin = ymin; 
+            object->bb_xmax = xmax; 
+            object->bb_ymax = ymax;
+            object->x = (cpu.ram[0x1928] << 4) | (cpu.ram[0x57] & 0x0F);
+            object->y = ((cpu.ram[0x57] & 0xF0) >> 4) | (cpu.ram[0x0A] << 4);
+            //TODO: set z_index
+            object->num = cpu.ram[0x5A];
+            object->settings = cpu.ram[0x59];
+            int width  = xmax - xmin + 1;
+            int height = ymax - ymin + 1;
+            object->tiles = malloc(sizeof(uint16_t) * width * height);
+            for(int i = 0; i < width * height; i++) object->tiles[i] = 0x25;
+            for(int i = 0; i < tile_count; i++) {
+                uint16_t x = ((level_tile_t*)tiles_pool.data)[i].x - xmin;
+                uint16_t y = ((level_tile_t*)tiles_pool.data)[i].y - ymin;
+                uint16_t tilenum = ((level_tile_t*)tiles_pool.data)[i].tile;
+                uint16_t is_top = ((level_tile_t*)tiles_pool.data)[i].is_top;
+                int index = y * width + x;
+                if(is_top) {
+                    object->tiles[index] = (object->tiles[index] & 0x00FF) | tilenum;
+                } else {
+                    object->tiles[index] = (object->tiles[index] & 0xFF00) | tilenum;
+                }
+            }
+            pool_empty(&tiles_pool);
+            tile_count = 0;
+        }
     }
     pool_deinit(&tiles_pool);
+    
     l->layer1_objects.length  = obj_count;
     l->layer1_objects.objects = (object_t*)object_pool.data;
 
@@ -221,10 +256,9 @@ void level_init(level_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gfx_s
 }
 
 void level_deinit(level_t* l) {
-    // The commented should work but segfaults
-    /* for(int i = 0; i < l->layer1_objects.length; i++) { */
-    /*     free(l->layer1_objects.objects[i].tiles); */
-    /* } */
+    for(int i = 0; i < l->layer1_objects.length; i++) {
+        if(l->layer1_objects.objects[i].tiles) free(l->layer1_objects.objects[i].tiles);
+    }
     free(l->layer1_objects.objects);
     free(l->map16_bg.tiles);
     free(l->map16_fg.tiles);
@@ -265,7 +299,7 @@ void level_animate(level_t* l, uint8_t frame, gfx_store_t* gfx_store) {
     r65816_cpu_run_from(&cpu, 0x00A5FD);
 
     uint16_t source[3], dest[3];
-    // get the dma source addresses. It works... note that 1000 is decimal.
+    // Get the dma source addresses. It works... note that 1000 is decimal.
     source[0] = ((cpu.ram[0x0D77] << 8) + cpu.ram[0x0D76]) / 32 - 1000; 
     source[1] = ((cpu.ram[0x0D79] << 8) + cpu.ram[0x0D78]) / 32 - 1000;
     source[2] = ((cpu.ram[0x0D7B] << 8) + cpu.ram[0x0D7A]) / 32 - 1000;
@@ -287,6 +321,8 @@ void level_animate(level_t* l, uint8_t frame, gfx_store_t* gfx_store) {
             }
         }
     }
+
+    r65816_cpu_free(&cpu);
 }
 
 

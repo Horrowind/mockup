@@ -34,7 +34,7 @@ namespace Mockup {
         
     private:
         
-        void draw_level(int level);
+        void draw_level();
 
         QGraphicsView* m_view;
         QGraphicsScene m_scene;

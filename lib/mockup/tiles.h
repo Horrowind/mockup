@@ -40,7 +40,7 @@ typedef struct {
 } tile16_t;
 
 typedef struct {
-    uint32_t data[64];
+    uint32_t data[256];
 } tile16_pc_t;
 
 typedef struct {
@@ -63,7 +63,6 @@ void map8_deinit(map8_t* map8);
 
 void map16_init_bg(map16_t* map16, r65816_rom_t* rom, int num_level, map8_t* map8);
 void map16_init_fg(map16_t* map16, r65816_rom_t* rom, int num_level, map8_t* map8);
-void map16_deinit(map16_t* map16);
-void map16_to_pc(map16_t* map16, map16_pc_t* map16_pc);
-
+void map16_pc_init(map16_pc_t* map16_pc, map16_t* map16);
+void map16_pc_deinit(map16_pc_t* map16);
 #endif //MOCKUP_TILES_HPP

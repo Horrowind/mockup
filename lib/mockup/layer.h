@@ -7,17 +7,7 @@
 typedef struct {
     int height;
     int width;
-
     uint16_t* data;
-} rect_t;
-
-typedef struct {
-    rect_t rect;
-    tile16_t* map;
-    int map_length;
-    
-    palette_t* palette;
-    int palette_length;
 } layer16_t;
 
 void layer16_init(layer16_t* layer);

@@ -58,23 +58,6 @@ tile8_t tile8_from_4bpp(uint8_t* data) {
     return tile;
 }
 
-void tile16_to_pc(tile16_t* tile16, tile16_pc_t* tile16_pc) {
-    for(int k = 0; k < 1; k++) {
-        for(int l = 0; l < 1; l++) {
-            int pos = k*2 +l;
-            int itx = tile16->properties[pos].X ? -1 : 1;
-            int ity = tile16->properties[pos].Y ? -1 : 1; 
-            int sy  = tile16->properties[pos].Y ?  7 : 0;
-            for(int i = 0; i < 8; i++) {
-                int sx  = tile16->properties[pos].X ?  7 : 0;
-                for(int j = 0; j < 8; j++) {
-                    tile16_pc->data[16* l + (2 * k + i) * 8 + j] = tile16->tile8s[pos]->pixels[sy * 8 + sx];
-                    sx += itx;
-                }
-                sy += ity;
-            }
-        }
-    }
 /*     tile8_t tile_new;
 /*     int itx = flip.X ? -1 : 1; */
 /*     int ity = flip.Y ? -1 : 1; */
@@ -90,7 +73,6 @@ void tile16_to_pc(tile16_t* tile16, tile16_pc_t* tile16_pc) {
 /*         sy += ity; */
 /*     } */
 /*     return tile_new; */
-}
 
 tile16_t tile16_from_tile8(tile8_t* t[4], tile_properties_t properties[4]) {
     tile16_t tile;
@@ -186,4 +168,37 @@ void map8_init(map8_t* map8, tileset_t* tileset) {
 
 void map8_deinit(map8_t* map8) {
     free(map8->tiles);
+}
+
+
+void tile16_pc_init(tile16_pc_t* tile16_pc, tile16_t* tile16) {
+    for(int k = 0; k < 2; k++) {
+        for(int l = 0; l < 2; l++) {
+            int pos = k*2 +l;
+            int itx = tile16->properties[pos].X ? -1 : 1;
+            int ity = tile16->properties[pos].Y ? -1 : 1; 
+            int sy  = tile16->properties[pos].Y ?  7 : 0;
+            for(int i = 0; i < 8; i++) {
+                int sx  = tile16->properties[pos].X ?  7 : 0;
+                for(int j = 0; j < 8; j++) {
+                    tile16_pc->data[128 * l + (k + 2*i) * 8 + j] =
+                        16 * tile16->properties[0].CCC + tile16->tile8s[pos]->pixels[sy * 8 + sx];
+                    sx += itx;
+                }
+                sy += ity;
+            }
+        }
+    }
+}
+
+void map16_pc_init(map16_pc_t* map16_pc, map16_t* map16_snes) {
+    map16_pc->length = map16_snes->length;
+    map16_pc->tiles = malloc(map16_pc->length * 256 * sizeof(uint32_t));
+    for(int i = 0; i < map16_pc->length; i++) {
+        tile16_pc_init(&map16_pc->tiles[i], &map16_snes->tiles[i]);
+    }
+}
+
+void map16_pc_deinit(map16_pc_t* map16_pc) {
+    free(map16_pc->tiles);
 }

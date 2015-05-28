@@ -28,26 +28,12 @@ uint8_t r65816_cpu_read(r65816_cpu_t* cpu, uint32_t addr) {
 }
 
 void r65816_cpu_write(r65816_cpu_t* cpu, uint32_t addr, uint8_t data) {
-
-    /* if((0x7ec800 <= addr) && (addr <= 0x7effff)) { */
-    /*     cpu->stop_execution = 1; */
-    /*     cpu->breakpoint_address = addr; */
-    /*     cpu->breakpoint_data = data; */
-    /* } */
-
-    /* if((0x7fc800 <= addr) && (addr <= 0x7fffff)) { */
-    /*     cpu->stop_execution = 1; */
-    /*     cpu->breakpoint_address = addr; */
-    /*     cpu->breakpoint_data = data; */
-    /* } */
-    
+   
     if(r65816_breakpoint_list_is_hit(cpu->breakpoints_write, addr) && !cpu->stop_execution) {
         cpu->stop_execution = 1;
         cpu->breakpoint_address = addr;
         cpu->breakpoint_data = data;
     }
-
-    
 
     if(addr & 0xFF8000) {
         if(addr >= 0x7E0000 && addr < 0x800000) {
