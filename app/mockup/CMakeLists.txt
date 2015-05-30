@@ -5,7 +5,6 @@ FIND_PACKAGE(Qt5Widgets REQUIRED)
 ADD_EXECUTABLE(mockup
   main.cpp
   main_window.cpp
-  graphics_object.cpp
 )
 message(STATUS ${MOCKUPLIB_INCLUDE_DIR})
 message(STATUS ${R65816_INCLUDE_DIR})
