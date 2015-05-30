@@ -5,10 +5,12 @@
 #include <QGraphicsView>
 #include <QTextEdit>
 
+//#include "graphics_object.hpp"
+
 extern "C" {
 #include "smw.h"
 }
-
+Q_DECLARE_METATYPE(object_t*)
 class QKeyEvent;
 
 namespace Mockup {
@@ -35,6 +37,7 @@ namespace Mockup {
     private:
         
         void draw_level();
+        void load_level();
 
         QGraphicsView* m_view;
         QGraphicsScene m_scene;
@@ -62,7 +65,10 @@ namespace Mockup {
 
         smw_t          m_smw;
         r65816_rom_t   m_rom;
-        
+        palette_pc_t   m_palette;
+        map16_pc_t     m_map16FG;
+        map16_pc_t     m_map16BG;
+
     };
 }
 #endif //MOCKUP_MAIN_WINDOW_HPP

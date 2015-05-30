@@ -10,6 +10,7 @@
 #include <QTimer>
 #include <QThread>
 
+//#include "graphics_object.hpp"
 #include "main_window.hpp"
 
 
@@ -61,12 +62,14 @@ namespace Mockup {
         addDockWidget(Qt::BottomDockWidgetArea, m_dockMap16BG);
         addDockWidget(Qt::BottomDockWidgetArea, m_dockDebug);
         m_view = new QGraphicsView(&m_scene);
+        m_view->setDragMode(QGraphicsView::RubberBandDrag);
+        m_view->setViewportUpdateMode(QGraphicsView::BoundingRectViewportUpdate);
         setCentralWidget(m_view);
         m_filePath = "smw.sfc";
         r65816_rom_load(&m_rom, m_filePath.toLatin1().data());
         smw_init(&m_smw, &m_rom);
-        smw_level_load(&m_smw, m_currentLevel);
-        
+
+        load_level();
         
         // for(int i = 0; i < 512; i++) {
         //     draw_level(filePath.toLatin1().data(), i);
@@ -109,7 +112,6 @@ namespace Mockup {
     void MainWindow::draw_level() {
         
         setWindowTitle(QString("Mockup - Level %1").arg( m_currentLevel, 0, 16));
-        m_scene.clear();
         m_sceneMap8.clear();
         m_sceneMap16FG.clear();
         m_sceneMap16BG.clear();
@@ -117,12 +119,12 @@ namespace Mockup {
         m_view->setSceneRect(0, 0, m_smw.levels[ m_currentLevel].width * 16, m_smw.levels[ m_currentLevel].height * 16);
 
         // Palette
-        palette_pc_t palette_pc;
-        palette_to_pc(&m_smw.levels[ m_currentLevel].palette, &palette_pc);
+        
+        palette_to_pc(&m_smw.levels[ m_currentLevel].palette, &m_palette);
         
         // Map8
         QImage imgMap8(128, 256, QImage::Format_Indexed8);
-        for(int i = 0; i < 256; i++) imgMap8.setColor(i, palette_pc.data[i]);
+        for(int i = 0; i < 256; i++) imgMap8.setColor(i, m_palette.data[i]);
         for(int i = 0; i < 512; i++) {
             for(int j = 0; j < 64; j++) {
                 imgMap8.setPixel((i % 16) * 8 + (j % 8), (i / 16) * 8 + (j / 8),
@@ -134,12 +136,11 @@ namespace Mockup {
 
         //Map16 FG
         QImage imgMap16FG(256, 512, QImage::Format_Indexed8);
-        for(int i = 0; i < 256; i++) imgMap16FG.setColor(i, palette_pc.data[i]);
-        map16_pc_t map16_pc_fg;
-        map16_pc_init(&map16_pc_fg, &m_smw.levels[ m_currentLevel].map16_fg);
+        for(int i = 0; i < 256; i++) imgMap16FG.setColor(i, m_palette.data[i]);
+        map16_pc_init(&m_map16FG, &m_smw.levels[ m_currentLevel].map16_fg);
         for(int k = 0; k < 512; k++) {
             for(int j = 0; j < 256; j++) {
-                imgMap16FG.setPixel((k % 16) * 16 + (j % 16), (k / 16) * 16 + (j / 16), map16_pc_fg.tiles[k].data[j]);
+                imgMap16FG.setPixel((k % 16) * 16 + (j % 16), (k / 16) * 16 + (j / 16), m_map16FG.tiles[k].data[j]);
             }
         }
         
@@ -147,12 +148,11 @@ namespace Mockup {
 
         //Map16 BG
         QImage imgMap16BG(256, 512, QImage::Format_Indexed8);
-        for(int i = 0; i < 256; i++) imgMap16BG.setColor(i, palette_pc.data[i]);
-        map16_pc_t map16_pc_bg;
-        map16_pc_init(&map16_pc_bg, &m_smw.levels[ m_currentLevel].map16_bg);
+        for(int i = 0; i < 256; i++) imgMap16BG.setColor(i, m_palette.data[i]);
+        map16_pc_init(&m_map16BG, &m_smw.levels[ m_currentLevel].map16_bg);
         for(int k = 0; k < 512; k++) {
             for(int j = 0; j < 256; j++) {
-                imgMap16BG.setPixel((k % 16) * 16 + (j % 16), (k / 16) * 16 + (j / 16), map16_pc_bg.tiles[k].data[j]);
+                imgMap16BG.setPixel((k % 16) * 16 + (j % 16), (k / 16) * 16 + (j / 16), m_map16BG.tiles[k].data[j]);
             }
         }
         
@@ -161,28 +161,26 @@ namespace Mockup {
         // Layer 1 objects
 
         //m_scene.setBackgroundBrush(QBrush(QColor::fromRgba(m_level.getBackgroundColor())));
-        
-        for(int i = 0; i < m_smw.levels[m_currentLevel].layer1_objects.length; i++) {
-            object_t obj = m_smw.levels[m_currentLevel].layer1_objects.objects[i];
-            if(!obj.tiles) continue;
-            int obj_width = obj.bb_xmax - obj.bb_xmin + 1;
-            int obj_height = obj.bb_ymax - obj.bb_ymin + 1;
-
+        foreach(QGraphicsItem* item, m_scene.items()) {
+            object_t* obj = (object_t*) item->data(0).value<object_t*>();
+            int obj_width = obj->bb_xmax - obj->bb_xmin + 1;
+            int obj_height = obj->bb_ymax - obj->bb_ymin + 1;
+            
             QImage img(obj_width * 16, obj_height * 16, QImage::Format_Indexed8);
-            for(int j = 0; j < 256; j++) img.setColor(j, palette_pc.data[j]);
+            for(int j = 0; j < 256; j++) img.setColor(j, m_palette.data[j]);
             for(int y = 0; y < obj_height; y++) {
                 for(int x = 0; x < obj_width; x++) {
                     for(int j = 0; j < 256; j++) {
-                        //printf("Huhu: %x\n", obj.tiles[y * obj_width + x]);
-                        img.setPixel(x * 16 + (j % 16), y * 16 + (j / 16), map16_pc_fg.tiles[obj.tiles[y * obj_width + x]].data[j]);
+                        img.setPixel(x * 16 + (j % 16), y * 16 + (j / 16), m_map16FG.tiles[obj->tiles[y * obj_width + x]].data[j]);
                     }
                 }
             }
-            QGraphicsItem* item = m_scene.addPixmap(QPixmap::fromImage(img));
-            item->setPos(obj.bb_xmin * 16, obj.bb_ymin * 16);
+            QGraphicsPixmapItem* pixitem = qgraphicsitem_cast<QGraphicsPixmapItem*>(item);
+            pixitem->setPixmap(QPixmap::fromImage(img));
         }
-        map16_pc_deinit(&map16_pc_fg);
-        map16_pc_deinit(&map16_pc_bg);
+        
+        map16_pc_deinit(&m_map16FG);
+        map16_pc_deinit(&m_map16BG);
     }
 
 
@@ -218,10 +216,10 @@ namespace Mockup {
     void MainWindow::keyPressEvent(QKeyEvent* event) {
         if(event->key() == Qt::Key_PageUp && m_currentLevel < 511) {
             m_currentLevel++;
-            smw_level_load(&m_smw,  m_currentLevel);
+            load_level();
         } else if(event->key() == Qt::Key_PageDown && m_currentLevel > 0) {
             m_currentLevel--;
-            smw_level_load(&m_smw,  m_currentLevel);
+            load_level();
         } else {
             event->ignore();
             return;
@@ -229,4 +227,22 @@ namespace Mockup {
         event->accept();
     }
 
+    void MainWindow::load_level() {
+        m_scene.clear();
+        smw_level_load(&m_smw, m_currentLevel);
+        for(int i = 0; i < m_smw.levels[m_currentLevel].layer1_objects.length; i++) {
+            object_t* obj = &m_smw.levels[m_currentLevel].layer1_objects.objects[i];
+            if(!obj->tiles) continue;
+            QGraphicsItem* item = m_scene.addPixmap(QPixmap());
+            item->setData(0, QVariant::fromValue(obj));
+            item->setFlag(QGraphicsItem::ItemIsSelectable, true);
+            item->setFlag(QGraphicsItem::ItemIsMovable, true);
+            item->setPos(obj->bb_xmin * 16, obj->bb_ymin * 16);
+        }
+        m_scene.update();
+    }
+
+
 };
+
+
