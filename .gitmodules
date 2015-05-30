@@ -1,3 +1,0 @@
-[submodule "test/cputest/bsnes"]
-	path = lib/r65816/src2/bsnes
-	url = https://gitorious.org/bsnes/bsnes.git
