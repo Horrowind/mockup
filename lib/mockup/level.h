@@ -10,19 +10,23 @@
 #include "tileset.h"
 
 typedef struct {
-    uint8_t bg_palette      : 3;
     uint8_t screens         : 5;
-    uint8_t bg_color        : 3;
+    uint8_t bg_palette      : 3;
+
     uint8_t level_mode      : 5;
-    uint8_t layer3_priority : 1;
-    uint8_t music           : 3;
+    uint8_t bg_color        : 3;
+    
     uint8_t sprite_set      : 4;
-    uint8_t time            : 2;
-    uint8_t sprite_palette  : 3;
+    uint8_t music           : 3;
+    uint8_t layer3_priority : 1;
+
     uint8_t fg_palette      : 3;
-    uint8_t item_memory     : 2;
-    uint8_t vert_scroll     : 2;
+    uint8_t sprite_palette  : 3;
+    uint8_t time            : 2;
+    
     uint8_t tile_set        : 4;
+    uint8_t vert_scroll     : 2;
+    uint8_t item_memory     : 2;
 } level_header_t;
 
 

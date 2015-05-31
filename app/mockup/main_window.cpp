@@ -30,6 +30,15 @@ namespace Mockup {
         m_textDebug->setReadOnly(true);
         m_dockDebug->setWidget(m_textDebug);
 
+        m_viewPalette = new QGraphicsView(&m_scenePalette);
+        m_viewPalette->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        m_viewPalette->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        m_viewPalette->setMinimumSize(128, 128);
+        m_viewPalette->setMaximumSize(128, 128);
+      
+        m_dockPalette = new QDockWidget("Palette", this);
+        m_dockPalette->setWidget(m_viewPalette);
+
         m_viewMap8 = new QGraphicsView(&m_sceneMap8);
         m_viewMap8->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         m_viewMap8->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -60,6 +69,7 @@ namespace Mockup {
         addDockWidget(Qt::BottomDockWidgetArea, m_dockMap8);
         addDockWidget(Qt::BottomDockWidgetArea, m_dockMap16FG);
         addDockWidget(Qt::BottomDockWidgetArea, m_dockMap16BG);
+        addDockWidget(Qt::BottomDockWidgetArea, m_dockPalette);
         addDockWidget(Qt::BottomDockWidgetArea, m_dockDebug);
         m_view = new QGraphicsView(&m_scene);
         m_view->setDragMode(QGraphicsView::RubberBandDrag);
@@ -106,6 +116,7 @@ namespace Mockup {
         m_sceneMap8.invalidate();
         m_sceneMap16FG.invalidate();
         m_sceneMap16BG.invalidate();
+        m_scenePalette.invalidate();
     }
 
 
@@ -115,12 +126,19 @@ namespace Mockup {
         m_sceneMap8.clear();
         m_sceneMap16FG.clear();
         m_sceneMap16BG.clear();
-
-        m_view->setSceneRect(0, 0, m_smw.levels[ m_currentLevel].width * 16, m_smw.levels[ m_currentLevel].height * 16);
+        m_scenePalette.clear();
+        m_view->setSceneRect(0, 0, m_smw.levels[m_currentLevel].width * 16, m_smw.levels[ m_currentLevel].height * 16);
 
         // Palette
-        
         palette_to_pc(&m_smw.levels[ m_currentLevel].palette, &m_palette);
+        QImage imgPalette(128, 128, QImage::Format_Indexed8);
+        for(int i = 0; i < 256; i++) imgPalette.setColor(i, m_palette.data[i]);
+        for(int i = 0; i < 128; i++) {
+            for(int j = 0; j < 128; j++) {
+                imgPalette.setPixel(j, i, (i/8)*16 + j/8);
+            }
+        }
+        QGraphicsItem* itemPalette = m_scenePalette.addPixmap(QPixmap::fromImage(imgPalette));
         
         // Map8
         QImage imgMap8(128, 256, QImage::Format_Indexed8);
@@ -229,6 +247,7 @@ namespace Mockup {
 
     void MainWindow::load_level() {
         m_scene.clear();
+        m_scene.setSceneRect(0, 0, m_smw.levels[m_currentLevel].width * 16 , m_smw.levels[m_currentLevel].height * 16);
         smw_level_load(&m_smw, m_currentLevel);
         for(int i = 0; i < m_smw.levels[m_currentLevel].layer1_objects.length; i++) {
             object_t* obj = &m_smw.levels[m_currentLevel].layer1_objects.objects[i];

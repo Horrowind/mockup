@@ -11,11 +11,11 @@ typedef struct {
     uint8_t num : 6;
     uint8_t settings;
 
-    uint8_t bb_xmin;
-    uint8_t bb_ymin;
-    uint8_t bb_xmax;
-    uint8_t bb_ymax;
-    uint8_t zindex;
+    uint16_t bb_xmin;
+    uint16_t bb_ymin;
+    uint16_t bb_xmax;
+    uint16_t bb_ymax;
+    uint16_t zindex;
     uint16_t* tiles;
 } object_t;
 

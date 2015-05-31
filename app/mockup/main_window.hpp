@@ -45,6 +45,10 @@ namespace Mockup {
         QDockWidget*   m_dockDebug;
         QTextEdit*     m_textDebug;
 
+        QDockWidget*   m_dockPalette;
+        QGraphicsView* m_viewPalette;
+        QGraphicsScene m_scenePalette;
+        
         QDockWidget*   m_dockMap8;
         QGraphicsView* m_viewMap8;
         QGraphicsScene m_sceneMap8;
@@ -60,7 +64,7 @@ namespace Mockup {
         
         QString        m_filePath;
 
-        int            m_currentLevel;
+        int            m_currentLevel = 0xC2;
         int            m_frame;
 
         smw_t          m_smw;

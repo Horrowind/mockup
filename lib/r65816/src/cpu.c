@@ -32,7 +32,7 @@ void r65816_cpu_clear(r65816_cpu_t* cpu) {
     cpu->regs.x.w = 0x0000;
     cpu->regs.y.w = 0x0000;
     cpu->regs.z.w = 0x0000;
-    cpu->regs.s.w = 0x0100;
+    cpu->regs.s.w = 0x01FF;
     cpu->regs.d.w = 0x0000;
     cpu->regs.db = 0x00;
     cpu->regs.p.b = 0x24;

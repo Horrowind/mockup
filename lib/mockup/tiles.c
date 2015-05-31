@@ -182,7 +182,7 @@ void tile16_pc_init(tile16_pc_t* tile16_pc, tile16_t* tile16) {
                 int sx  = tile16->properties[pos].X ?  7 : 0;
                 for(int j = 0; j < 8; j++) {
                     tile16_pc->data[128 * l + (k + 2*i) * 8 + j] =
-                        16 * tile16->properties[0].CCC + tile16->tile8s[pos]->pixels[sy * 8 + sx];
+                        16 * tile16->properties[pos].CCC + tile16->tile8s[pos]->pixels[sy * 8 + sx];
                     sx += itx;
                 }
                 sy += ity;

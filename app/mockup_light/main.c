@@ -11,5 +11,5 @@ int main(int argc, char** argv) {
     smw_init_all(&smw, &rom);
     smw_deinit_all(&smw);
     r65816_rom_free(&rom);
-	return 0;
+    return 0;
 }
