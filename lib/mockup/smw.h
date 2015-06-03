@@ -6,7 +6,7 @@
 #include "gfx_store.h"
 #include "overworld.h"
 typedef struct {
-    level_t       levels[512];
+    level_pc_t       levels[512];
     gfx_store_t   gfx_pages;
     overworld_t   overworld;
     r65816_rom_t* rom;

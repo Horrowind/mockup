@@ -32,32 +32,36 @@ typedef struct {
 
 typedef struct {
     level_header_t header;
-    object_list_t layer1_objects;
+    object_list_pc_t layer1_objects;
     //sprite_list_t* sprites;
 
     union {
-        object_list_t*  layer2_objects;
-        layer16_t* layer2_background;
+        object_list_pc_t layer2_objects;
+        layer16_t        layer2_background;
     };
     uint8_t has_layer2_bg      : 1;
     uint8_t has_layer2_objects : 1;
     uint8_t is_vertical_level  : 1;
+    uint8_t is_boss_level      : 1;
 
+    uint32_t  background_color;
+    
     palette_t palette;
     tileset_t tileset;
     map8_t    map8;
     map16_t   map16_fg;
     map16_t   map16_bg;
+    int       num_level;
+    int       height;
+    int       width;
+
 
     r65816_rom_t* rom;
 
-    int num_level;
-    int height;
-    int width;
-} level_t;
+} level_pc_t;
 
-void level_init(level_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gfx_store);
-void level_deinit(level_t* l);
+void level_init(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gfx_store);
+void level_deinit(level_pc_t* l);
 
-void level_animate(level_t* l, uint8_t frame, gfx_store_t* gfx_store);
+void level_animate(level_pc_t* l, uint8_t frame, gfx_store_t* gfx_store);
 #endif //MOCKUP_LEVEL

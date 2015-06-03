@@ -17,30 +17,31 @@ typedef struct {
     uint16_t bb_ymax;
     uint16_t zindex;
     uint16_t* tiles;
-} object_t;
+} object_pc_t;
 
 typedef struct {
     int length;
-    object_t* objects;
-} object_list_t;
+    object_pc_t* objects;
+} object_list_pc_t;
 
-void object_list_init(object_list_t* object_list, r65816_rom_t* rom, uint8_t* data);
-void object_list_deinit(object_list_t* object_list);
 
-int object_list_level_data_length(object_list_t* object_list);
-void object_list_to_level_data(object_list_t* object_list, uint8_t* data);
+void object_list_init(object_list_pc_t* object_list, r65816_rom_t* rom, uint8_t* data);
+void object_list_deinit(object_list_pc_t* object_list);
 
-int object_list_add(object_list_t* object_list, object_t object);
-void object_list_del(object_list_t* object_list, int index);
-void object_list_rise(object_list_t* object_list, int index);
-void object_list_sink(object_list_t* object_list, int index);
-void object_list_to_front(object_list_t* object_list, int index);
-void object_list_to_back(object_list_t* object_list, int index);
-int object_list_get_zindex(object_list_t* object_list, int index);
+int object_list_level_data_length(object_list_pc_t* object_list);
+void object_list_pc_to_level_data(object_list_pc_t* object_list, uint8_t* data);
 
-void object_list_pick(object_list_t* object_list, int x, int y);
+int object_list_add(object_list_pc_t* object_list, object_pc_t object);
+void object_list_del(object_list_pc_t* object_list, int index);
+void object_list_rise(object_list_pc_t* object_list, int index);
+void object_list_sink(object_list_pc_t* object_list, int index);
+void object_list_pc_to_front(object_list_pc_t* object_list, int index);
+void object_list_pc_to_back(object_list_pc_t* object_list, int index);
+int object_list_get_zindex(object_list_pc_t* object_list, int index);
 
-void object_render_to_layer16(object_t* object, r65816_rom_t* rom, layer16_t* layer);
-void object_list_render_to_layer16(object_list_t* object_list, layer16_t* layer);
-uint32_t object_list_serialize(object_list_t* object_list, uint8_t* data);
+void object_list_pick(object_list_pc_t* object_list, int x, int y);
+
+void object_render_to_layer16(object_pc_t* object, r65816_rom_t* rom, layer16_t* layer);
+void object_list_render_to_layer16(object_list_pc_t* object_list, layer16_t* layer);
+uint32_t object_list_serialize(object_list_pc_t* object_list, uint8_t* data);
 #endif //MOCKUP_OBJECT_H

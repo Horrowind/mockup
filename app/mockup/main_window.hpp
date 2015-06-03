@@ -2,7 +2,9 @@
 #define MOCKUP_MAIN_WINDOW_HPP
 
 #include <QMainWindow>
+#include <QMenuBar>
 #include <QGraphicsView>
+#include <QShortcut>
 #include <QTextEdit>
 
 //#include "graphics_object.hpp"
@@ -10,7 +12,7 @@
 extern "C" {
 #include "smw.h"
 }
-Q_DECLARE_METATYPE(object_t*)
+Q_DECLARE_METATYPE(object_pc_t*)
 class QKeyEvent;
 
 namespace Mockup {
@@ -19,59 +21,65 @@ namespace Mockup {
         Q_OBJECT
     public:
         MainWindow();
-        MainWindow(int level);
-        MainWindow(MainWindow& w);
+        MainWindow(QString filePath);
+        // MainWindow(int level);
+        // MainWindow(MainWindow& w);
 
         ~MainWindow();
 
-        int getLevelNumber();
-        QString getFilePath();
-
-    protected:
-        virtual void keyPressEvent(QKeyEvent* event);
-    
     public slots:
         void update();
+        void open_rom();
+        void draw_level();
+        void load_level();
+        void increment_level();
+        void decrement_level();
         
         
     private:
-        
-        void draw_level();
-        void load_level();
-
-        QGraphicsView* m_view;
-        QGraphicsScene m_scene;
-
-        QDockWidget*   m_dockDebug;
-        QTextEdit*     m_textDebug;
-
-        QDockWidget*   m_dockPalette;
-        QGraphicsView* m_viewPalette;
-        QGraphicsScene m_scenePalette;
-        
-        QDockWidget*   m_dockMap8;
-        QGraphicsView* m_viewMap8;
-        QGraphicsScene m_sceneMap8;
-
-        QDockWidget*   m_dockMap16FG;
-        QGraphicsView* m_viewMap16FG;
-        QGraphicsScene m_sceneMap16FG;
-
-        QDockWidget*   m_dockMap16BG;
-        QGraphicsView* m_viewMap16BG;
-        QGraphicsScene m_sceneMap16BG;
 
         
-        QString        m_filePath;
+        
+        QMenu*         mFileMenu;
+        QAction*       mOpenAct;
+        QAction*       mQuitAct;
 
-        int            m_currentLevel = 0xC2;
-        int            m_frame;
+        QShortcut*     mIncrementLevelShortcut;
+        QShortcut*     mDecrementLevelShortcut;
+        
+        QGraphicsView* mView;
+        QGraphicsScene mScene;
+        
+        QDockWidget*   mDockPalette;
+        QGraphicsView* mViewPalette;
+        QGraphicsScene mScenePalette;
+        
+        QDockWidget*   mDockMap8;
+        QGraphicsView* mViewMap8;
+        QGraphicsScene mSceneMap8;
 
-        smw_t          m_smw;
-        r65816_rom_t   m_rom;
-        palette_pc_t   m_palette;
-        map16_pc_t     m_map16FG;
-        map16_pc_t     m_map16BG;
+        QDockWidget*   mDockMap16FG;
+        QGraphicsView* mViewMap16FG;
+        QGraphicsScene mSceneMap16FG;
+
+        QDockWidget*   mDockMap16BG;
+        QGraphicsView* mViewMap16BG;
+        QGraphicsScene mSceneMap16BG;
+
+        QList<QGraphicsPixmapItem*> mObjectList;
+        QGraphicsPixmapItem* mBackgroundItem;
+        
+        QString        mFilePath;
+
+        int            mCurrentLevel = 0x105;
+        int            mFrame;
+
+        smw_t          mSmw;
+        r65816_rom_t   mRom;
+        bool           mRomIsLoaded = false;
+        palette_pc_t   mPalette;
+        map16_pc_t     mMap16FG;
+        map16_pc_t     mMap16BG;
 
     };
 }
