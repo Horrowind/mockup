@@ -21,7 +21,6 @@ namespace Mockup {
         Q_OBJECT
     public:
         MainWindow();
-        MainWindow(QString filePath);
         // MainWindow(int level);
         // MainWindow(MainWindow& w);
 
@@ -71,7 +70,7 @@ namespace Mockup {
         
         QString        mFilePath;
 
-        int            mCurrentLevel = 0x105;
+        int            mCurrentLevel = 0xE5;
         int            mFrame;
 
         smw_t          mSmw;

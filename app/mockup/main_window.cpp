@@ -103,14 +103,6 @@ namespace Mockup {
         timer->start(8000/60);
         
     }
-
-    MainWindow::MainWindow(QString filePath) : MainWindow() {
-        mFilePath = filePath;
-        r65816_rom_load(&mRom, mFilePath.toLatin1().data());
-        smw_init(&mSmw, &mRom);
-        mRomIsLoaded = true;
-        load_level();
-    }
         
     MainWindow::~MainWindow() {
         if(mRomIsLoaded) {
@@ -129,7 +121,6 @@ namespace Mockup {
             for(uint8_t i = 0; i < 8; i++) {
                 level_animate(&mSmw.levels[mCurrentLevel], mFrame + i, &mSmw.gfx_pages);
             }
-
             draw_level();
             mScene.invalidate();
             mSceneMap8.invalidate();
@@ -152,7 +143,10 @@ namespace Mockup {
     }
 
     void MainWindow::draw_level() {
-
+        if(mSmw.levels[mCurrentLevel].is_boss_level) {
+            setWindowTitle(QString("Mockup - Level %1 - Boss battle").arg(mCurrentLevel, 0, 16));
+            return;
+        }
         setWindowTitle(QString("Mockup - Level %1").arg(mCurrentLevel, 0, 16));
         mSceneMap8.clear();
         mSceneMap16FG.clear();
@@ -209,7 +203,6 @@ namespace Mockup {
 
         
         // Layer 1 objects
-
         foreach(QGraphicsPixmapItem* item, mObjectList) {
             object_pc_t* obj = (object_pc_t*) item->data(0).value<object_pc_t*>();
             int obj_width = obj->bb_xmax - obj->bb_xmin + 1;
@@ -227,10 +220,9 @@ namespace Mockup {
             item->setPixmap(QPixmap::fromImage(img));
         }
 
-        
-
         map16_pc_deinit(&mMap16FG);
         map16_pc_deinit(&mMap16BG);
+
     }
 
 
@@ -305,7 +297,6 @@ namespace Mockup {
             mObjectList.append(item);
         }
 
-
         // Layer 2 background
         
         if(mSmw.levels[mCurrentLevel].has_layer2_bg) {
@@ -342,9 +333,6 @@ namespace Mockup {
         } else {
             //for(int i = 0; i < m_width * 16; i++) line[i] = 0;
         }
-
-
-
         mScene.update();
     }
 };

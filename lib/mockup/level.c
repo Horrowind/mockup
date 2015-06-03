@@ -63,6 +63,8 @@ void level_init(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gf
         case 0x09: //                           \
         case 0x0B: // | Boss level
         case 0x10: // /
+            l->has_layer2_objects = 0;
+            l->has_layer2_bg = 0;
             l->is_boss_level = 1;
             return;
         default:
@@ -558,7 +560,8 @@ void level_deinit(level_pc_t* l) {
 
 
 void level_animate(level_pc_t* l, uint8_t frame, gfx_store_t* gfx_store) {
-    //std::cout<<"Frame: " << (int)frame << std::endl;
+    if(l->is_boss_level) return;
+    
     r65816_cpu_t cpu;
     r65816_cpu_init(&cpu, l->rom);
 
