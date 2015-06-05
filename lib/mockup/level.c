@@ -37,6 +37,11 @@ void level_init(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gf
     cpu.ram[0x69] = rom->banks[5][0xE601 + 3 * num_level];
     cpu.ram[0x60] = rom->banks[5][0xE602 + 3 * num_level];
 
+    for(int i = 0xC800; i < 0xFFFF; i++) {
+        cpu.ram[i] = 0x25;
+        cpu.ram[0x10000 + i] = 0x0;
+    }
+    
     r65816_cpu_add_exec_bp(&cpu, 0x0583B8);
     r65816_cpu_run_from(&cpu, 0x05801E);
 
