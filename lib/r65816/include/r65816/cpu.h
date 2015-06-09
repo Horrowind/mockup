@@ -43,6 +43,8 @@ uint8_t r65816_cpu_read(r65816_cpu_t* cpu, uint32_t addr);
 void r65816_cpu_step(r65816_cpu_t* cpu);
 void r65816_cpu_run(r65816_cpu_t* cpu);
 void r65816_cpu_run_from(r65816_cpu_t* cpu, uint32_t address);
+void r65816_cpu_run_jsr(r65816_cpu_t* cpu, uint32_t address);
+void r65816_cpu_run_jsl(r65816_cpu_t* cpu, uint32_t address);
 
 void r65816_cpu_add_exec_bp(r65816_cpu_t* cpu, uint32_t address);
 void r65816_cpu_add_read_bp(r65816_cpu_t* cpu, uint32_t address);

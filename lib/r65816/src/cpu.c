@@ -75,6 +75,24 @@ void r65816_cpu_run_from(r65816_cpu_t* cpu, uint32_t address) {
     }
 }
 
+void r65816_cpu_run_jsr(r65816_cpu_t* cpu, uint32_t address) {
+    cpu->regs.pc.d = address;
+    cpu->regs.s.w = 0x1FF;
+    while((cpu->regs.s.w != 0x1FF || r65816_cpu_read(cpu, cpu->regs.pc.d) != 0x60) && !cpu->stop_execution) {
+        r65816_cpu_step(cpu);
+        cpu->stop_execution |= r65816_breakpoint_list_is_hit(cpu->breakpoints_exec, cpu->regs.pc.d);
+    }
+}
+
+void r65816_cpu_run_jsl(r65816_cpu_t* cpu, uint32_t address) {
+    cpu->regs.pc.d = address;
+    cpu->regs.s.w = 0x1FF;
+    while((cpu->regs.s.w != 0x1FF || r65816_cpu_read(cpu, cpu->regs.pc.d) != 0x6B) && !cpu->stop_execution) {
+        r65816_cpu_step(cpu);
+        cpu->stop_execution |= r65816_breakpoint_list_is_hit(cpu->breakpoints_exec, cpu->regs.pc.d);
+    }
+}
+
 
 void r65816_cpu_add_exec_bp(r65816_cpu_t* cpu, uint32_t addr) {
     r65816_breakpoint_list_add(&cpu->breakpoints_exec, addr);

@@ -11,7 +11,7 @@ uint8_t r65816_cpu_read(r65816_cpu_t* cpu, uint32_t addr) {
     if(addr >= 0x7E0000 && addr < 0x800000) {
         return cpu->ram[addr-0x7E0000];
     } else if(addr & 0x008000) {
-        return cpu->rom->banks[(addr & 0xFF0000) >> 16][addr & 0xFFFF];
+        return cpu->rom->data[((addr&0x7F0000)>>1|(addr&0x7FFF))];
     } else {
         addr &= 0x7FFF;
         if(addr >= 0x002000) {

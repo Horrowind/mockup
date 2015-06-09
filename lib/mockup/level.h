@@ -8,6 +8,10 @@
 #include "palette.h"
 #include "tiles.h"
 #include "tileset.h"
+#include "sprites.h"
+
+//#define SPRITES
+
 
 typedef struct {
     uint8_t screens         : 5;
@@ -33,8 +37,9 @@ typedef struct {
 typedef struct {
     level_header_t header;
     object_list_pc_t layer1_objects;
-    //sprite_list_t* sprites;
-
+#ifdef SPRITES
+    sprite_list_pc_t sprites;
+#endif
     union {
         object_list_pc_t layer2_objects;
         layer16_t        layer2_background;

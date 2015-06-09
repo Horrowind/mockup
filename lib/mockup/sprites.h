@@ -18,9 +18,20 @@ typedef struct {
     uint8_t flip_y : 1;
     
     uint8_t palette;
-    tile8_t tile;
+    uint16_t tile_num;
 } sprite_tile_t;
 
+typedef struct {
+    int x, y;
+    uint8_t enemy;
+    uint8_t extra_bits;
+    int num_tiles;
+    sprite_tile_t* tiles;   
+} sprite_pc_t;
 
+typedef struct {
+    int length;
+    sprite_pc_t* data;   
+} sprite_list_pc_t;
 
 #endif //MOCKUP_SPRITES_H

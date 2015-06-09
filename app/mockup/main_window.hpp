@@ -7,7 +7,7 @@
 #include <QShortcut>
 #include <QTextEdit>
 
-//#include "graphics_object.hpp"
+#include "qtiled_graphics_scene.hpp"
 
 extern "C" {
 #include "smw.h"
@@ -33,7 +33,12 @@ namespace Mockup {
         void load_level();
         void increment_level();
         void decrement_level();
+
+        void zoom_in();
+        void zoom_out();
+        void zoom_reset();
         
+        void objects_changed();
         
     private:
 
@@ -45,9 +50,12 @@ namespace Mockup {
 
         QShortcut*     mIncrementLevelShortcut;
         QShortcut*     mDecrementLevelShortcut;
+        QShortcut*     mZoomInShortcut;
+        QShortcut*     mZoomOutShortcut;
+        QShortcut*     mZoomResetShortcut;
         
         QGraphicsView* mView;
-        QGraphicsScene mScene;
+        QTiledGraphicsScene mScene;
         
         QDockWidget*   mDockPalette;
         QGraphicsView* mViewPalette;
@@ -70,7 +78,7 @@ namespace Mockup {
         
         QString        mFilePath;
 
-        int            mCurrentLevel = 0xE5;
+        int            mCurrentLevel = 0x105;
         int            mFrame;
 
         smw_t          mSmw;

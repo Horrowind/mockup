@@ -13,15 +13,10 @@
 //#include "graphics_object.hpp"
 #include "main_window.hpp"
 
-
-
 namespace Mockup {
-    
-
     MainWindow::MainWindow() {
 
         setDocumentMode(true);
-        //grabKeyboard();
         
         setDockOptions(QMainWindow::AnimatedDocks | QMainWindow::AllowNestedDocks | QMainWindow::AllowTabbedDocks);
 
@@ -85,10 +80,16 @@ namespace Mockup {
         mFileMenu->addAction(mOpenAct);
         mFileMenu->addAction(mQuitAct);
 
-        mIncrementLevelShortcut = new QShortcut(QKeySequence(Qt::Key_PageUp), this);
-        mDecrementLevelShortcut = new QShortcut(QKeySequence(Qt::Key_PageDown), this);
+        mIncrementLevelShortcut = new QShortcut(QKeySequence(QKeySequence::MoveToPreviousPage), this);
+        mDecrementLevelShortcut = new QShortcut(QKeySequence(QKeySequence::MoveToNextPage), this);
+        mZoomInShortcut = new QShortcut(QKeySequence(QKeySequence::ZoomIn), this);
+        mZoomOutShortcut = new QShortcut(QKeySequence(QKeySequence::ZoomOut), this);
+        mZoomResetShortcut = new QShortcut(QKeySequence(tr("Ctrl+0")), this);
         connect(mIncrementLevelShortcut, SIGNAL(activated()), this, SLOT(increment_level()));
         connect(mDecrementLevelShortcut, SIGNAL(activated()), this, SLOT(decrement_level()));
+        connect(mZoomInShortcut, SIGNAL(activated()), this, SLOT(zoom_in()));
+        connect(mZoomOutShortcut, SIGNAL(activated()), this, SLOT(zoom_out()));
+        connect(mZoomResetShortcut, SIGNAL(activated()), this, SLOT(zoom_reset()));
         // for(int i = 0; i < 512; i++) {
         //     draw_level(filePath.toLatin1().data(), i);
         //     QImage image(scene.sceneRect().size().toSize(), QImage::Format_ARGB32);
@@ -224,32 +225,6 @@ namespace Mockup {
         map16_pc_deinit(&mMap16BG);
 
     }
-
-
-    
-
-    //     //Background
-    //     QImage imgBG(mLevel.getWidth()*16, mLevel.getHeight()*16, QImage::Format_Indexed8);
-    //     for(int i = 0; i < 256; i++) imgBG.setColor(i, palette[i]);
-    //     imgBG.fill(QColor(0, 0, 0, 0));
-           
-    //     for(int i = 0; i < mLevel.getHeight()*16; i++) {
-    //         mLevel.renderLineBG(imgBG.scanLine(i), i); 
-    //     }
-    //     QGraphicsItem* itemBG = mScene.addPixmap(QPixmap::fromImage(imgBG));
-
-    //     //Foreground
-    //     QImage imgFG(mLevel.getWidth()*16, mLevel.getHeight()*16, QImage::Format_Indexed8);
-    //     for(int i = 0; i < 256; i++) imgFG.setColor(i, palette[i]);
-    //     imgFG.fill(QColor(0, 0, 0, 0));
-
-    //     for(int i = 0; i < mLevel.getHeight()*16; i++) {
-    //         mLevel.renderLineFG(imgFG.scanLine(i), i); 
-    //     }
-        
-    //     QGraphicsItem* itemFG = mScene.addPixmap(QPixmap::fromImage(imgFG));
-
-
     
     void MainWindow::increment_level() {
         if(mRomIsLoaded && mCurrentLevel < 511) {
@@ -282,9 +257,9 @@ namespace Mockup {
     void MainWindow::load_level() {
         mScene.clear();
         mScene.setSceneRect(0, 0, mSmw.levels[mCurrentLevel].width * 16 , mSmw.levels[mCurrentLevel].height * 16);
-        mScene.setBackgroundBrush(QBrush(QColor::fromRgba(mSmw.levels[mCurrentLevel].background_color)));
         
         smw_level_load(&mSmw, mCurrentLevel);
+        mScene.setBackgroundBrush(QBrush(QColor::fromRgba(mSmw.levels[mCurrentLevel].background_color)));
         mObjectList.clear();
         for(int i = 0; i < mSmw.levels[mCurrentLevel].layer1_objects.length; i++) {
             object_pc_t* obj = &mSmw.levels[mCurrentLevel].layer1_objects.objects[i];
@@ -294,6 +269,7 @@ namespace Mockup {
             item->setFlag(QGraphicsItem::ItemIsSelectable, true);
             item->setFlag(QGraphicsItem::ItemIsMovable, true);
             item->setPos(obj->bb_xmin * 16, obj->bb_ymin * 16);
+            //item->setZValue(obj->zindex);
             mObjectList.append(item);
         }
 
@@ -311,30 +287,50 @@ namespace Mockup {
                 int by = k % 16;
                 for(int i = 0; i < mSmw.levels[mCurrentLevel].width * 16; i++) {
                     int pos = by * 16 + i % 16;
-                    imgLayer2BG.setPixel(
-                        i, k, map16BG.tiles[
-                            mSmw.levels[mCurrentLevel]
-                            .layer2_background
-                            .data[((i & 0x100) >> 4) * 27 + gy * 16 + ((i & 0x0FF) >> 4)]
-                            ].data[pos]);
+                    imgLayer2BG.setPixel(i, k, map16BG.tiles[
+                                             mSmw.levels[mCurrentLevel]
+                                             .layer2_background
+                                             .data[((i & 0x100) >> 4) * 27 + gy * 16 + ((i & 0x0FF) >> 4)]
+                                             ].data[pos]);
                 }
             }
             mBackgroundItem = mScene.addPixmap(QPixmap::fromImage(imgLayer2BG));
             mBackgroundItem->setZValue(-255);
             map16_pc_deinit(&map16BG);
         } else if(mSmw.levels[mCurrentLevel].has_layer2_objects) {
-            // int gy = linenum>>4;
-            // int by = linenum%16;
-            
-            // for(int i = 0; i < m_width * 16; i++) {
-            //     int pos = by * 16 + i % 16;
-            //     line[i] = m_map16bg[m_layer2[gy * m_width + (i >> 4)]].pixels[pos];
-            // }
-        } else {
-            //for(int i = 0; i < m_width * 16; i++) line[i] = 0;
+
+            // TODO: Implement Layer 2 Objects.
         }
+        update();
         mScene.update();
     }
+
+
+    const float zoom_in_value = pow(2.0, 1.0 / 8);
+    const float zoom_out_value = pow(2.0, -1.0 / 8);
+    
+    void MainWindow::zoom_in() {
+        mView->scale(zoom_in_value, zoom_in_value);
+    }
+    void MainWindow::zoom_out() {
+        mView->scale(zoom_out_value, zoom_out_value);
+    }
+
+    void MainWindow::zoom_reset() {
+        mView->setTransform(QTransform());
+    }
+
+    void MainWindow::objects_changed() {
+        int z_index = 0;
+        foreach(QGraphicsItem* item, mScene.items(Qt::AscendingOrder)) {
+            if(item->zValue() == 0) {
+                object_pc_t* obj = item->data(0).value<object_pc_t*>();
+                //obj->
+                z_index++;
+            }
+        }
+    }
+    
 };
 
 
