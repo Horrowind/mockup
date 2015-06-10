@@ -10,7 +10,7 @@
 #include "tileset.h"
 #include "sprites.h"
 
-//#define SPRITES
+#define SPRITES
 
 
 typedef struct {

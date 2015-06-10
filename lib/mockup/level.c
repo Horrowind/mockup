@@ -603,6 +603,7 @@ void level_deinit(level_pc_t* l) {
     for(int i = 0; i < l->sprites.length; i++) {
         if(l->sprites.data[i].tiles) free(l->sprites.data[i].tiles);
     }
+    free(l->sprites.data);
 #endif
     
     if(l->has_layer2_bg) free(l->layer2_background.data);
