@@ -73,8 +73,6 @@ void level_init(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gf
 #ifdef SPRITES
             l->sprites.length = 0;
 #endif
-            r65816_cpu_free(&cpu);
-            return;
         default:
             l->has_layer2_objects = 1;
             l->has_layer2_bg = 0;
@@ -160,436 +158,344 @@ void level_init(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gf
             }
         }
     }
+    if(!l->is_boss_level) {   
+        // --- object init ------
 
-
+        {
+            const uint32_t load_level_data_routine_end  = 0x058091; 
+            const uint32_t load_level_data_routine_end2 = 0x0586E2; 
     
-    // --- object init ------
+            r65816_cpu_add_exec_bp(&cpu, load_level_data_routine_end);
+            r65816_cpu_add_exec_bp(&cpu, load_level_data_routine_end2);
+            r65816_cpu_add_exec_bp(&cpu, 0x0586C5);
+            r65816_cpu_add_write_bp_range(&cpu, 0x7EC800, 0x7EFFFF);
+            r65816_cpu_add_write_bp_range(&cpu, 0x7FC800, 0x7FFFFF);
 
-    {
-        const uint32_t load_level_data_routine_end  = 0x058091; 
-        const uint32_t load_level_data_routine_end2 = 0x0586E2; 
+            pool_t object_pool;
+            pool_t tiles_pool;
+            pool_init(&object_pool);
+            pool_init(&tiles_pool);
     
-        r65816_cpu_add_exec_bp(&cpu, load_level_data_routine_end);
-        r65816_cpu_add_exec_bp(&cpu, load_level_data_routine_end2);
-        r65816_cpu_add_exec_bp(&cpu, 0x0586C5);
-        r65816_cpu_add_write_bp_range(&cpu, 0x7EC800, 0x7EFFFF);
-        r65816_cpu_add_write_bp_range(&cpu, 0x7FC800, 0x7FFFFF);
-
-        pool_t object_pool;
-        pool_t tiles_pool;
-        pool_init(&object_pool);
-        pool_init(&tiles_pool);
-    
-        int xmax = 0, ymax = 0, xmin = 65535, ymin = 65535;
-        int tile_count = 0;
-        int obj_count = 0;
-        object_pc_t* object = NULL;
-        r65816_cpu_run(&cpu); // start level loading routine
-        if(l->is_vertical_level) {
-            l->width = 32;
-            l->height = (l->header.screens + 1) * 16;
-            while((cpu.regs.pc.d != load_level_data_routine_end) && (cpu.regs.pc.d != load_level_data_routine_end2)) {
-                if(cpu.regs.pc.d == 0x586C5) { // we have a new object
-                    if(tile_count > 0) {
-                        object->bb_xmin = xmin; 
-                        object->bb_ymin = ymin; 
-                        object->bb_xmax = xmax; 
-                        object->bb_ymax = ymax;
-                        object->x = (cpu.ram[0x57] & 0x0F) | (cpu.ram[0x1928] << 4);
-                        object->y = ((cpu.ram[0x57] & 0xF0) >> 4) | (cpu.ram[0x0A] << 4);
-                        object->zindex = 0;
-                        for(int i = 0; i < obj_count - 1; i++) {
-                            object_pc_t* objects = (object_pc_t*)object_pool.data;
-                            if(object->zindex <= objects[i].zindex &&
-                               !(object->bb_xmin > objects[i].bb_xmax
-                                 || object->bb_xmax < objects[i].bb_xmin
-                                 || object->bb_ymin > objects[i].bb_ymax
-                                 || object->bb_ymax < objects[i].bb_ymin)) {
-                                object->zindex = objects[i].zindex + 1; 
-                            }
-                        }
-                        object->num = cpu.ram[0x5A];
-                        object->settings = cpu.ram[0x59];
-                        int width  = xmax - xmin + 1;
-                        int height = ymax - ymin + 1;
-                        object->tiles = malloc(sizeof(uint16_t) * width * height);
-                        for(int i = 0; i < width * height; i++) object->tiles[i] = 0x25;
-                        for(int i = 0; i < tile_count; i++) {
-                            uint16_t x = ((object_tile_t*)tiles_pool.data)[i].x - xmin;
-                            uint16_t y = ((object_tile_t*)tiles_pool.data)[i].y - ymin;
-                            uint16_t tilenum = ((object_tile_t*)tiles_pool.data)[i].tile;
-                            uint16_t is_top = ((object_tile_t*)tiles_pool.data)[i].is_top;
-                            int index = y * width + x;
-                            if(is_top) {
-                                object->tiles[index] = (object->tiles[index] & 0x00FF) | tilenum;
-                            } else {
-                                object->tiles[index] = (object->tiles[index] & 0xFF00) | tilenum;
-                            }
-                        }
-                        pool_empty(&tiles_pool);
-                        tile_count = 0;
-                    
-                        object = (object_pc_t*)pool_alloc(&object_pool, sizeof(object_pc_t));
-                        object->tiles = NULL;
-                        xmax = 0; ymax = 0; xmin = 65535; ymin = 65535;
-                        obj_count++;
-                    } else if(obj_count == 0) {
-                        object = (object_pc_t*)pool_alloc(&object_pool, sizeof(object_pc_t));
-                        object->tiles = NULL;
-                        xmax = 0; ymax = 0; xmin = 65535; ymin = 65535;
-                        obj_count = 1;
-                    }
-                } else { // a new tile was written to the level data RAM location
-                    //record access to this ram location
-                    object_tile_t* object_tile = (object_tile_t*)pool_alloc(&tiles_pool, sizeof(object_tile_t));
-                    tile_count++;
-                    int pure_addr = (cpu.breakpoint_address & 0xFFFF) - 0xC800;
-                    int x = pure_addr & 0x0F; int y = (pure_addr & 0xF0) >> 4;
-                    int screen = pure_addr >> 8;  int left = screen & 1; int h = screen >> 1;
-                    object_tile->x = left * 16 + x;
-                    object_tile->y = h * 16 + y;
-                    if(object_tile->x < xmin) xmin = object_tile->x;
-                    if(object_tile->x > xmax) xmax = object_tile->x;
-                    if(object_tile->y < ymin) ymin = object_tile->y;
-                    if(object_tile->y > ymax) ymax = object_tile->y;
-                    object_tile->is_top = cpu.breakpoint_address > 0x7F0000;
-                    object_tile->tile = object_tile->is_top ? (cpu.breakpoint_data << 8) : cpu.breakpoint_data; 
-                }
-                r65816_cpu_run(&cpu);
-            }
-            if(tile_count > 0) {
-                object->bb_xmin = xmin; 
-                object->bb_ymin = ymin; 
-                object->bb_xmax = xmax; 
-                object->bb_ymax = ymax;
-                object->x = (cpu.ram[0x1928] << 4) | (cpu.ram[0x57] & 0x0F);
-                object->y = ((cpu.ram[0x57] & 0xF0) >> 4) | (cpu.ram[0x0A] << 4);
-                //TODO: set z_index
-                object->num = cpu.ram[0x5A];
-                object->settings = cpu.ram[0x59];
-                int width  = xmax - xmin + 1;
-                int height = ymax - ymin + 1;
-                object->tiles = malloc(sizeof(uint16_t) * width * height);
-                for(int i = 0; i < width * height; i++) object->tiles[i] = 0x25;
-                for(int i = 0; i < tile_count; i++) {
-                    uint16_t x = ((object_tile_t*)tiles_pool.data)[i].x - xmin;
-                    uint16_t y = ((object_tile_t*)tiles_pool.data)[i].y - ymin;
-                    uint16_t tilenum = ((object_tile_t*)tiles_pool.data)[i].tile;
-                    uint16_t is_top = ((object_tile_t*)tiles_pool.data)[i].is_top;
-                    int index = y * width + x;
-                    if(is_top) {
-                        object->tiles[index] = (object->tiles[index] & 0x00FF) | tilenum;
-                    } else {
-                        object->tiles[index] = (object->tiles[index] & 0xFF00) | tilenum;
-                    }
-                }
-                pool_empty(&tiles_pool);
-                tile_count = 0;
-            }
-        } else { // the level is horizontal
-            l->width = (l->header.screens + 1) * 16;
-            l->height = 27;
-            while((cpu.regs.pc.d != load_level_data_routine_end) && (cpu.regs.pc.d != load_level_data_routine_end2)) {
-                if(cpu.regs.pc.d == 0x586C5) { // we have a new object
-                    if(tile_count > 0) {
-                        object->bb_xmin = xmin; 
-                        object->bb_ymin = ymin; 
-                        object->bb_xmax = xmax; 
-                        object->bb_ymax = ymax;
-                        object->x = (cpu.ram[0x57] & 0x0F) | (cpu.ram[0x1928] << 4);
-                        object->y = ((cpu.ram[0x57] & 0xF0) >> 4) | (cpu.ram[0x0A] << 4);
-                        object->zindex = 0;
-                        for(int i = 0; i < obj_count - 1; i++) {
-                            object_pc_t* objects = (object_pc_t*)object_pool.data;
-                            if(object->zindex <= objects[i].zindex &&
-                               !(object->bb_xmin > objects[i].bb_xmax
-                                 || object->bb_xmax < objects[i].bb_xmin
-                                 || object->bb_ymin > objects[i].bb_ymax
-                                 || object->bb_ymax < objects[i].bb_ymin)) {
-                                object->zindex = objects[i].zindex + 1; 
-                            }
-                        }
-                        object->num = cpu.ram[0x5A];
-                        object->settings = cpu.ram[0x59];
-                        int width  = xmax - xmin + 1;
-                        int height = ymax - ymin + 1;
-                        object->tiles = malloc(sizeof(uint16_t) * width * height);
-                        for(int i = 0; i < width * height; i++) object->tiles[i] = 0x25;
-                        for(int i = 0; i < tile_count; i++) {
-                            uint16_t x = ((object_tile_t*)tiles_pool.data)[i].x - xmin;
-                            uint16_t y = ((object_tile_t*)tiles_pool.data)[i].y - ymin;
-                            uint16_t tilenum = ((object_tile_t*)tiles_pool.data)[i].tile;
-                            uint16_t is_top = ((object_tile_t*)tiles_pool.data)[i].is_top;
-                            int index = y * width + x;
-                            if(is_top) {
-                                object->tiles[index] = (object->tiles[index] & 0x00FF) | tilenum;
-                            } else {
-                                object->tiles[index] = (object->tiles[index] & 0xFF00) | tilenum;
-                            }
-                        }
-                        pool_empty(&tiles_pool);
-                        tile_count = 0;
-                    
-                        object = (object_pc_t*)pool_alloc(&object_pool, sizeof(object_pc_t));
-                        object->tiles = NULL;
-                        xmax = 0; ymax = 0; xmin = 65535; ymin = 65535;
-                        obj_count++;
-                    } else if(obj_count == 0) {
-                        object = (object_pc_t*)pool_alloc(&object_pool, sizeof(object_pc_t));
-                        object->tiles = NULL;
-                        xmax = 0; ymax = 0; xmin = 65535; ymin = 65535;
-                        obj_count = 1;
-                    }
-                } else { // a new tile was written to the level data RAM location
-                    //record access to this ram location
-                    object_tile_t* object_tile = (object_tile_t*)pool_alloc(&tiles_pool, sizeof(object_tile_t));
-                    tile_count++;
-                    int pure_addr = (cpu.breakpoint_address & 0xFFFF) - 0xC800;
-                    int screen_addr = pure_addr % 432;
-                    int screen = pure_addr / 432;
-                    object_tile->x = (screen_addr & 0x0F) | (screen * 16);
-                    object_tile->y = (screen_addr & 0xFF0) >> 4;
-                    if(object_tile->x < xmin) xmin = object_tile->x;
-                    if(object_tile->x > xmax) xmax = object_tile->x;
-                    if(object_tile->y < ymin) ymin = object_tile->y;
-                    if(object_tile->y > ymax) ymax = object_tile->y;
-                    object_tile->is_top = cpu.breakpoint_address > 0x7F0000;
-                    object_tile->tile = object_tile->is_top ? (cpu.breakpoint_data << 8) : cpu.breakpoint_data; 
-                }
-                r65816_cpu_run(&cpu);
-            }
-            if(tile_count > 0) {
-                object->bb_xmin = xmin; 
-                object->bb_ymin = ymin; 
-                object->bb_xmax = xmax; 
-                object->bb_ymax = ymax;
-                object->x = (cpu.ram[0x1928] << 4) | (cpu.ram[0x57] & 0x0F);
-                object->y = ((cpu.ram[0x57] & 0xF0) >> 4) | (cpu.ram[0x0A] << 4);
-                //TODO: set z_index
-                object->num = cpu.ram[0x5A];
-                object->settings = cpu.ram[0x59];
-                int width  = xmax - xmin + 1;
-                int height = ymax - ymin + 1;
-                object->tiles = malloc(sizeof(uint16_t) * width * height);
-                for(int i = 0; i < width * height; i++) object->tiles[i] = 0x25;
-                for(int i = 0; i < tile_count; i++) {
-                    uint16_t x = ((object_tile_t*)tiles_pool.data)[i].x - xmin;
-                    uint16_t y = ((object_tile_t*)tiles_pool.data)[i].y - ymin;
-                    uint16_t tilenum = ((object_tile_t*)tiles_pool.data)[i].tile;
-                    uint16_t is_top = ((object_tile_t*)tiles_pool.data)[i].is_top;
-                    int index = y * width + x;
-                    if(is_top) {
-                        object->tiles[index] = (object->tiles[index] & 0x00FF) | tilenum;
-                    } else {
-                        object->tiles[index] = (object->tiles[index] & 0xFF00) | tilenum;
-                    }
-                }
-                pool_empty(&tiles_pool);
-                tile_count = 0;
-            }
-        }
-        pool_deinit(&tiles_pool);
-    
-        l->layer1_objects.length  = obj_count;
-        l->layer1_objects.objects = (object_pc_t*)object_pool.data;
-    }
-
-    // --- bg init ----------
-
-    if(l->has_layer2_bg) {
-        l->layer2_background.data = malloc(432 * 2 * sizeof(uint16_t));
-        int offset = 0;
-        int addr = rom->data[0x02E602 + 3 * num_level];
-        if(addr == 0xFF) addr = 0x0C;
-        addr = (addr << 8) | rom->data[0x02E601 + 3 * num_level];
-        addr = (addr << 8) | rom->data[0x02E600 + 3 * num_level];
-        if((addr & 0xFFFF) >= 0xE8FE) offset = 0x100; //See CODE_058046
-        int pos = 0;
-        uint8_t cmd, byte;
-        while(pos < 432 * 2) {
-            cmd  = r65816_cpu_read(&cpu, addr);
-            byte = r65816_cpu_read(&cpu, addr + 1);
-            if(cmd == 0xFF && byte == 0xFF) break;
-            uint8_t length = cmd & 0b01111111;
-            if(cmd & 0x80) {
-                for(int i = 0; i <= length; i++) {
-                    l->layer2_background.data[pos + i] = offset + byte;
-                }
-                pos += length + 1;
-                addr += 2;
+            int xmax = 0, ymax = 0, xmin = 65535, ymin = 65535;
+            int tile_count = 0;
+            int obj_count = 0;
+            object_pc_t* object = NULL;
+            if(l->is_vertical_level) {
+                l->width = 32;
+                l->height = (l->header.screens + 1) * 16;
             } else {
-                for(int i = 0; i <= length; i++) {
-                    l->layer2_background.data[pos + i] = offset + r65816_cpu_read(&cpu, addr + i + 1);
+                l->width = (l->header.screens + 1) * 16;
+                l->height = 27;
+            }
+            r65816_cpu_run(&cpu); // start level loading routine
+            while((cpu.regs.pc.d != load_level_data_routine_end) && (cpu.regs.pc.d != load_level_data_routine_end2)) {
+                if(cpu.regs.pc.d == 0x586C5) { // we have a new object
+                    if(tile_count > 0) {
+                        object->bb_xmin = xmin; 
+                        object->bb_ymin = ymin; 
+                        object->bb_xmax = xmax; 
+                        object->bb_ymax = ymax;
+                        object->x = (cpu.ram[0x57] & 0x0F) | (cpu.ram[0x1928] << 4);
+                        object->y = ((cpu.ram[0x57] & 0xF0) >> 4) | (cpu.ram[0x0A] << 4);
+                        object->zindex = 0;
+                        for(int i = 0; i < obj_count - 1; i++) {
+                            object_pc_t* objects = (object_pc_t*)object_pool.data;
+                            if(object->zindex <= objects[i].zindex &&
+                               !(object->bb_xmin > objects[i].bb_xmax
+                                 || object->bb_xmax < objects[i].bb_xmin
+                                 || object->bb_ymin > objects[i].bb_ymax
+                                 || object->bb_ymax < objects[i].bb_ymin)) {
+                                object->zindex = objects[i].zindex + 1; 
+                            }
+                        }
+                        object->num = cpu.ram[0x5A];
+                        object->settings = cpu.ram[0x59];
+                        int width  = xmax - xmin + 1;
+                        int height = ymax - ymin + 1;
+                        object->tiles = malloc(sizeof(uint16_t) * width * height);
+                        for(int i = 0; i < width * height; i++) object->tiles[i] = 0x25;
+                        for(int i = 0; i < tile_count; i++) {
+                            uint16_t x = ((object_tile_t*)tiles_pool.data)[i].x - xmin;
+                            uint16_t y = ((object_tile_t*)tiles_pool.data)[i].y - ymin;
+                            uint16_t tilenum = ((object_tile_t*)tiles_pool.data)[i].tile;
+                            uint16_t is_top = ((object_tile_t*)tiles_pool.data)[i].is_top;
+                            int index = y * width + x;
+                            if(is_top) {
+                                object->tiles[index] = (object->tiles[index] & 0x00FF) | tilenum;
+                            } else {
+                                object->tiles[index] = (object->tiles[index] & 0xFF00) | tilenum;
+                            }
+                        }
+                        pool_empty(&tiles_pool);
+                        tile_count = 0;
+                    
+                        object = (object_pc_t*)pool_alloc(&object_pool, sizeof(object_pc_t));
+                        object->tiles = NULL;
+                        xmax = 0; ymax = 0; xmin = 65535; ymin = 65535;
+                        obj_count++;
+                    } else if(obj_count == 0) {
+                        object = (object_pc_t*)pool_alloc(&object_pool, sizeof(object_pc_t));
+                        object->tiles = NULL;
+                        xmax = 0; ymax = 0; xmin = 65535; ymin = 65535;
+                        obj_count = 1;
+                    }
+                } else { // a new tile was written to the level data RAM location
+                    //record access to this ram location
+                    object_tile_t* object_tile = (object_tile_t*)pool_alloc(&tiles_pool, sizeof(object_tile_t));
+                    tile_count++;
+                    int pure_addr = (cpu.breakpoint_address & 0xFFFF) - 0xC800;
+                    if(l->is_vertical_level) {
+                        int x = pure_addr & 0x0F; int y = (pure_addr & 0xF0) >> 4;
+                        int screen = pure_addr >> 4;  int left = screen & 0x10; int h = (screen & 0xE0) >> 1;
+                        object_tile->x = left + x;
+                        object_tile->y = h + y;
+                    } else {
+                        int screen_addr = pure_addr % 432;
+                        int screen = pure_addr / 432;
+                        object_tile->x = (screen_addr & 0x0F) | (screen * 16);
+                        object_tile->y = (screen_addr & 0xFF0) >> 4;
+                    }
+                    if(object_tile->x < xmin) xmin = object_tile->x;
+                    if(object_tile->x > xmax) xmax = object_tile->x;
+                    if(object_tile->y < ymin) ymin = object_tile->y;
+                    if(object_tile->y > ymax) ymax = object_tile->y;
+                    object_tile->is_top = cpu.breakpoint_address > 0x7F0000;
+                    object_tile->tile = object_tile->is_top ? (cpu.breakpoint_data << 8) : cpu.breakpoint_data; 
                 }
-                pos += length + 1;
-                addr += length + 2;
+                r65816_cpu_run(&cpu);
+            }
+            if(tile_count > 0) {
+                object->bb_xmin = xmin; 
+                object->bb_ymin = ymin; 
+                object->bb_xmax = xmax; 
+                object->bb_ymax = ymax;
+                object->x = (cpu.ram[0x1928] << 4) | (cpu.ram[0x57] & 0x0F);
+                object->y = ((cpu.ram[0x57] & 0xF0) >> 4) | (cpu.ram[0x0A] << 4);
+                //TODO: set z_index
+                object->num = cpu.ram[0x5A];
+                object->settings = cpu.ram[0x59];
+                int width  = xmax - xmin + 1;
+                int height = ymax - ymin + 1;
+                object->tiles = malloc(sizeof(uint16_t) * width * height);
+                for(int i = 0; i < width * height; i++) object->tiles[i] = 0x25;
+                for(int i = 0; i < tile_count; i++) {
+                    uint16_t x = ((object_tile_t*)tiles_pool.data)[i].x - xmin;
+                    uint16_t y = ((object_tile_t*)tiles_pool.data)[i].y - ymin;
+                    uint16_t tilenum = ((object_tile_t*)tiles_pool.data)[i].tile;
+                    uint16_t is_top = ((object_tile_t*)tiles_pool.data)[i].is_top;
+                    int index = y * width + x;
+                    if(is_top) {
+                        object->tiles[index] = (object->tiles[index] & 0x00FF) | tilenum;
+                    } else {
+                        object->tiles[index] = (object->tiles[index] & 0xFF00) | tilenum;
+                    }
+                }
+                pool_empty(&tiles_pool);
+                tile_count = 0;
+            }
+
+            pool_deinit(&tiles_pool);
+    
+            l->layer1_objects.length  = obj_count;
+            l->layer1_objects.objects = (object_pc_t*)object_pool.data;
+        } 
+
+        // --- bg init ----------
+
+        if(l->has_layer2_bg) {
+            l->layer2_background.data = malloc(432 * 2 * sizeof(uint16_t));
+            int offset = 0;
+            int addr = rom->data[0x02E602 + 3 * num_level];
+            if(addr == 0xFF) addr = 0x0C;
+            addr = (addr << 8) | rom->data[0x02E601 + 3 * num_level];
+            addr = (addr << 8) | rom->data[0x02E600 + 3 * num_level];
+            if((addr & 0xFFFF) >= 0xE8FE) offset = 0x100; //See CODE_058046
+            int pos = 0;
+            uint8_t cmd, byte;
+            while(pos < 432 * 2) {
+                cmd  = r65816_cpu_read(&cpu, addr);
+                byte = r65816_cpu_read(&cpu, addr + 1);
+                if(cmd == 0xFF && byte == 0xFF) break;
+                uint8_t length = cmd & 0b01111111;
+                if(cmd & 0x80) {
+                    for(int i = 0; i <= length; i++) {
+                        l->layer2_background.data[pos + i] = offset + byte;
+                    }
+                    pos += length + 1;
+                    addr += 2;
+                } else {
+                    for(int i = 0; i <= length; i++) {
+                        l->layer2_background.data[pos + i] = offset + r65816_cpu_read(&cpu, addr + i + 1);
+                    }
+                    pos += length + 1;
+                    addr += length + 2;
+                }
             }
         }
-    }
     
     
-    // --- palette init -----
-    {
-        cpu.regs.p.b = 0x24;
-        r65816_cpu_add_exec_bp(&cpu, 0x00ACEC);
-        r65816_cpu_run_from(&cpu, 0x00ABED);
-        memcpy(l->palette.data, cpu.ram + 0x0703, 512);
+        // --- palette init -----
+        {
+            cpu.regs.p.b = 0x24;
+            r65816_cpu_add_exec_bp(&cpu, 0x00ACEC);
+            r65816_cpu_run_from(&cpu, 0x00ABED);
+            memcpy(l->palette.data, cpu.ram + 0x0703, 512);
 
-        for(int i = 0; i < 256; i += 16) {
-            l->palette.data[i] = 0;
+            for(int i = 0; i < 256; i += 16) {
+                l->palette.data[i] = 0;
+            }
+
+            for(int i = 0; i < 8; i++) {
+                level_animate(l, i, gfx_store);
+            }
+
         }
-
-        for(int i = 0; i < 8; i++) {
-            level_animate(l, i, gfx_store);
-        }
-
-    }
 
 #ifdef SPRITES
-    // --- sprites init -----
-    {
-        int number_sprites = 0;
-        uint8_t low  = rom->data[0x02EC00 + 2 * num_level]; 
-        uint8_t high = rom->data[0x02EC01 + 2 * num_level];
-        uint8_t bank = 0x07;
-        int spritelookupSNES  = (bank << 16) | (high << 8) | low;
-        int spritelookupPC = ((spritelookupSNES & 0x7f0000) >> 1) + (spritelookupSNES & 0x7fff);
+        // --- sprites init -----
+        {
+            int number_sprites = 0;
+            uint8_t low  = rom->data[0x02EC00 + 2 * num_level]; 
+            uint8_t high = rom->data[0x02EC01 + 2 * num_level];
+            uint8_t bank = 0x07;
+            int spritelookupSNES  = (bank << 16) | (high << 8) | low;
+            int spritelookupPC = ((spritelookupSNES & 0x7f0000) >> 1) + (spritelookupSNES & 0x7fff);
 
-        pool_t sprite_pool;
-        pool_t sprite_tile_pool;
-        pool_init(&sprite_pool);
+            pool_t sprite_pool;
+            pool_t sprite_tile_pool;
+            pool_init(&sprite_pool);
         
-        while(rom->data[spritelookupPC + 3*number_sprites + 1] != 0xFF) {
-            sprite_pc_t* sprite = (sprite_pc_t*)pool_alloc(&sprite_pool, sizeof(sprite_pc_t));
-            r65816_cpu_clear(&cpu);
-            cpu.ram[0x65] = rom->data[0x02E000 + 3 * num_level]; 
-            cpu.ram[0x66] = rom->data[0x02E001 + 3 * num_level];
-            cpu.ram[0x67] = rom->data[0x02E002 + 3 * num_level];
+            while(rom->data[spritelookupPC + 3*number_sprites + 1] != 0xFF) {
+                sprite_pc_t* sprite = (sprite_pc_t*)pool_alloc(&sprite_pool, sizeof(sprite_pc_t));
+                r65816_cpu_clear(&cpu);
+                cpu.ram[0x65] = rom->data[0x02E000 + 3 * num_level]; 
+                cpu.ram[0x66] = rom->data[0x02E001 + 3 * num_level];
+                cpu.ram[0x67] = rom->data[0x02E002 + 3 * num_level];
 
-            cpu.ram[0xD1] = cpu.ram[0x94] = 0x00; // player x position
-            cpu.ram[0xD2] = cpu.ram[0x95] = 0x00;
-            cpu.ram[0xD3] = cpu.ram[0x96] = 0x40; // player y position
-            cpu.ram[0xD4] = cpu.ram[0x97] = 0x01;
-            cpu.ram[0x15EA] = 0x30;
+                cpu.ram[0xD1] = cpu.ram[0x94] = 0x00; // player x position
+                cpu.ram[0xD2] = cpu.ram[0x95] = 0x00;
+                cpu.ram[0xD3] = cpu.ram[0x96] = 0x40; // player y position
+                cpu.ram[0xD4] = cpu.ram[0x97] = 0x01;
+                cpu.ram[0x15EA] = 0x30;
 
-            //Sets RAM 0x01 to the screen number of the sprite.
-            int screen = (rom->data[spritelookupPC + 3*number_sprites + 1] & 0x2) << 3;
-            screen |= rom->data[spritelookupPC + 3*number_sprites + 2] & 0xF;
-            sprite->x = (screen << 4) | ((rom->data[spritelookupPC + 3*number_sprites + 2] & 0xF0) >> 4);
-            sprite->y = rom->data[spritelookupPC + 3*number_sprites + 2] & 0xF1;
-            sprite->y = ((sprite->y & 0xF0) >> 4) | ((sprite->y & 0x01) << 4);
-            sprite->enemy = rom->data[spritelookupPC + 3*number_sprites + 3];
-            sprite->extra_bits = (rom->data[spritelookupPC + 3*number_sprites + 1] & 0x0C) >> 2;
-            sprite->tiles = 0;
-            cpu.ram[0x1a] = 0;//(sprite->x << 4) & 0xFF;
-            cpu.ram[0x1b] = 0;//((sprite->x) & 0xFF0) >> 4;
-            cpu.ram[0x1c] = 0xc0;
-            cpu.ram[0x1d] = 0x00;
+                //Sets RAM 0x01 to the screen number of the sprite.
+                int screen = (rom->data[spritelookupPC + 3*number_sprites + 1] & 0x2) << 3;
+                screen |= rom->data[spritelookupPC + 3*number_sprites + 2] & 0xF;
+                sprite->x = (screen << 4) | ((rom->data[spritelookupPC + 3*number_sprites + 2] & 0xF0) >> 4);
+                sprite->y = rom->data[spritelookupPC + 3*number_sprites + 2] & 0xF1;
+                sprite->y = ((sprite->y & 0xF0) >> 4) | ((sprite->y & 0x01) << 4);
+                sprite->enemy = rom->data[spritelookupPC + 3*number_sprites + 3];
+                sprite->extra_bits = (rom->data[spritelookupPC + 3*number_sprites + 1] & 0x0C) >> 2;
+                sprite->tiles = 0;
+                cpu.ram[0x1a] = 0;//(sprite->x << 4) & 0xFF;
+                cpu.ram[0x1b] = 0;//((sprite->x) & 0xFF0) >> 4;
+                cpu.ram[0x1c] = 0xc0;
+                cpu.ram[0x1d] = 0x00;
 
-            cpu.ram[0x14] = 0x01; // set frame counter to something fancy.
-            cpu.ram[0x13] = 0x01;
+                cpu.ram[0x14] = 0x01; // set frame counter to something fancy.
+                cpu.ram[0x13] = 0x01;
             
-            //Create a new sprite list in scratch ram with one sprite in it.
-            cpu.ram[0xCE] = 0x7b;
-            cpu.ram[0xCF] = 0x9c;
-            cpu.ram[0xD0] = 0x7f;
+                //Create a new sprite list in scratch ram with one sprite in it.
+                cpu.ram[0xCE] = 0x7b;
+                cpu.ram[0xCF] = 0x9c;
+                cpu.ram[0xD0] = 0x7f;
 
 
 
-            //Copy sprite to scratch ram
-            cpu.ram[0x19c7b] = rom->data[spritelookupPC];
-            cpu.ram[0x19c7c] = rom->data[spritelookupPC + 3*number_sprites + 1];
-            cpu.ram[0x19c7d] = rom->data[spritelookupPC + 3*number_sprites + 2] & 0xF0;
-            cpu.ram[0x19c7e] = rom->data[spritelookupPC + 3*number_sprites + 3];
-            cpu.ram[0x19c7f] = 0xff;
+                //Copy sprite to scratch ram
+                cpu.ram[0x19c7b] = rom->data[spritelookupPC];
+                cpu.ram[0x19c7c] = rom->data[spritelookupPC + 3*number_sprites + 1];
+                cpu.ram[0x19c7d] = rom->data[spritelookupPC + 3*number_sprites + 2] & 0xF0;
+                cpu.ram[0x19c7e] = rom->data[spritelookupPC + 3*number_sprites + 3];
+                cpu.ram[0x19c7f] = 0xff;
 
-            r65816_cpu_run_jsr(&cpu, 0x2a751);
-            int spriteindex;                        
-            for(int i = 0x0; i < 0x12; i++) {
-                if(cpu.ram[i + 0x9E] != 0) cpu.regs.x.w = spriteindex = i;
-                //cpu.ram[0x163E + i] = 0x1;
-                cpu.ram[0x1FE2 + i] = 0;
-            }
-
-            cpu.regs.db = 1;
-            r65816_cpu_run_jsr(&cpu, 0x0185C3);
-            cpu.ram[0x1a] = (sprite->x << 4) & 0xFF;
-            cpu.ram[0x1b] = screen;
-            cpu.regs.db = 0;
-            pool_init(&sprite_tile_pool);
-            int number_tiles = 0;
-            for(int i = 0; i < 0x200; i+=4) {
-                if((cpu.ram[i + 0x200] | cpu.ram[i + 0x202] | cpu.ram[i + 0x203]) && (cpu.ram[i + 0x201] != 0xf0)) {
-                    
-                    uint8_t extrabits = (cpu.ram[(i / 4) + 0x400] >> (i % 4)) & 0x03;
-                    //Does not take $2101 into account
-                    if(extrabits & 0x02) {
-                        sprite_tile_t* tile = (sprite_tile_t*)pool_alloc(&sprite_tile_pool, sizeof(sprite_tile_t));
-                        tile->flip_x = (cpu.ram[i + 0x203] & 0x40) && 1;
-                        tile->flip_y = (cpu.ram[i + 0x203] & 0x80) && 1;
-                        tile->palette = 8 + ((cpu.ram[i + 0x203] >> 1) & 0x7);
-                        tile->tile_num = ((cpu.ram[i + 0x203] << 8) |  cpu.ram[i + 0x202]) & 0x1FF;
-                        tile->x = ((cpu.ram[0x1b] << 8) | cpu.ram[0x1a]) + cpu.ram[i + 0x200] - 9;
-                        tile->y = ((cpu.ram[0x1d] << 8) | cpu.ram[0x1c]) + cpu.ram[i + 0x201];
-                    } else {
-                        sprite_tile_t* tiles = (sprite_tile_t*)pool_alloc(&sprite_tile_pool, 4 * sizeof(sprite_tile_t));
-                        uint8_t flipx = cpu.ram[i + 0x203] & 0x40;
-                        uint8_t flipy = cpu.ram[i + 0x203] & 0x80;
-
-                        for(int j = 0; j < 4; j++) {
-                            tiles[i].flip_x = (cpu.ram[i + 0x203] & 0x40) && 1;
-                            tiles[i].flip_y = (cpu.ram[i + 0x203] & 0x80) && 1;
-                            tiles[i].palette = 8 + ((cpu.ram[i + 0x203] >> 1) & 0x7);
-                            tiles[i].x = ((cpu.ram[0x1b] << 8) | cpu.ram[0x1a]) + cpu.ram[i + 0x200] - 9;
-                            tiles[i].y = ((cpu.ram[0x1d] << 8) | cpu.ram[0x1c]) + cpu.ram[i + 0x201];
-                        }
-                        tiles[1].x += 8;
-                        tiles[2].y += 8;
-                        tiles[3].x += 8;
-                        tiles[3].y += 8;
-
-                        int number = ((cpu.ram[i + 0x203] << 8) |  cpu.ram[i + 0x202]) & 0x1FF;
-
-                        if(flipx) {
-                            if(flipy) {
-                                tiles[0].tile_num = number +17;
-                                tiles[1].tile_num = number + 1;
-                                tiles[2].tile_num = number +16;
-                                tiles[3].tile_num = number + 0;
-                            } else {
-                                tiles[0].tile_num = number + 1;
-                                tiles[1].tile_num = number +17;
-                                tiles[2].tile_num = number + 0;
-                                tiles[3].tile_num = number +16;
-                            }
-                        } else {
-                            if(flipy) {
-                                tiles[0].tile_num = number +16;
-                                tiles[1].tile_num = number + 0;
-                                tiles[2].tile_num = number +17;
-                                tiles[3].tile_num = number + 1;
-                            } else {
-                                tiles[0].tile_num = number + 0;
-                                tiles[1].tile_num = number +16;
-                                tiles[2].tile_num = number + 1;
-                                tiles[3].tile_num = number +17;
-                            }
-                        }
-                    }
-                    number_tiles++;
+                r65816_cpu_run_jsr(&cpu, 0x2a751);
+                int spriteindex;                        
+                for(int i = 0x0; i < 0x12; i++) {
+                    if(cpu.ram[i + 0x9E] != 0) cpu.regs.x.w = spriteindex = i;
+                    //cpu.ram[0x163E + i] = 0x1;
+                    cpu.ram[0x1FE2 + i] = 0;
                 }
+
+                cpu.regs.db = 1;
+                r65816_cpu_run_jsr(&cpu, 0x0185C3);
+                cpu.ram[0x1a] = (sprite->x << 4) & 0xFF;
+                cpu.ram[0x1b] = screen;
+                cpu.regs.db = 0;
+                pool_init(&sprite_tile_pool);
+                int number_tiles = 0;
+                for(int i = 0; i < 0x200; i+=4) {
+                    if((cpu.ram[i + 0x200] | cpu.ram[i + 0x202] | cpu.ram[i + 0x203]) && (cpu.ram[i + 0x201] != 0xf0)) {
+                    
+                        uint8_t extrabits = (cpu.ram[(i / 4) + 0x400] >> (i % 4)) & 0x03;
+                        //Does not take $2101 into account
+                        if(extrabits & 0x02) {
+                            sprite_tile_t* tile = (sprite_tile_t*)pool_alloc(&sprite_tile_pool, sizeof(sprite_tile_t));
+                            tile->flip_x = (cpu.ram[i + 0x203] & 0x40) && 1;
+                            tile->flip_y = (cpu.ram[i + 0x203] & 0x80) && 1;
+                            tile->palette = 8 + ((cpu.ram[i + 0x203] >> 1) & 0x7);
+                            tile->tile_num = ((cpu.ram[i + 0x203] << 8) |  cpu.ram[i + 0x202]) & 0x1FF;
+                            tile->x = ((cpu.ram[0x1b] << 8) | cpu.ram[0x1a]) + cpu.ram[i + 0x200] - 9;
+                            tile->y = ((cpu.ram[0x1d] << 8) | cpu.ram[0x1c]) + cpu.ram[i + 0x201];
+                        } else {
+                            sprite_tile_t* tiles = (sprite_tile_t*)pool_alloc(&sprite_tile_pool, 4 * sizeof(sprite_tile_t));
+                            uint8_t flipx = cpu.ram[i + 0x203] & 0x40;
+                            uint8_t flipy = cpu.ram[i + 0x203] & 0x80;
+
+                            for(int j = 0; j < 4; j++) {
+                                tiles[i].flip_x = (cpu.ram[i + 0x203] & 0x40) && 1;
+                                tiles[i].flip_y = (cpu.ram[i + 0x203] & 0x80) && 1;
+                                tiles[i].palette = 8 + ((cpu.ram[i + 0x203] >> 1) & 0x7);
+                                tiles[i].x = ((cpu.ram[0x1b] << 8) | cpu.ram[0x1a]) + cpu.ram[i + 0x200] - 9;
+                                tiles[i].y = ((cpu.ram[0x1d] << 8) | cpu.ram[0x1c]) + cpu.ram[i + 0x201];
+                            }
+                            tiles[1].x += 8;
+                            tiles[2].y += 8;
+                            tiles[3].x += 8;
+                            tiles[3].y += 8;
+
+                            int number = ((cpu.ram[i + 0x203] << 8) |  cpu.ram[i + 0x202]) & 0x1FF;
+
+                            if(flipx) {
+                                if(flipy) {
+                                    tiles[0].tile_num = number +17;
+                                    tiles[1].tile_num = number + 1;
+                                    tiles[2].tile_num = number +16;
+                                    tiles[3].tile_num = number + 0;
+                                } else {
+                                    tiles[0].tile_num = number + 1;
+                                    tiles[1].tile_num = number +17;
+                                    tiles[2].tile_num = number + 0;
+                                    tiles[3].tile_num = number +16;
+                                }
+                            } else {
+                                if(flipy) {
+                                    tiles[0].tile_num = number +16;
+                                    tiles[1].tile_num = number + 0;
+                                    tiles[2].tile_num = number +17;
+                                    tiles[3].tile_num = number + 1;
+                                } else {
+                                    tiles[0].tile_num = number + 0;
+                                    tiles[1].tile_num = number +16;
+                                    tiles[2].tile_num = number + 1;
+                                    tiles[3].tile_num = number +17;
+                                }
+                            }
+                        }
+                        number_tiles++;
+                    }
+                }
+                sprite->tiles = malloc(sizeof(sprite_tile_t) * number_tiles);
+                memcpy(sprite->tiles, sprite_tile_pool.data, sizeof(sprite_tile_t) * number_tiles);
+                pool_deinit(&sprite_tile_pool);
+
+                number_sprites++;
             }
-            sprite->tiles = malloc(sizeof(sprite_tile_t) * number_tiles);
-            memcpy(sprite->tiles, sprite_tile_pool.data, sizeof(sprite_tile_t) * number_tiles);
-            pool_deinit(&sprite_tile_pool);
-
-            number_sprites++;
+            l->sprites.length = number_sprites;
+            l->sprites.data = (sprite_pc_t*)sprite_pool.data;
         }
-        l->sprites.length = number_sprites;
-        l->sprites.data = (sprite_pc_t*)sprite_pool.data;
-    }
 #endif    
-
+    }
     r65816_cpu_free(&cpu);
 
 }
