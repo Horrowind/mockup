@@ -14,10 +14,12 @@ typedef struct cpu {
     uint8_t* ram;
     uint8_t* sreg;
 
-
     r65816_regs_t regs;
     r65816_reg24_t aa, rd;
     uint8_t sp, dp;
+    uint8_t breakpoint_data;
+    uint8_t stop_execution;
+    uint32_t breakpoint_address;
 
     void (**opcode_table)(struct cpu*);
     void (*op_table[5 * 256])(struct cpu*);
@@ -25,10 +27,6 @@ typedef struct cpu {
     r65816_breakpoint_list_t breakpoints_exec;
     r65816_breakpoint_list_t breakpoints_read;
     r65816_breakpoint_list_t breakpoints_write;
-
-    uint32_t breakpoint_address;
-    uint8_t breakpoint_data;
-    uint8_t stop_execution;
 } r65816_cpu_t;
 
 

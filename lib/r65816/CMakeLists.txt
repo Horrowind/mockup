@@ -1,9 +1,9 @@
 
 
-#find_package(LLVM 3.6 REQUIRED CONFIG)
+find_package(LLVM 3.6)
 
-#set(BUILD_OLD TRUE)
-if(NOT BUILD_OLD) 
+set(BUILD_NEW TRUE)
+if(NOT LLVM_FOUND) 
   add_library(r65816_obj OBJECT
     src/table.c
     src/breakpoint.c
@@ -23,25 +23,33 @@ if(NOT BUILD_OLD)
   add_library(r65816 $<TARGET_OBJECTS:r65816_obj>)
 else()
   add_library(r65816_obj OBJECT
-    src/rom.c
-    src/breakpoint.c
-    src2/cpu.cpp
-    src2/cpu_old.cpp
+    src_llvm/table.c
+    src_llvm/breakpoint.c
+    src_llvm/cpu.c
+    src_llvm/cpu_io.c
+    src_llvm/disassembler.c
+    src_llvm/memory.c
+    src_llvm/opcode_misc.c
+    src_llvm/opcode_pc.c
+    src_llvm/opcode_read.c
+    src_llvm/opcode_rmw.c
+    src_llvm/opcode_write.c
+    src_llvm/rom.c
+    src_llvm/algorithms.c
     )
-  add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/src2/bsnes/obj/processor-r65816.o
-    COMMAND make obj/processor-r65816.o
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src2/bsnes
-    )
-  add_custom_target(
-    bsnes-r65816
-    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src2/bsnes/obj/processor-r65816.o
-    )
-  target_include_directories(r65816_obj PUBLIC src2/bsnes)
-  set_property(TARGET bsnes-r65816 PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/bsnes/obj/processor-r65816.o)
-  add_dependencies(r65816_obj bsnes-r65816)
   add_library(r65816 $<TARGET_OBJECTS:r65816_obj>)
-  target_link_libraries(r65816 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src2/bsnes/obj/processor-r65816.o)
+  target_include_directories(r65816_obj PUBLIC ${LLVM_INCLUDE_DIRS})
+
+  get_target_property(TEMP r65816_obj COMPILE_FLAGS)
+  if(TEMP STREQUAL "TEMP-NOTFOUND")
+    SET(TEMP "") # set to empty string
+  else()
+    SET(TEMP "${TEMP} ") # a space to cleanly separate from existing content
+  endif()
+  # append our values
+  SET(TEMP "${TEMP} -D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS" )
+  set_target_properties(r65816_obj PROPERTIES COMPILE_FLAGS ${TEMP} )
+
 endif()
 
 
