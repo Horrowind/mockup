@@ -69,4 +69,7 @@ void level_init(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gf
 void level_deinit(level_pc_t* l);
 
 void level_animate(level_pc_t* l, uint8_t frame, gfx_store_t* gfx_store);
+
+void level_serialize_objects(level_pc_t* l, uint8_t* data);
+
 #endif //MOCKUP_LEVEL
