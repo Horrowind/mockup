@@ -20,6 +20,4 @@ void smw_deinit_all(smw_t* smw);
 
 void smw_level_load(smw_t* smw, int level_num);
 
-void smw_level_load(smw_t* smw);
-
 #endif //MOCKUP_SMW_ROM_H

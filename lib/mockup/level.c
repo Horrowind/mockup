@@ -582,7 +582,7 @@ void level_animate(level_pc_t* l, uint8_t frame, gfx_store_t* gfx_store) {
 
 
 void level_serialize_objects(level_pc_t* l, uint8_t* data) {
-    memcpy(data, l->header, 5);
+    memcpy(data, &l->header, 5);
     data += 5;
     
 }
