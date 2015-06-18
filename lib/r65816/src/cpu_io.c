@@ -2,13 +2,13 @@
 #include "cpu.h"
 
 uint8_t r65816_cpu_read(r65816_cpu_t* cpu, uint32_t addr) {
-    if(r65816_breakpoint_list_is_hit(cpu->breakpoints_write, addr) && !cpu->stop_execution) {
+    if(r65816_breakpoint_list_is_hit(&cpu->breakpoints_write, addr) && !cpu->stop_execution) {
         cpu->stop_execution = 1;
         cpu->breakpoint_address = addr;
         cpu->breakpoint_data = 0;
     }
     
-    if(addr >= 0x7E0000 && addr < 0x800000) {
+    if(addr >= 0x7E0000) {// && addr < 0x800000) {
         return cpu->ram[addr-0x7E0000];
     } else if(addr & 0x008000) {
         return cpu->rom->data[((addr&0x7F0000)>>1|(addr&0x7FFF))];
@@ -29,14 +29,14 @@ uint8_t r65816_cpu_read(r65816_cpu_t* cpu, uint32_t addr) {
 
 void r65816_cpu_write(r65816_cpu_t* cpu, uint32_t addr, uint8_t data) {
    
-    if(r65816_breakpoint_list_is_hit(cpu->breakpoints_write, addr) && !cpu->stop_execution) {
+    if(r65816_breakpoint_list_is_hit(&cpu->breakpoints_write, addr) && !cpu->stop_execution) {
         cpu->stop_execution = 1;
         cpu->breakpoint_address = addr;
         cpu->breakpoint_data = data;
     }
 
     if(addr & 0xFF8000) {
-        if(addr >= 0x7E0000 && addr < 0x800000) {
+        if(addr >= 0x7E0000) {
             cpu->ram[addr-0x7E0000] = data;
         } else {
             if(addr & 0x008000) {

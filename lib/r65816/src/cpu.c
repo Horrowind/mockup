@@ -1,6 +1,12 @@
 #include <string.h>
 #include <stdlib.h>
 
+/* #include <llvm-c/Core.h> */
+/* #include <llvm-c/ExecutionEngine.h> */
+/* #include <llvm-c/Target.h> */
+/* #include <llvm-c/Analysis.h> */
+/* #include <llvm-c/BitWriter.h> */
+
 
 #include "cpu.h"
 #include "disassembler.h"
@@ -8,9 +14,17 @@
 #include "table.h"
 #include "algorithms.h"
 
+/* typedef struct { */
+/*     LLVMModuleRef mod; */
+/*     LLVMTypeRef param_types[1]; */
+/*     LLVMTypeRef return_type; */
+    
+/* } llvm_data_t; */
+
 void r65816_cpu_init(r65816_cpu_t* cpu, r65816_rom_t* rom) {
     cpu->regs.p.b = 0x24;
     cpu->rom = rom;
+//    cpu->rom_data = rom->data;
     cpu->sreg = malloc(0x22500);
     cpu->ram = cpu->sreg + 0x2500;
     cpu->regs.pc.d = 0x000000;
@@ -40,58 +54,46 @@ void r65816_cpu_clear(r65816_cpu_t* cpu) {
     cpu->regs.mdr = 0x00;
     memset(cpu->ram, 0, 20000);
     memset(cpu->sreg, 0, 0x2500);
-    r65816_initialize_opcode_table(cpu);
-    r65816_update_table(cpu);
     r65816_breakpoint_list_deinit(&cpu->breakpoints_exec);
     r65816_breakpoint_list_deinit(&cpu->breakpoints_read);
     r65816_breakpoint_list_deinit(&cpu->breakpoints_write);
 
 }
 
-void r65816_cpu_step(r65816_cpu_t* cpu) {
-    (cpu->opcode_table[r65816_op_readpc(cpu)])(cpu);
-}
+/* void r65816_cpu_run(r65816_cpu_t* cpu) { */
+/*     cpu->stop_execution = 0; */
+/*     while(!cpu->stop_execution) { */
 
-void r65816_cpu_run(r65816_cpu_t* cpu) {
-    cpu->stop_execution = 0;
-    while(!cpu->stop_execution) {
-        /* char output[256]; */
-        /* r65816_cpu_disassemble_opcode(cpu, output, cpu->regs.pc.d); */
-        /* printf("%s\n", output); */
-        r65816_cpu_step(cpu);
-        cpu->stop_execution |= r65816_breakpoint_list_is_hit(cpu->breakpoints_exec, cpu->regs.pc.d);
-    }
-}
+/*         r65816_cpu_step(cpu); */
+/*         cpu->stop_execution |= r65816_breakpoint_list_is_hit(&cpu->breakpoints_exec, cpu->regs.pc.d); */
+/*     } */
+/* } */
 
 void r65816_cpu_run_from(r65816_cpu_t* cpu, uint32_t address) {
     cpu->regs.pc.d = address;
-    cpu->stop_execution = 0;
-    while(!cpu->stop_execution) {
-        /* char output[256]; */
-        /* r65816_cpu_disassemble_opcode(cpu, output, cpu->regs.pc.d); */
-        /* printf("%s\n", output); */
-        r65816_cpu_step(cpu);
-        cpu->stop_execution |= r65816_breakpoint_list_is_hit(cpu->breakpoints_exec, cpu->regs.pc.d);
-    }
+    r65816_cpu_run(cpu);
 }
 
-void r65816_cpu_run_jsr(r65816_cpu_t* cpu, uint32_t address) {
-    cpu->regs.pc.d = address;
-    cpu->regs.s.w = 0x1FF;
-    while((cpu->regs.s.w != 0x1FF || r65816_cpu_read(cpu, cpu->regs.pc.d) != 0x60) && !cpu->stop_execution) {
-        r65816_cpu_step(cpu);
-        cpu->stop_execution |= r65816_breakpoint_list_is_hit(cpu->breakpoints_exec, cpu->regs.pc.d);
-    }
-}
+/* void r65816_cpu_run_jsr(r65816_cpu_t* cpu, uint32_t address) { */
+/*     cpu->regs.pc.d = address; */
+/*     cpu->regs.s.w = 0x1FF; */
+/*     while((cpu->regs.s.w != 0x1FF || r65816_cpu_read(cpu, cpu->regs.pc.d) != 0x60) && !cpu->stop_execution) { */
+/*         char output[256]; */
+/*         r65816_cpu_disassemble_opcode(cpu, output, cpu->regs.pc.d); */
+/*         printf("%s\n", output); */
+/*         r65816_cpu_step(cpu); */
+/*         cpu->stop_execution |= r65816_breakpoint_list_is_hit(&cpu->breakpoints_exec, cpu->regs.pc.d); */
+/*     } */
+/* } */
 
-void r65816_cpu_run_jsl(r65816_cpu_t* cpu, uint32_t address) {
-    cpu->regs.pc.d = address;
-    cpu->regs.s.w = 0x1FF;
-    while((cpu->regs.s.w != 0x1FF || r65816_cpu_read(cpu, cpu->regs.pc.d) != 0x6B) && !cpu->stop_execution) {
-        r65816_cpu_step(cpu);
-        cpu->stop_execution |= r65816_breakpoint_list_is_hit(cpu->breakpoints_exec, cpu->regs.pc.d);
-    }
-}
+/* void r65816_cpu_run_jsl(r65816_cpu_t* cpu, uint32_t address) { */
+/*     cpu->regs.pc.d = address; */
+/*     cpu->regs.s.w = 0x1FF; */
+/*     while((cpu->regs.s.w != 0x1FF || r65816_cpu_read(cpu, cpu->regs.pc.d) != 0x6B) && !cpu->stop_execution) { */
+/*         r65816_cpu_step(cpu); */
+/*         cpu->stop_execution |= r65816_breakpoint_list_is_hit(&cpu->breakpoints_exec, cpu->regs.pc.d); */
+/*     } */
+/* } */
 
 
 void r65816_cpu_add_exec_bp(r65816_cpu_t* cpu, uint32_t addr) {

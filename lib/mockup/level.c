@@ -190,6 +190,12 @@ void level_init(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gf
             r65816_cpu_run(&cpu); // start level loading routine
             while((cpu.regs.pc.d != load_level_data_routine_end) && (cpu.regs.pc.d != load_level_data_routine_end2)) {
                 if(cpu.regs.pc.d == 0x586C5) { // we have a new object
+                    if(obj_count == 0) {
+                        object = (object_pc_t*)pool_alloc(&object_pool, sizeof(object_pc_t));
+                        object->tiles = NULL;
+                        xmax = 0; ymax = 0; xmin = 65535; ymin = 65535;
+                        obj_count = 1;
+                    }
                     if(tile_count > 0) {
                         object->bb_xmin = xmin; 
                         object->bb_ymin = ymin; 
@@ -233,11 +239,6 @@ void level_init(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gf
                         object->tiles = NULL;
                         xmax = 0; ymax = 0; xmin = 65535; ymin = 65535;
                         obj_count++;
-                    } else if(obj_count == 0) {
-                        object = (object_pc_t*)pool_alloc(&object_pool, sizeof(object_pc_t));
-                        object->tiles = NULL;
-                        xmax = 0; ymax = 0; xmin = 65535; ymin = 65535;
-                        obj_count = 1;
                     }
                 } else { // a new tile was written to the level data RAM location
                     //record access to this ram location
@@ -246,7 +247,7 @@ void level_init(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gf
                     int pure_addr = (cpu.breakpoint_address & 0xFFFF) - 0xC800;
                     if(l->is_vertical_level) {
                         int x = pure_addr & 0x0F; int y = (pure_addr & 0xF0) >> 4;
-                        int screen = pure_addr >> 4;  int left = screen & 0x10; int h = (screen & 0xE0) >> 1;
+                        int screen = pure_addr >> 4;  int left = screen & 0x10; int h = (screen & 0x3E0) >> 1;
                         object_tile->x = left + x;
                         object_tile->y = h + y;
                     } else {
@@ -264,7 +265,7 @@ void level_init(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gf
                 }
                 r65816_cpu_run(&cpu);
             }
-            if(tile_count > 0) {
+            if(tile_count > 0 && obj_count > 0) {
                 object->bb_xmin = xmin; 
                 object->bb_ymin = ymin; 
                 object->bb_xmax = xmax; 
@@ -303,7 +304,7 @@ void level_init(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gf
         // --- bg init ----------
 
         if(l->has_layer2_bg) {
-            l->layer2_background.data = malloc(432 * 2 * sizeof(uint16_t));
+            l->layer2_background.data = malloc(432 * 2 * sizeof(uint16_t) + 300);
             int offset = 0;
             int addr = rom->data[0x02E602 + 3 * num_level];
             if(addr == 0xFF) addr = 0x0C;
@@ -332,7 +333,6 @@ void level_init(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gf
                 }
             }
         }
-    
     
         // --- palette init -----
         {
