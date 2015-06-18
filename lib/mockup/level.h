@@ -12,7 +12,6 @@
 
 #define SPRITES
 
-
 typedef struct {
     uint8_t screens         : 5;
     uint8_t bg_palette      : 3;

@@ -9,6 +9,8 @@
 #include "rom.h"
 
 
+//#define DEBUG_65816
+
 typedef struct cpu {
     r65816_rom_t* rom;
     uint8_t* ram;
@@ -21,9 +23,9 @@ typedef struct cpu {
     uint8_t stop_execution;
     uint32_t breakpoint_address;
 
-    void (**opcode_table)(struct cpu*);
-    void (*op_table[5 * 256])(struct cpu*);
-
+    /* void (**opcode_table)(struct cpu*); */
+    /* void (*op_table[5 * 256])(struct cpu*); */
+    
     r65816_breakpoint_list_t breakpoints_exec;
     r65816_breakpoint_list_t breakpoints_read;
     r65816_breakpoint_list_t breakpoints_write;

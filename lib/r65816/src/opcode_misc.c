@@ -104,7 +104,6 @@ void r65816_op_xce(r65816_cpu_t* cpu) {
         cpu->regs.x.h = 0x00;
         cpu->regs.y.h = 0x00;
     }
-    r65816_update_table(cpu);
 }
 
 #define r65816_op_flag_gen(name, mask, value)               \
@@ -124,29 +123,25 @@ r65816_op_flag_gen(sed, 0x08, 0x08);
 #define r65816_op_pflag_gen(name, mode)                     \
     void r65816_op_pflag_##name##_e(r65816_cpu_t* cpu) {    \
         cpu->rd.l = r65816_op_readpc(cpu);                  \
-        cpu->regs.p.b = (mode ? cpu->regs.p.b | cpu->rd.l   \
-                         : cpu->regs.p.b & ~cpu->rd.l);     \
+        cpu->regs.p.b = mode;                               \
         cpu->regs.p.b |= 0x30;                              \
         if(cpu->regs.p.x) {                                 \
             cpu->regs.x.h = 0x00;                           \
             cpu->regs.y.h = 0x00;                           \
         }                                                   \
-        r65816_update_table(cpu);                           \
     }                                                       \
                                                             \
     void r65816_op_pflag_##name##_n(r65816_cpu_t* cpu) {    \
         cpu->rd.l = r65816_op_readpc(cpu);                  \
-        cpu->regs.p.b = (mode ? cpu->regs.p.b | cpu->rd.l   \
-                         : cpu->regs.p.b & ~cpu->rd.l);     \
+        cpu->regs.p.b = mode;                               \
         if(cpu->regs.p.x) {                                 \
             cpu->regs.x.h = 0x00;                           \
             cpu->regs.y.h = 0x00;                           \
         }                                                   \
-        r65816_update_table(cpu);                           \
     }
 
-r65816_op_pflag_gen(rep, 0);
-r65816_op_pflag_gen(sep, 1);
+r65816_op_pflag_gen(rep, cpu->regs.p.b & ~cpu->rd.l);
+r65816_op_pflag_gen(sep, cpu->regs.p.b | cpu->rd.l);
 #undef r65816_op_pflag_gen
 
 #define r65816_op_transfer_gen(name, from, to)              \
@@ -289,7 +284,6 @@ void r65816_op_plp_e(r65816_cpu_t* cpu) {
         cpu->regs.x.h = 0x00;
         cpu->regs.y.h = 0x00;
     }
-    r65816_update_table(cpu);
 }
 
 void r65816_op_plp_n(r65816_cpu_t* cpu) {
@@ -298,7 +292,6 @@ void r65816_op_plp_n(r65816_cpu_t* cpu) {
         cpu->regs.x.h = 0x00;
         cpu->regs.y.h = 0x00;
     }
-    r65816_update_table(cpu);
 }
 
 void r65816_op_pea_e(r65816_cpu_t* cpu) {
