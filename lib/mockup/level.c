@@ -581,8 +581,16 @@ void level_animate(level_pc_t* l, uint8_t frame, gfx_store_t* gfx_store) {
 }
 
 
-void level_serialize_objects(level_pc_t* l, uint8_t* data) {
-    memcpy(data, l->header, 5);
-    data += 5;
-    
+void level_serialize_objects(level_pc_t* l, FILE* fp) {
+    uint8_t* header_data = &l->header;
+    vfprintf(fp, "header : lorom\n");
+    vfprintf(fp, "org $%06x\n", 0x05E000 + l->num_level);
+    vfprintf(fp, "autoclean dl LevelData\n");
+    vfprintf(fp, "db $%02x $%02x $%02x $%02x $%02x",
+             ((uint8_t*)&l->header)[0],
+             ((uint8_t*)&l->header)[1],
+             ((uint8_t*)&l->header)[2],
+             ((uint8_t*)&l->header)[3],
+             ((uint8_t*)&l->header)[4]
+        );
 }
