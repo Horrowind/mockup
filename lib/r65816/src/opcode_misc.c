@@ -13,7 +13,9 @@
 
 void r65816_op_nop(r65816_cpu_t* cpu) { }
 
-void r65816_op_wdm(r65816_cpu_t* cpu) { }
+void r65816_op_wdm(r65816_cpu_t* cpu) {
+    r65816_op_readpc(cpu);
+}
 
 void r65816_op_xba(r65816_cpu_t* cpu) {
     cpu->regs.a.l ^= cpu->regs.a.h;
