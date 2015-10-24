@@ -23,7 +23,7 @@ typedef struct cpu {
     uint8_t stop_execution;
     uint32_t breakpoint_address;
 
-    /* void (**opcode_table)(struct cpu*); */
+    void (**opcode_table)(struct cpu*);
     /* void (*op_table[5 * 256])(struct cpu*); */
     
     r65816_breakpoint_list_t breakpoints_exec;
