@@ -169,7 +169,7 @@
         jump_flags();
 
 #endif //DEBUG_65816
-void r65816_cpu_run_jsr(r65816_cpu_t* cpu, uint32_t address) {
+void r65816_cpu_run_jsl(r65816_cpu_t* cpu, uint32_t address) {
 #ifdef DEBUG_65816
     char output[256];
     r65816_cpu_disassemble_opcode(cpu, output, cpu->regs.pc.d);   
