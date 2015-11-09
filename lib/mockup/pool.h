@@ -11,7 +11,7 @@ typedef struct {
 } pool_t;
 
 
-uint8_t* pool_init(pool_t* pool) {
+void pool_init(pool_t* pool) {
     pool->data   = malloc(512);
     pool->length = 512;
     pool->fill   = 0;

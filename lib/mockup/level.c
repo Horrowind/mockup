@@ -85,7 +85,7 @@ void level_init(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gf
         int r = ((bg_color & 0x001F) << 3); r |= (r >> 5);
         int g = ((bg_color & 0x03E0) >> 2); g |= (g >> 5);
         int b = ((bg_color & 0x7C00) >> 7); b |= (b >> 5);
-        l->background_color = 0xFF000000 + (r << 16) + (g << 8) + b;
+        l->background_color = 0xFF000000 + (r) + (g << 8) + (b << 16);
     }
     
     

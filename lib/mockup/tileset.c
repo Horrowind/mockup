@@ -21,7 +21,7 @@ uint8_t tileset_init_gfx_store(tileset_t* tileset, gfx_store_t* gfx_store, uint8
     return 0;
 }
 
-uint8_t tileset_init_level(tileset_t* tileset, r65816_rom_t* rom, int num_level, gfx_store_t* gfx_store) {
+void tileset_init_level(tileset_t* tileset, r65816_rom_t* rom, int num_level, gfx_store_t* gfx_store) {
     r65816_cpu_t cpu;
     r65816_cpu_init(&cpu, rom);
 

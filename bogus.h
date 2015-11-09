@@ -170,8 +170,10 @@ void init() {
     target_t bogus = target_init(exec_name, target_type_executable);
     target_add_object(&bogus, main_o);
     if(build(&bogus, ".")) {
-        char* argv[] = {"bogus", 0};
-        execv("bogus", argv);
+        /* char* argv[] = {"bogus", 0}; */
+        /* execvp("bogus", argv); */
+        printf("Run again\n");
+        exit(0);
     }
 
 }
@@ -347,6 +349,8 @@ object_t compile(string_t source, compiler_options_t options, string_t build_dir
             printf("%s\n", object.build_cmd);
             system2(object.build_cmd);
         }
+    } else {
+        printf("No such directory: %s\n", build_dir);
     }
     return object;
 }
@@ -388,7 +392,7 @@ int build(target_t* target, string_t build_dir) {
             } else {
                 strncat(build_cmd, tool_paths.empp_path, PATH_MAX);
                 strncat(build_cmd, " -O3", PATH_MAX);
-                strncat(build_cmd, " -s USE_SDL=2", PATH_MAX);
+                strncat(build_cmd, " -g3 -s USE_SDL=2", PATH_MAX);
             }
             strcat(build_cmd, " -o ");
             if(target->platform == platform_web) {
@@ -434,8 +438,9 @@ int build(target_t* target, string_t build_dir) {
                 return !system2(build_cmd);
             }
         }
+        return 0;
     }
-    return 0;
+    return 1;
 }
 
 #endif

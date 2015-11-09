@@ -58,7 +58,7 @@ tile8_t tile8_from_4bpp(uint8_t* data) {
     return tile;
 }
 
-/*     tile8_t tile_new;
+/*     tile8_t tile_new; */
 /*     int itx = flip.X ? -1 : 1; */
 /*     int ity = flip.Y ? -1 : 1; */
         

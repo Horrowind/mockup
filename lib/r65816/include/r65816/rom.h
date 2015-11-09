@@ -38,6 +38,7 @@ void r65816_rom_load(r65816_rom_t* rom, const char* path);
 void r65816_rom_free(r65816_rom_t* rom);
 void r65816_rom_save(r65816_rom_t* rom, const char* path);
 void r65816_rom_save_headered(r65816_rom_t* rom, const char* path, uint8_t* header, int headersize);
+uint8_t r65816_guess_header(r65816_rom_t* rom);
 uint8_t r65816_rom_expand(r65816_rom_t* rom, uint8_t size);
 uint8_t r65816_rom_expand_lorom(r65816_rom_t* rom, uint8_t size);
 uint8_t r65816_rom_expand_hirom(r65816_rom_t* rom, uint8_t size);

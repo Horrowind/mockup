@@ -1,5 +1,7 @@
+#include "assert.h"
 #include "stdio.h"
 #include "stdlib.h"
+
 
 #include "rom.h"
 
@@ -8,7 +10,7 @@ uint8_t r65816_score_header(r65816_rom_t* rom, uint32_t address);
 
 void r65816_rom_load(r65816_rom_t* rom, const char* path) {
     FILE* fp = fopen(path, "r");
-    if(!fp) return;
+    assert(fp != 0);
     fseek(fp, 0, SEEK_END);
     rom->banksize = 0x8000; //Currently only LOROM is supported
     unsigned int filesize = ftell(fp);
@@ -40,7 +42,6 @@ void r65816_rom_save_headered(r65816_rom_t* rom, const char* path, uint8_t* head
     fwrite(rom->data, 1, rom->num_banks * rom->banksize, fp);
     fclose(fp);
 }
-
 
 
 void r65816_rom_free(r65816_rom_t* rom) {
