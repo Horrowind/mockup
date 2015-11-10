@@ -2,7 +2,7 @@
 #define BOGUS_IMPLEMENTATION
 #include "bogus.h"
 
-int target_platform = 0;
+int target_platform = 5;
 
 void build_mockup_imgui() {
     compiler_options_t c_options, cpp_options;
@@ -86,17 +86,14 @@ void build_mockup_imgui() {
     object_t main_object;
 
     int optimization_level = 3;
-    switch(target_platform) {
-    case 0: {
+    if(target_platform == 1) {
         c_options = compiler_options_init(compiler_gcc, optimization_level);
         cpp_options = compiler_options_init(compiler_gpp, optimization_level);
         
         mockup_imgui.platform = platform_linux;
         mockup_light.platform = platform_linux;
         strcpy(build_dir, "build/linux/");
-        break;
-    }
-    case 1: {
+    } else if(target_platform == 2) {
         string_t mxe_path = "/home/horrowind/Projects/mxe/usr/i686-w64-mingw32.static";
         c_options = compiler_options_init(compiler_mxe_gcc, optimization_level);
         cpp_options = compiler_options_init(compiler_mxe_gpp, optimization_level);
@@ -113,10 +110,7 @@ void build_mockup_imgui() {
         strcpy(main_library_paths[0], "/home/horrowind/Projects/mxe/usr/i686-w64-mingw32.static/lib");
         compiler_options_set_flags(&cpp_options, "-Dmain=SDL_main");
         strcpy(build_dir, "build/windows/");
-        
-        break;
-    }
-    case 2: {
+    } else if(target_platform == 3) {
         c_options = compiler_options_init(compiler_emcc, optimization_level);
         cpp_options = compiler_options_init(compiler_empp, optimization_level);
         mockup_imgui.platform = platform_web;
@@ -126,8 +120,6 @@ void build_mockup_imgui() {
         //target_set_flags(&mockup_imgui, " -s TOTAL_MEMORY=67108864 --preload-file build@/smw.sfc");
         target_set_flags(&mockup_light, " -s TOTAL_MEMORY=67108864 -s USE_CLOSURE_COMPILER=1 -s EMULATED_FUNCTION_POINTERS=1 -s OUTLINING_LIMIT=20000");
         target_set_flags(&mockup_imgui, " -s TOTAL_MEMORY=67108864 -s USE_CLOSURE_COMPILER=1 -s EMULATED_FUNCTION_POINTERS=1 -s OUTLINING_LIMIT=20000");
-        break;
-    }
     }
     compiler_options_set_flags(&c_options, "-g ");
     { // libr65816
@@ -245,6 +237,17 @@ void build_mockup_imgui() {
 
 int main(int argc, char** argv) {
     init();
-    //for(target_platform = 0; target_platform < 3; target_platform++)
+    int tp = target_platform;
+    if(tp & 1) {
+        target_platform = 1;
         build_mockup_imgui();
+    }
+    if(tp & 2) {
+        target_platform = 2;
+        build_mockup_imgui();
+    }
+    if(tp & 4) {
+        target_platform = 3;
+        build_mockup_imgui();
+    }
 } 

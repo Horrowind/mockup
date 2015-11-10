@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <math.h>
+#include <limits.h>
 
 #include <SDL.h>
 #include <SDL_opengl.h>
@@ -38,6 +39,8 @@ uint32_t       map8_pixel_data[128*256];
 uint32_t       map16_fg_pixel_data[256*512];
 uint32_t       map16_bg_pixel_data[256*512];
 uint16_t*      level_object_data = NULL;
+
+int hot_index = INT_MAX;
 
 uint8_t frame_num = 0;
 int current_level = 0x100;
@@ -97,6 +100,7 @@ void gl_update_stuff() {
 
 void load_level() {
 
+    
 }
 
 void main_loop() {
@@ -118,7 +122,7 @@ void main_loop() {
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Prev")) {
-            if(current_level >= 0) current_level--;
+            if(current_level > 0) current_level--;
             smw_level_load(&smw, current_level);
             ImGui::EndMenu();
         }
@@ -130,9 +134,10 @@ void main_loop() {
         ImGui::EndMainMenuBar();
     }
 
-    for(int i = 0; i < round(60/ImGui::GetIO().Framerate); i++) {
-        level_animate(&smw.levels[current_level], frame_num, &smw.gfx_pages);
-        frame_num++;
+    
+    for(int i = 0; i < round(60.0/ImGui::GetIO().Framerate); i++) {
+    level_animate(&smw.levels[current_level], frame_num, &smw.gfx_pages);
+    frame_num++;
     }
 
     //Palette
@@ -163,6 +168,9 @@ void main_loop() {
     for(int i = 0; i < smw.levels[current_level].width * smw.levels[current_level].height; i++) {
         level_object_data[i] = 0x25;
     }
+
+
+    
     for(int i = 0; i < smw.levels[current_level].layer1_objects.length; i++) {
         object_pc_t* obj = &smw.levels[current_level].layer1_objects.objects[i];
         if(!obj->tiles) continue;
@@ -172,9 +180,13 @@ void main_loop() {
             for(int k = 0; k < obj_width; k++) {
                 if(j + obj->bb_ymin >= 0 && k + obj->bb_xmin >= 0 &&
                    j + obj->bb_ymin < smw.levels[current_level].height &&
-                   k + obj->bb_xmin < smw.levels[current_level].width) {
+                   k + obj->bb_xmin < smw.levels[current_level].width &&
+                   obj->tiles[j * obj_width + k] != 0xFFFF) {
                     level_object_data[(j + obj->bb_ymin) * smw.levels[current_level].width + k + obj->bb_xmin]
                         = obj->tiles[j * obj_width + k];
+                    if(hot_index == i) {
+                        level_object_data[(j + obj->bb_ymin) * smw.levels[current_level].width + k + obj->bb_xmin] |= 0x8000;
+                    }
                 }
             }
         }
@@ -222,11 +234,11 @@ void main_loop() {
         ImGui::SetNextWindowSize(ImVec2(600, 556), ImGuiSetCond_FirstUseEver);
 
         if(smw.levels[current_level].is_boss_level) {
-            sprintf(window_title, "Level %x - Boss Level", current_level);
+            sprintf(window_title, "Level %x - Boss Level###Level", current_level);
             ImGui::Begin(window_title, &show_level_window);
             ImGui::End();
         } else {
-            sprintf(window_title, "Level %x", current_level);
+            sprintf(window_title, "Level %x###Level", current_level);
         
             ImGui::Begin(window_title, &show_level_window);
             ImGui::BeginChild("scrolling", ImVec2(0, 0), true, ImGuiWindowFlags_HorizontalScrollbar);
@@ -236,8 +248,26 @@ void main_loop() {
             ImVec2 canvas_pos = ImGui::GetCursorScreenPos();
             ImVec2 canvas_size = ImVec2(width * 16, height * 16);
             ImVec2 actual_size = ImGui::GetContentRegionAvail();
+            ImVec2 mouse_pos_in_canvas = ImVec2(ImGui::GetIO().MousePos.x - canvas_pos.x, ImGui::GetIO().MousePos.y - canvas_pos.y);
             ImGui::InvisibleButton("canvas", canvas_size);
 
+            hot_index = INT_MAX;
+            
+            for(int i = 0; i < smw.levels[current_level].layer1_objects.length; i++) {
+                object_pc_t* obj = &smw.levels[current_level].layer1_objects.objects[i];
+                if(!obj->tiles) continue;
+                if(obj->bb_ymin * 16.0 <= mouse_pos_in_canvas.y &&
+                   obj->bb_xmin * 16.0 <= mouse_pos_in_canvas.x &&
+                   (obj->bb_ymax + 1) * 16.0 >= mouse_pos_in_canvas.y &&
+                   (obj->bb_xmax + 1) * 16.0 >= mouse_pos_in_canvas.x) {
+                    int local_x = (mouse_pos_in_canvas.x - obj->bb_xmin * 16.0) / 16;
+                    int local_y = (mouse_pos_in_canvas.y - obj->bb_ymin * 16.0) / 16;
+                    if(obj->tiles[local_y * (obj->bb_xmax - obj->bb_xmin + 1) + local_x] != 0xFFFF) {
+                        hot_index = i;
+                    }
+                }
+            }
+            
             { // Layer 3
                 draw_list->AddRectFilled(ImVec2(canvas_pos.x, canvas_pos.y),
                                          ImVec2(canvas_pos.x + (float)width*16.0, canvas_pos.y + (float)height*16.0),
@@ -280,10 +310,16 @@ void main_loop() {
                     for(int i = 0; i < width; i++) {
                         ImVec2 a = ImVec2(16.0f*i + canvas_pos.x, 16.0f*j + canvas_pos.y);
                         ImVec2 b = ImVec2(a.x + 16.0f, a.y + 16.0f);
-                        uint16_t tile_num = level_object_data[j * width + i];
+                        uint16_t tile_data = level_object_data[j * width + i];
+                        uint16_t tile_num = tile_data & 0x8FFF;
+                        uint16_t do_tint = tile_data >> 15;
                         ImVec2 uv0 = ImVec2((float)((tile_num & 0x00F)) * 0.0625f, (float)((tile_num & 0xFF0) >> 4) * 0.03125);
                         ImVec2 uv1 = ImVec2(uv0.x + 0.0625f, uv0.y + 0.03125f);
-                        draw_list->PrimRectUV(a, b, uv0, uv1, 0xFFFFFFFF);
+                        if(do_tint) {
+                            draw_list->PrimRectUV(a, b, uv0, uv1, 0xFFFF8080);
+                        } else {
+                            draw_list->PrimRectUV(a, b, uv0, uv1, 0xFFFFFFFF);
+                        }
                     }
                 }
                 draw_list->PopTextureID();
@@ -313,8 +349,7 @@ void main_loop() {
     SDL_GL_SwapWindow(g_window);
 }
 
-int main(int, char**)
-{
+int main(int, char**) {
     // Setup SDL
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         printf("Error: %s\n", SDL_GetError());
@@ -336,21 +371,6 @@ int main(int, char**)
     // Setup ImGui binding
     ImGui_ImplSdl_Init(g_window);
 
-    // Load Fonts
-    // (see extra_fonts/README.txt for more details)
-    //ImGuiIO& io = ImGui::GetIO();
-    //io.Fonts->AddFontDefault();
-    //io.Fonts->AddFontFromFileTTF("../../extra_fonts/Cousine-Regular.ttf", 15.0f);
-    //io.Fonts->AddFontFromFileTTF("../../extra_fonts/DroidSans.ttf", 16.0f);
-    //io.Fonts->AddFontFromFileTTF("../../extra_fonts/ProggyClean.ttf", 13.0f);
-    //io.Fonts->AddFontFromFileTTF("../../extra_fonts/ProggyTiny.ttf", 10.0f);
-    //io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
-
-    // Merge glyphs from multiple fonts into one (e.g. combine default font with another with Chinese glyphs, or add icons)
-    //ImWchar icons_ranges[] = { 0xf000, 0xf3ff, 0 };
-    //ImFontConfig icons_config; icons_config.MergeMode = true; icons_config.PixelSnapH = true;
-    //io.Fonts->AddFontFromFileTTF("../../extra_fonts/DroidSans.ttf", 18.0f);
-    //io.Fonts->AddFontFromFileTTF("../../extra_fonts/fontawesome-webfont.ttf", 18.0f, &icons_config, icons_ranges);
 #if 0
     r65816_rom_load(&rom, "smw.sfc");
 #else

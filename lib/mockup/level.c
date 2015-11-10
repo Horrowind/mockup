@@ -219,13 +219,14 @@ void level_init(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gf
                         int width  = xmax - xmin + 1;
                         int height = ymax - ymin + 1;
                         object->tiles = malloc(sizeof(uint16_t) * width * height);
-                        for(int i = 0; i < width * height; i++) object->tiles[i] = 0x25;
+                        for(int i = 0; i < width * height; i++) object->tiles[i] = 0xFFFF;
                         for(int i = 0; i < tile_count; i++) {
                             uint16_t x = ((object_tile_t*)tiles_pool.data)[i].x - xmin;
                             uint16_t y = ((object_tile_t*)tiles_pool.data)[i].y - ymin;
                             uint16_t tilenum = ((object_tile_t*)tiles_pool.data)[i].tile;
                             uint16_t is_top = ((object_tile_t*)tiles_pool.data)[i].is_top;
                             int index = y * width + x;
+                            if(object->tiles[index] == 0xFFFF) object->tiles[index] = 0x0025;
                             if(is_top) {
                                 object->tiles[index] = (object->tiles[index] & 0x00FF) | tilenum;
                             } else {
@@ -278,13 +279,16 @@ void level_init(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gf
                 int width  = xmax - xmin + 1;
                 int height = ymax - ymin + 1;
                 object->tiles = malloc(sizeof(uint16_t) * width * height);
-                for(int i = 0; i < width * height; i++) object->tiles[i] = 0x25;
+                // Mark each tile as unset (= 0xFFFF)
+                for(int i = 0; i < width * height; i++) object->tiles[i] = 0xFFFF;
                 for(int i = 0; i < tile_count; i++) {
                     uint16_t x = ((object_tile_t*)tiles_pool.data)[i].x - xmin;
                     uint16_t y = ((object_tile_t*)tiles_pool.data)[i].y - ymin;
                     uint16_t tilenum = ((object_tile_t*)tiles_pool.data)[i].tile;
                     uint16_t is_top = ((object_tile_t*)tiles_pool.data)[i].is_top;
                     int index = y * width + x;
+                    // if tile is unset, initialize it to its default value.
+                    if(object->tiles[index] == 0xFFFF) object->tiles[index] = 0x0025;
                     if(is_top) {
                         object->tiles[index] = (object->tiles[index] & 0x00FF) | tilenum;
                     } else {
