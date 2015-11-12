@@ -69,6 +69,53 @@ void object_list_init_level_data(object_list_pc_t* object_list, r65816_rom_t* ro
     /* void r65816_cpu_free(&cpu, rom); */
 }
 
+//Sort from left to right, up to down
+void object_list_sort_left_right(object_pc_t* objects, int n) {
+    int i, j, p, t;
+    if (n < 2)
+        return;
+    p = object_list.objects[n / 2];
+    for (i = 0, j = n - 1;; i++, j--) {
+        while (object_list.objects[i] < p)
+            i++;
+        while (p < object_list.objects[j])
+            j--;
+        if (i >= j)
+            break;
+        t = object_list.objects[i];
+        objects.objects[i] = object_list.objects[j];
+        objects.objects[j] = t;
+    }
+    quick_sort(object_list, i);
+    quick_sort(object_list + i, n - i);
+}
+
+void level_serialize(object_pc_t* l) {
+    if(l->is_boss_level) return;
+
+    void quick_sort (int *a, int n) {
+    int i, j, p, t;
+    if (n < 2)
+        return;
+    p = a[n / 2];
+    for (i = 0, j = n - 1;; i++, j--) {
+        while (a[i] < p)
+            i++;
+        while (p < a[j])
+            j--;
+        if (i >= j)
+            break;
+        t = a[i];
+        a[i] = a[j];
+        a[j] = t;
+    }
+    quick_sort(a, i);
+    quick_sort(a + i, n - i);
+}
+
+
+
+
 int object_list_level_data_length(object_list_pc_t* object_list) {
     int length = 0;
     /* uint8_t c1, c2, c3; */
