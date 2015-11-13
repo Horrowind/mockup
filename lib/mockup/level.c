@@ -203,17 +203,6 @@ void level_init(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gf
                         object->bb_ymax = ymax;
                         object->x = (cpu.ram[0x57] & 0x0F) | (cpu.ram[0x1928] << 4);
                         object->y = ((cpu.ram[0x57] & 0xF0) >> 4) | (cpu.ram[0x0A] << 4);
-                        object->zindex = 0;
-                        for(int i = 0; i < obj_count - 1; i++) {
-                            object_pc_t* objects = (object_pc_t*)object_pool.data;
-                            if(object->zindex <= objects[i].zindex &&
-                               !(object->bb_xmin > objects[i].bb_xmax
-                                 || object->bb_xmax < objects[i].bb_xmin
-                                 || object->bb_ymin > objects[i].bb_ymax
-                                 || object->bb_ymax < objects[i].bb_ymin)) {
-                                object->zindex = objects[i].zindex + 1; 
-                            }
-                        }
                         object->num = cpu.ram[0x5A];
                         object->settings = cpu.ram[0x59];
                         int width  = xmax - xmin + 1;
@@ -303,6 +292,29 @@ void level_init(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gf
     
             l->layer1_objects.length  = obj_count;
             l->layer1_objects.objects = (object_pc_t*)object_pool.data;
+
+            pool_t overlap_pool;
+            pool_init(&overlap_pool);
+	    object_pc_t* objects;
+
+	    for(int i = 1; i < obj_count; i++) {
+		for(int j = 0; j < i; j++) {
+		    if(!(objects[i].bb_xmin > objects[j].bb_xmax
+			 || objects[i].bb_xmax < objects[j].bb_xmin
+			 || objects[i].bb_ymin > objects[j].bb_ymax
+			 || objects[i].bb_ymax < objects[j].bb_ymin)) {
+			//The bounding boxes overlap
+			uint16_t* overlap_instance = pool_alloc(&overlap_pool, sizeof(uint16_t));
+			*overlap_instance = j;
+		    }
+		}
+
+		objects[i].overlap_length = overlap_pool.fill / sizeof(uint16_t);
+		objects[i].overlap_data = malloc();
+		memcpy(objects[i].overlap_data, overlap_pool.data, objects[i].overlap_length);
+		pool_empty(&overlap_pool);
+	    }
+	    
         } 
 
         // --- bg init ----------

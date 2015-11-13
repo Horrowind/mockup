@@ -3,148 +3,43 @@
 #include "object.h"
 #include "r65816/cpu.h"
 
-void object_list_init_level_data(object_list_pc_t* object_list, r65816_rom_t* rom, uint8_t* data) {
-    /* object_list->length = object_list_level_data_length(object_list, data); */
-    /* object_list->objects = malloc(object_list->length); */
-    /* int index = 0; */
-    
-    /* uint8_t screen = 0; */
-    /* uint8_t c1, c2, c3; */
-    /* r65816_cpu_t cpu; */
-    /* r65816_cpu_init(&cpu, rom); */
-    /* r65816_cpu_add_exec_bp(0x0583D2); */
-    /* r65816_cpu_add_exec_bp(0x0583B8); */
-    /* r65816_breakpoint_add_range(cpu.breakpoints_write, 0xC800, 0xFFFF); */
-    /* r65816_breakpoint_add_range(cpu.breakpoints_write, 0x1C800, 0x1FFFF); */
-    /* while((c1 = *data) != 0xFF) { */
-    /*     c2 = *(data + 1); */
-    /*     c3 = *(data + 2); */
-    /*     if(output & 0x80) { */
-    /*         screen++;                */
-    /*     } */
-    /*     uint8_t obj = ((c1 & 0x60) >> 1) | (c2 >> 4); */
-    /*     uint8_t x = c2 & 0x0F; */
-    /*     uint8_t y = c1 & 0x1F; */
-    /*     if(obj == 0) { */
-    /*         if(c3 != 0) { */
-    /*             if(c3 == 1) { */
-    /*                 screen = c1; */
-    /*             } else { */
-    /*                 r65816_cpu_clear(&cpu); */
-
-    /*                 for(int i = 0; i < 0x14 * 27 * 16; i++) { */
-    /*                     cpu.ram[0x0C800 + i] = 0x25; */
-    /*                     cpu.ram[0x1C800 + i] = 0; */
-    /*                 } */
-                    
-                    
-    /*                 // create a new level at 7FA000, which consists only of the considered object */
-    /*                 cpu.ram[0x1A000] = screen; // 1st byte of screen jump */
-    /*                 cpu.ram[0x1A001] = 0x00;   // 2nd byte of screen jump */
-    /*                 cpu.ram[0x1A002] = 0x01;   // 3rd byte of screen jump */
-    /*                 cpu.ram[0x1A003] = c1;     // 1st byte of the object itself */
-    /*                 cpu.ram[0x1A004] = c2;     // 2nd byte of the object itself */
-    /*                 cpu.ram[0x1A005] = c3;     // 3rd byte of the object itself */
-    /*                 cpu.ram[0x1A006] = 0xFF;   // end byte */
-
-    /*                 // set up level data pointer to this fake level. */
-    /*                 cpu.ram[0x65] = 0x7F; */
-    /*                 cpu.ram[0x66] = 0xA0; */
-    /*                 cpu.ram[0x67] = 0x00; */
-
-    /*                 while(1) { */
-    /*                     cpu.run(0x0583AC); */
-    /*                     if(cpu.regs.d == 0x583B8) break; */
-    /*                 } */
-    /*             } */
-    /*             data += 3; */
-    /*         } else { */
-    /*             data += 4; */
-    /*         } */
-    /*     } else { */
-            
-    /*         data += 3; */
-    /*     } */
-    /* } */
-    /* void r65816_cpu_free(&cpu, rom); */
-}
+void object_list_init_level_data(object_list_pc_t* object_list, r65816_rom_t* rom, uint8_t* data) { }
 
 //Sort from left to right, up to down
-void object_list_sort_left_right(object_pc_t* objects, int n) {
-    int i, j, p, t;
-    if (n < 2)
-        return;
-    p = object_list.objects[n / 2];
+void objects_sort_left_right(object_pc_t* objects, int n) {
+    int i, j;
+    object_pc_t p, t;
+    if (n < 2) return;
+    p = objects[n / 2];
     for (i = 0, j = n - 1;; i++, j--) {
-        while (object_list.objects[i] < p)
+        while (objects[i].x < p.x || (objects[i].x == p.x && objects[i].y < p.y))
             i++;
-        while (p < object_list.objects[j])
+        while (objects[i].x > p.x || (objects[i].x == p.x && objects[i].y > p.y))
             j--;
         if (i >= j)
             break;
-        t = object_list.objects[i];
-        objects.objects[i] = object_list.objects[j];
-        objects.objects[j] = t;
+        t = objects[i];
+        objects[i] = objects[j];
+        objects[j] = t;
     }
-    quick_sort(object_list, i);
-    quick_sort(object_list + i, n - i);
+    object_list_sort_left_right(objects, i);
+    object_list_sort_left_right(objects + i, n - i);
 }
 
-void level_serialize(object_pc_t* l) {
+int object_list_pc_to_level_data(object_list_pc_t* object_list, uint8_t* data) {
     if(l->is_boss_level) return;
 
-    void quick_sort (int *a, int n) {
-    int i, j, p, t;
-    if (n < 2)
-        return;
-    p = a[n / 2];
-    for (i = 0, j = n - 1;; i++, j--) {
-        while (a[i] < p)
-            i++;
-        while (p < a[j])
-            j--;
-        if (i >= j)
-            break;
-        t = a[i];
-        a[i] = a[j];
-        a[j] = t;
-    }
-    quick_sort(a, i);
-    quick_sort(a + i, n - i);
-}
 
+    objects_sort_left_right(object_list->objects, object_list->length);
 
-
-
-int object_list_level_data_length(object_list_pc_t* object_list) {
-    int length = 0;
-    /* uint8_t c1, c2, c3; */
-    /* while((c1 = *data) != 0xFF) { */
-    /*     c2 = *(data + 1); */
-    /*     c3 = *(data + 2); */
-    /*     uint8_t obj = (c1 & 0x60) | c2; // We just check later if obj != 0, so this is not accurate for performance reasons. */
-    /*     if(obj == 0) { */
-    /*         if(c3 != 0) { */
-    /*             if(c3 != 1) { */
-    /*                 length++; */
-    /*             } */
-    /*             data += 3; */
-    /*         } else { */
-    /*             data += 4; */
-    /*         } */
-    /*     } else { */
-    /*         length++; */
-    /*         data += 3; */
-    /*     } */
-    /* } */
-    return length;
+    int index = 0;
+    
 }
 
 void object_list_deinit_addr(object_list_pc_t* object_list) {
     free(object_list->objects);
 }
 
-void object_list_pc_to_level_data(object_list_pc_t* object_list, uint8_t* data);
 
 int object_list_add(object_list_pc_t* object_list, object_pc_t object);
 void object_list_del(object_list_pc_t* object_list, int index);

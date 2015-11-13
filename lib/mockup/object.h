@@ -17,11 +17,14 @@ typedef struct {
     uint16_t bb_ymax;
     uint16_t zindex;
     uint16_t* tiles;
+    uint16_t overlap_data;
+    uint16_t overlap_length;
 } object_pc_t;
 
 typedef struct {
-    int length;
     object_pc_t* objects;
+    uint16_t* overlap_data;
+    uint16_t length;
 } object_list_pc_t;
 
 
@@ -29,7 +32,7 @@ void object_list_init(object_list_pc_t* object_list, r65816_rom_t* rom, uint8_t*
 void object_list_deinit(object_list_pc_t* object_list);
 
 int object_list_level_data_length(object_list_pc_t* object_list);
-void object_list_pc_to_level_data(object_list_pc_t* object_list, uint8_t* data);
+int object_list_pc_to_level_data(object_list_pc_t* object_list, uint8_t* data);
 
 int object_list_add(object_list_pc_t* object_list, object_pc_t object);
 void object_list_del(object_list_pc_t* object_list, int index);
