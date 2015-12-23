@@ -21,7 +21,7 @@ void r65816_cpu_run_from(r65816_cpu_t* cpu, uint32_t address) {
 void r65816_cpu_run(r65816_cpu_t* cpu) {
     cpu->stop_execution = 0;
     while(!cpu->stop_execution) {
-#if 0
+#if DEBUG_PRINT_CPU_STATE
         char output[256];
         r65816_cpu_disassemble_opcode(cpu, output, cpu->regs.pc.d);
         printf("%s\n", output);
@@ -35,7 +35,7 @@ void r65816_cpu_run_jsr(r65816_cpu_t* cpu, uint32_t address) {
     cpu->regs.pc.d = address;
     cpu->regs.s.w = 0x1FF;
     while((cpu->regs.s.w != 0x1FF || r65816_cpu_read(cpu, cpu->regs.pc.d) != 0x60) && !cpu->stop_execution) {
-#if 0
+#if DEBUG_PRINT_CPU_STATE
         char output[256];
         r65816_cpu_disassemble_opcode(cpu, output, cpu->regs.pc.d);
         printf("%s\n", output);
@@ -49,7 +49,7 @@ void r65816_cpu_run_jsl(r65816_cpu_t* cpu, uint32_t address) {
     cpu->regs.pc.d = address;
     cpu->regs.s.w = 0x1FF;
     while((cpu->regs.s.w != 0x1FF || r65816_cpu_read(cpu, cpu->regs.pc.d) != 0x6B) && !cpu->stop_execution) {
-#if 0
+#if DEBUG_PRINT_CPU_STATE
         char output[256];
         r65816_cpu_disassemble_opcode(cpu, output, cpu->regs.pc.d);
         printf("%s\n", output);

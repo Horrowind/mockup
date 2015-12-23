@@ -1,0 +1,181 @@
+%{
+%}
+
+%token NUMBER
+%token PLUS
+%token MINUS
+%token DIV
+%token MULT
+%token COLON
+%token LESS
+%token GREATER
+%token LSHIFT
+%token RSHIFT
+%token DOT
+%token EXCLAM
+%token HASH
+%token AMPER
+%token HAT
+%token PIPE
+%token TILDE
+%token DOLLAR
+%token AT
+%token EQUAL
+%token LCURLY
+%token RCURLY
+%token LBRACE
+%token RBRACE
+%token LBRACK
+%token RBRACK
+%token QMARK
+%token COMMA
+%token SEMICOL
+%token FWDLABEL
+%token BWDLABEL
+%token MACRO
+%token ENDMACRO
+%token FILL
+%token FILLBYTE
+%token INCBIN
+%token INCSRC
+%token PAD
+%token PADBYTE
+%token DB
+%token DW
+%token DL
+%token DD
+%token SKIP
+%token NSPACE
+%token ON
+%token OFF
+%token ORG
+%token WARNPC
+%token BASE
+%token FREESP
+%token FREECODE
+%token FREEDATA
+%token ADC
+%token AND
+%token ASL
+%token BCC
+%token BLT
+%token BCS
+%token BGE
+%token BEQ
+%token BIT
+%token BMI
+%token BNE
+%token BPL
+%token BRA
+%token BRK
+%token BRL
+%token BVC
+%token BVS
+%token CLC
+%token CLD
+%token CLI
+%token CLV
+%token CMP
+%token COP
+%token CPX
+%token CPY
+%token DEC
+%token DEX
+%token DEY
+%token EOR
+%token INC
+%token INX
+%token INY
+%token JML
+%token JMP
+%token JSL
+%token JSR
+%token LDA
+%token LDX
+%token LDY
+%token LSR
+%token MVN
+%token MVP
+%token NOP
+%token ORA
+%token PEA
+%token PEI
+%token PER
+%token PHA
+%token PHB
+%token PHD
+%token PHK
+%token PHP
+%token PHX
+%token PHY
+%token PLA
+%token PLB
+%token PLD
+%token PLP
+%token PLX
+%token PLY
+%token REP
+%token ROL
+%token ROR
+%token RTI
+%token RTL
+%token RTS
+%token SBC
+%token SEC
+%token SED
+%token SEI
+%token SEP
+%token STA
+%token STP
+%token STX
+%token STY
+%token STZ
+%token TAX
+%token TAY
+%token TCD
+%token TCS
+%token TDC
+%token TRB
+%token TSB
+%token TSC
+%token TSX
+%token TXA
+%token TXS
+%token TXY
+%token TYA
+%token TYX
+%token WAI
+%token WDM
+%token XBA
+%token XCE
+%token IDENT
+
+                        
+%%
+
+program:
+        |       stmt program { }
+        |       stmt { }
+        ;
+
+stmt:           stmt_macro
+        |       stmt_fill
+        |       stmt_fillbyte
+        |       stmt_incbin
+        |       stmt_incsrc
+        |       stmt_pad
+        |       stmt_padbyte
+        |       stmt_db
+        |       stmt_dw
+        |       stmt_dl
+        |       stmt_dd
+        |       stmt_skip
+        |       stmt_namespace
+        |       stmt_org
+        |       stmt_warnpc
+        |       stmt_base
+        |       stmt_freespace
+        |       stmt_freecode
+        |       stmt_freedata
+        |       stmt_op_branch
+        ;

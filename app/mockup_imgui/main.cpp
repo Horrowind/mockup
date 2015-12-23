@@ -124,11 +124,13 @@ void main_loop() {
         if (ImGui::BeginMenu("Prev")) {
             if(current_level > 0) current_level--;
             smw_level_load(&smw, current_level);
+            ImGui::CloseCurrentPopup();
             ImGui::EndMenu();
         }
         if(ImGui::BeginMenu("Next")) {
             if(current_level < 0x1FF) current_level++;
             smw_level_load(&smw, current_level);
+            ImGui::CloseCurrentPopup();
             ImGui::EndMenu();
         }
         ImGui::EndMainMenuBar();
@@ -136,8 +138,8 @@ void main_loop() {
 
     
     for(int i = 0; i < round(60.0/ImGui::GetIO().Framerate); i++) {
-    level_animate(&smw.levels[current_level], frame_num, &smw.gfx_pages);
-    frame_num++;
+        level_animate(&smw.levels[current_level], frame_num, &smw.gfx_pages);
+        frame_num++;
     }
 
     //Palette
@@ -252,7 +254,6 @@ void main_loop() {
             ImGui::InvisibleButton("canvas", canvas_size);
 
             hot_index = INT_MAX;
-            
             for(int i = 0; i < smw.levels[current_level].layer1_objects.length; i++) {
                 object_pc_t* obj = &smw.levels[current_level].layer1_objects.objects[i];
                 if(!obj->tiles) continue;
@@ -335,6 +336,10 @@ void main_loop() {
                     smw_level_load(&smw, current_level);
                 }
             }
+
+            if(ImGui::IsMouseDown(0)) {
+                //level_move_object(&smw.levels[current_level], hot_index, 0, 0, &smw.gfx_pages);
+            }
         
             ImGui::EndChild();
             ImGui::End();
@@ -364,14 +369,21 @@ int main(int, char**) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
     SDL_DisplayMode current;
     SDL_GetCurrentDisplayMode(0, &current);
-    
-    g_window = SDL_CreateWindow("Mockup", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1280, 720, SDL_WINDOW_OPENGL|SDL_WINDOW_RESIZABLE);
+
+    int width = 1280;
+    int height = 720;
+    int is_fullscreen = 0;
+#ifdef __EMSCRIPTEN__
+    emscripten_get_canvas_size(&width, &height, &is_fullscreen);
+#endif
+    if(is_fullscreen) is_fullscreen = SDL_WINDOW_FULLSCREEN;
+    g_window = SDL_CreateWindow("Mockup", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL|SDL_WINDOW_RESIZABLE|is_fullscreen);
     SDL_GLContext glcontext = SDL_GL_CreateContext(g_window);
     
     // Setup ImGui binding
     ImGui_ImplSdl_Init(g_window);
 
-#if 0
+#if 1
     r65816_rom_load(&rom, "smw.sfc");
 #else
 #include "smw_file.h"

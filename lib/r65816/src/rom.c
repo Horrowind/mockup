@@ -14,6 +14,7 @@ void r65816_rom_load(r65816_rom_t* rom, const char* path) {
     fseek(fp, 0, SEEK_END);
     rom->banksize = 0x8000; //Currently only LOROM is supported
     unsigned int filesize = ftell(fp);
+    assert(filesize != 0);
     unsigned int headersize = filesize % rom->banksize;
     fseek(fp, headersize, SEEK_SET);
     rom->num_banks = (filesize - headersize) / rom->banksize;
