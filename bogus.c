@@ -1,8 +1,16 @@
+#define BUILD_CMD "gcc bogus.c -lcurl"
 #define BOGUS_FILE_NAME __FILE__
 #define BOGUS_IMPLEMENTATION
-#include "bogus.h"
 
-int target_platform = 5;
+#include "bogus.h"
+#include "bogus_cred.h"
+
+#include <stdio.h>
+#include <curl/curl.h>
+#include <sys/time.h>
+#include <unistd.h>
+
+int target_platform;
 
 void build_mockup_imgui() {
     compiler_options_t c_options, cpp_options;
@@ -38,8 +46,9 @@ void build_mockup_imgui() {
             "lib/mockup/gfx_store.c",
             "lib/mockup/layer.c",
             "lib/mockup/level.c",
-            "lib/mockup/object.c",
+            "lib/mockup/level_objects.c",
             "lib/mockup/palette.c",
+            "lib/mockup/pool.c",
             "lib/mockup/smw.c",
             "lib/mockup/tiles.c",
             "lib/mockup/tileset.c"
@@ -185,59 +194,73 @@ void build_mockup_imgui() {
     build(&mockup_imgui, build_dir);
 }
 
+int perform_upload() {
 
+    struct item {
+        char* source;
+        char* target;
+    } items[] = {
+        { .source = "html/mockup.html", .target = "/index.html" },
+        { .source = "html/favicon.ico", .target = "/favicon.ico" },
+        { .source = "build/web/imockup.js", .target = "/imockup.js" },
+        { .source = "build/web/imockup.js.mem", .target = "/imockup.js.mem" },
+    };
 
-/* void build_mockup_imgui() { */
-/*     string_t sources[] = { */
-/*         "app/mockup_imgui/main.cpp", */
-/*         "app/mockup_imgui/imgui_impl_sdl.cpp", */
-/*         "lib/imgui/imgui.cpp", */
-/*         "lib/imgui/imgui_demo.cpp", */
-/*         "lib/imgui/imgui_draw.cpp" */
-/*     }; */
-
-/*     string_t libraries[] = { */
-/*         "GL", */
-/*         "SDL2" */
-/*     }; */
-
-/*     string_t library_paths[] = { */
-/*         "/usr/lib/x86_64-linux-gnu", */
-/*     }; */
+    CURL* handles[sizeof(items) / sizeof(struct item)];
+    CURLcode res;
+    int still_running;
     
-/*     object_t objects[array_length(sources)]; */
-/*     compiler_options_t co; */
-/*     target_t mockup_imgui = target_init("imockup", target_type_executable); */
-/*     switch(2) { */
-/*     case 0: */
-/*         co = compiler_options_init(compiler_gpp, 0); */
-/*         compiler_options_add_include(&co, "/usr/include/SDL2"); */
-/*         compiler_options_add_include(&co, "lib/imgui"); */
-/*         compiler_options_set_flags(&co, "-D_REENTRANT"); */
-/*         mockup_imgui.platform = platform_linux; */
-/*         break; */
-/*     case 1: */
-/*         break; */
-/*     case 2: */
-/*         co = compiler_options_init(compiler_empp, 2); */
-/*         compiler_options_add_include(&co, "lib/imgui"); */
-/*         mockup_imgui.platform = platform_web; */
-/*         target_set_flags(&mockup_imgui, " -s USE_SDL=2"); */
-/*         break; */
-/*     } */
-/*     compile_many(objects, sources, array_length(sources), co, "build/mockup_imgui"); */
+    FILE* fh[sizeof(items) / sizeof(struct item)];
+ 
+    for(int i = 0; i < sizeof(items) / sizeof(struct item); i++) {
+        handles[i] = curl_easy_init();
+        if(handles[i]) {
+            fh[i] = fopen(items[i].source, "rb");
+            curl_off_t size;
+            fseek (fh[i], 0, SEEK_END);
+            size = ftell(fh[i]);
+            rewind(fh[i]);
+            char target_path[256] = UPLOAD_URL;
+            strcat(target_path, items[i].target);
+            curl_easy_setopt(handles[i], CURLOPT_URL, target_path);
+            curl_easy_setopt(handles[i], CURLOPT_UPLOAD, 1L);
+            curl_easy_setopt(handles[i], CURLOPT_READDATA, fh[i]);
+            curl_easy_setopt(handles[i], CURLOPT_INFILESIZE_LARGE, size);
+            printf("Uploading %s\n", items[i].target);
+            curl_easy_perform(handles[i]);
+        }
+    }
 
-    
-/*     target_add_objects(&mockup_imgui, objects, array_length(objects)); */
-/*     target_add_libraries(&mockup_imgui, libraries, array_length(libraries)); */
-/*     target_add_library_paths(&mockup_imgui, library_paths, array_length(library_paths)); */
-/*     string_t build_dir = "build/"; */
-/*     build(&mockup_imgui, build_dir); */
-/* } */
+    for(int i = 0; i < sizeof(items) / sizeof(struct item); i++) {
+        curl_easy_cleanup(handles[i]);
+    }
+ 
+    return 0;
+}
+
 
 int main(int argc, char** argv) {
     init();
-    int tp = target_platform;
+    int tp = 0;
+    char c;
+    while((c = getopt(argc, argv, "lwhu")) != -1) {
+        switch(c) {
+        case 'l':
+            tp |= 1;
+            break;
+        case 'w':
+            tp |= 2;
+            break;
+        case 'h':
+            tp |= 4;
+            break;
+        case 'u':
+            tp |= 8;
+            break;
+        }
+    }
+    if(tp == 0) tp = 1;
+    
     if(tp & 1) {
         target_platform = 1;
         build_mockup_imgui();
@@ -250,4 +273,8 @@ int main(int argc, char** argv) {
         target_platform = 3;
         build_mockup_imgui();
     }
+    if(tp & 8) {
+        perform_upload();
+    }
+
 } 

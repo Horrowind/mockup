@@ -139,12 +139,12 @@ time_t get_file_time(string_t path) {
 
 
 void init() {
-    strncpy(tool_paths.gcc_path, "/usr/bin/gcc", PATH_MAX);
+    strncpy(tool_paths.gcc_path, "/usr/bin/gcc -Wl,-fuse-ld=gold", PATH_MAX);
     strncpy(tool_paths.gpp_path, "/usr/bin/g++", PATH_MAX);
     strncpy(tool_paths.clang_path, "/usr/bin/clang", PATH_MAX);
     strncpy(tool_paths.clangpp_path, "/usr/bin/clang++", PATH_MAX);
-    strncpy(tool_paths.emcc_path, "/home/horrowind/Projects/emscripten/emscripten/tag-1.34.12/emcc", PATH_MAX);
-    strncpy(tool_paths.empp_path, "/home/horrowind/Projects/emscripten/emscripten/tag-1.34.12/em++", PATH_MAX);
+    strncpy(tool_paths.emcc_path, "/home/horrowind/Projects/emscripten/emscripten/master/emcc", PATH_MAX);
+    strncpy(tool_paths.empp_path, "/home/horrowind/Projects/emscripten/emscripten/master/em++", PATH_MAX);
     strncpy(tool_paths.mxe_gcc_path, "/home/horrowind/Projects/mxe/usr/bin/i686-w64-mingw32.static-gcc", PATH_MAX);
     strncpy(tool_paths.mxe_gpp_path, "/home/horrowind/Projects/mxe/usr/bin/i686-w64-mingw32.static-g++", PATH_MAX);
     strncpy(tool_paths.ar_path, "/usr/bin/ar", PATH_MAX);
@@ -154,6 +154,7 @@ void init() {
     string_t exec_name = "bogus";
     string_t exec_dir;
     readlink("/proc/self/exe", exec_dir, sizeof(string_t));
+    time_t object_time = get_file_time(exec_dir);
     char* last_occurence_of_slash = strrchr(exec_dir, '/');
     if(last_occurence_of_slash != NULL) {
         strcpy(exec_name, last_occurence_of_slash + 1);
@@ -161,6 +162,7 @@ void init() {
         chdir(exec_dir);
     }
     
+#ifndef BUILD_CMD
     compiler_options_t co;
     co.compiler = compiler_gcc;
     co.optimization_level = 2;
@@ -175,7 +177,30 @@ void init() {
         printf("Run again\n");
         exit(0);
     }
+#else
+    string_t filename;
+    FILE* fp = popen(BUILD_CMD " -MM", "r");
+    int i = 0;
+    for(; (filename[i] = fgetc(fp)) != ':' && filename[i] != EOF; i++) { }
+    filename[i] = '\0';
+    time_t newest_source_time = get_file_time(filename);
 
+    while(!feof(fp)) {
+        string_t tmp;
+        fscanf(fp, "%s", tmp);
+        if(strcmp(tmp, "\\")) {
+            newest_source_time = max(get_file_time(tmp), newest_source_time);
+        }
+    }
+    
+    if(newest_source_time > object_time) {
+        printf(BUILD_CMD " -o bogus\n");
+        system2(BUILD_CMD " -o bogus");
+        char* argv[] = {"bogus", 0};
+        execvp("bogus", argv);
+    }
+
+#endif
 }
 target_t target_init(string_t name, target_type_t type) {
     target_t target;
@@ -396,7 +421,7 @@ int build(target_t* target, string_t build_dir) {
             }
             strcat(build_cmd, " -o ");
             if(target->platform == platform_web) {
-                strncat(target->file, ".html", PATH_MAX);
+                strncat(target->file, ".js", PATH_MAX);
             }
         }
         
