@@ -1,20 +1,43 @@
 %{
 #include <stdio.h>
-#include "y.tab.h"
 
 #define MAX_INCLUDE_DEPTH 10
 
-YY_BUFFER_STATE include_stack[MAX_INCLUDE_DEPTH];
-int include_stack_ptr = 0;
+//YY_BUFFER_STATE include_stack[MAX_INCLUDE_DEPTH];
+//int include_stack_ptr = 0;
+//#define YY_DECL extern int yylex()
+
+void yyerror();
+#include "nuts.tab.h"
+
+#ifdef NDEBUG
+#define return_token(token)                                \
+if(!NDEBUG) printf("Found " #token "\n");                 \
+return token;
+#else
+#define return_token(token)                                \
+return token;
+#endif
+
+
+
+/* void yyerror(const char *s) { */
+/* 	// might as well halt now: */
+/*     printf("Error: %s\n"); */
+/* } */
 
 %}
-                                                
-                        digit   [0-9]
-                        letter  [a-zA-Z]
-                        ident   {letter}({letter}|{digit}|"_")
-                        
-                        
-                        
+%option noyywrap
+%option yylineno
+digit   [0-9]
+hexdigit[0-9a-fA-F]
+letter  [a-zA-Z]
+ident   ({letter}|"_")({letter}|{digit}|"_")*
+byte    "$"{hexdigit}?{hexdigit}                        
+word    "$"{hexdigit}?{hexdigit}{hexdigit}{hexdigit}
+long    "$"{hexdigit}?{hexdigit}{hexdigit}{hexdigit}{hexdigit}{hexdigit}
+double    "$"{hexdigit}?{hexdigit}{hexdigit}{hexdigit}{hexdigit}{hexdigit}{hexdigit}{hexdigit}
+number  {digit}+
 %option case-insensitive
                         
 %x COMMENT
@@ -24,194 +47,229 @@ int include_stack_ptr = 0;
                         
 %%
 
-";"            { BEGIN(COMMENT); }
-<COMMENT>"\n"  { BEGIN(INITIAL); }
-<COMMENT>.   { }
+";"            { BEGIN(COMMENT);                              };
+<COMMENT>"\n"  { BEGIN(INITIAL); return_token(NEWLINE);       };
+<COMMENT>.     {                                              };
 
 
-[ \t]          ;
-
-  /* TODO: Implement numbers */
-  /*               { return NUMBER   };*/
-"+"            { return PLUS     };
-"-"            { return MINUS    };
-"/"            { return DIV      };
-"*"            { return MULT     };
-":"            { return COLON    };
-"<"            { return LESS     };
-">"            { return GREATER  };
-"<<"           { return LSHIFT   };
-">>"           { return RSHIFT   };
-"."            { return DOT      };
-"!"            { return EXCLAM   };
-"#"            { return HASH     };
-"&"            { return AMPER    };
-"^"            { return HAT      };
-"|"            { return PIPE     };
-"~"            { return TILDE    };
-"$"            { return DOLLAR   };
-"@"            { return AT       };
-"="            { return EQUAL    };
-"{"            { return LCURLY   };
-"}"            { return RCURLY   };
-"("            { return LBRACE   };
-")"            { return RBRACE   };
-"["            { return LBRACK   };
-"]"            { return RBRACK   };
-"?"            { return QMARK    };
-","            { return COMMA    };
-[+]+           { return FWDLABEL };
-[-]-           { return BWDLABEL };
 
 
-  /* Asar Commands */
+[ \t]          { }
+[\n]           { return_token(NEWLINE);  };
+{word}         { return_token(WORD);     };
+{byte}         { return_token(BYTE);     };
+{long}         { return_token(LONG);     };
+{double}       { return_token(DOUBLE);   };
+{number}       { return_token(NUMBER);   };
+"+"            { return_token(PLUS);     };
+"-"            { return_token(MINUS);    };
+"/"            { return_token(DIV);      };
+"*"            { return_token(MULT);     };
+"**"           { return_token(MULT);     };
+":"            { return_token(COLON);    };
+"<"            { return_token(LESS);     };
+">"            { return_token(GREATER);  };
+"<<"           { return_token(LSHIFT);   };
+">>"           { return_token(RSHIFT);   };
+"."            { return_token(DOT);      };
+"!"            { return_token(EXCLAM);   };
+"#"            { return_token(HASH);     };
+"&"            { return_token(AMPER);    };
+"^"            { return_token(HAT);      };
+"%"            { return_token(PERCENT);  };
+"|"            { return_token(PIPE);     };
+"~"            { return_token(TILDE);    };
+"$"            { return_token(DOLLAR);   };
+"@"            { return_token(AT);       };
+"="            { return_token(EQUAL);    };
+"{"            { return_token(LCURLY);   };
+"}"            { return_token(RCURLY);   };
+"("            { return_token(LPAREN);   };
+")"            { return_token(RPAREN);   };
+"["            { return_token(LBRACK);   };
+"]"            { return_token(RBRACK);   };
+"?"            { return_token(QMARK);    };
+","            { return_token(COMMA);    };
+".b"           { return_token(SPECBYTE); };
+".w"           { return_token(SPECWORD); };
+".l"           { return_token(SPECLONG); };
+[+]+           { return_token(FWDLABEL); };
+[-]-           { return_token(BWDLABEL); };
+{ident}":"     { return_token(LABELDEC); };
+"."{ident}":"? { return_token(SUBLABEL); };
+\"(\\.|[^\\\"])*\" { return_token(STRING); };
 
-"macro"        { BEGIN(MACRO_DECLLIST); };
-<MACRO_DECLLIST>[ \t]* { };
-<MACRO_DECLLIST>"("    { return MACRO_LPAREN; };
-<MACRO_DECLLIST>","    { return MACRO_COMMA; };
-<MACRO_DECLLIST>ident  { return MACRO_IDENT; };
-<MACRO_DECLLIST>")"    { 
-    BEGIN(MACRO_BODY);
-    return MACRO_RPAREN;
-  };
-<MACRO_BODY>"\0"       { error(); };
-<MACRO_BODY>"\nendmacro"     {
-    BEGIN(INITIAL);
-    return ENDMACRO;
-  };
+   /* Asar Commands */
 
-"%"ident       {
-  // Macro call
+ "macro"                 {
+     BEGIN(MACRO_DECLLIST);
+     return_token(MACRO);
+ };
+ <MACRO_DECLLIST>[ \t]*  { };
+ <MACRO_DECLLIST>"("     { return_token(MACRO_LPAREN); };
+ <MACRO_DECLLIST>","     { return_token(MACRO_COMMA); };
+ <MACRO_DECLLIST>{ident} { return_token(MACRO_IDENT); };
+ <MACRO_DECLLIST>")"     {
+     BEGIN(MACRO_BODY);
+     return_token(MACRO_RPAREN);
+   };
+ <MACRO_BODY>"\0"       { yyerror("EOF in macro body"); };
+ <MACRO_BODY>"\nendmacro"     {
+     BEGIN(INITIAL);
+     return_token(ENDMACRO);
+   };
+<MACRO_BODY>.           { };
+ "%"ident       {
+   // Macro call
  
-  };
+   };
 
-"fill"         { return FILL     };
-"fillbyte"     { return FILLBYTE };
-"incbin"       { return INCBIN   };
-"incsrc"       { return INCSRC   };
-"pad"          { return PAD      };
-"padbyte"      { return PADBYTE  };
-"db"           { return DB       };
-"dw"           { return DW       };
-"dl"           { return DL       };
-"dd"           { return DD       };
-"skip"         { return SKIP     };
-"namespace"    { return NSPACE   };
-"on"           { return ON       };
-"off"          { return OFF      };
-"org"          { return ORG      };
-"warnpc"       { return WARNPC   };
-"base"         { return BASE     };
-"freespace"    { return FREESP   };
-"freecode"     { return FREECODE };
-"freedata"     { return FREEDATA };
-"pushpc"       { return PUSHPC   };
-"pullpc"       { return PULLPC   };
-
-
-
+"fill"         { return_token(FILL);     };
+"fillbyte"     { return_token(FILLBYTE); };
+"incbin"       { return_token(INCBIN);   };
+"incsrc"       { return_token(INCSRC);   };
+"pad"          { return_token(PAD);      };
+"padbyte"      { return_token(PADBYTE);  };
+"db"           { return_token(DB);       };
+"dw"           { return_token(DW);       };
+"dl"           { return_token(DL);       };
+"dd"           { return_token(DD);       };
+"skip"         { return_token(SKIP);     };
+"namespace"    { return_token(NSPACE);   };
+"on"           { return_token(ON);       };
+"off"          { return_token(OFF);      };
+"org"          { return_token(ORG);      };
+"warnpc"       { return_token(WARNPC);   };
+"base"         { return_token(BASE);     };
+"freespace"    { return_token(FREESP);   };
+"freecode"     { return_token(FREECODE); };
+"freedata"     { return_token(FREEDATA); };
+"pushpc"       { return_token(PUSHPC);   };
+"pullpc"       { return_token(PULLPC);   };
 
   /* SFC Commands */
-"adc"          { return ADC      };
-"and"          { return AND      };
-"asl"          { return ASL      };
-"bcc"          { return BCC      };
-"blt"          { return BLT      };
-"bcs"          { return BCS      };
-"bge"          { return BGE      };
-"beq"          { return BEQ      };
-"bit"          { return BIT      };
-"bmi"          { return BMI      };
-"bne"          { return BNE      };
-"bpl"          { return BPL      };
-"bra"          { return BRA      };
-"brk"          { return BRK      };
-"brl"          { return BRL      };
-"bvc"          { return BVC      };
-"bvs"          { return BVS      };
-"clc"          { return CLC      };
-"cld"          { return CLD      };
-"cli"          { return CLI      };
-"clv"          { return CLV      };
-"cmp"          { return CMP      };
-"cop"          { return COP      };
-"cpx"          { return CPX      };
-"cpy"          { return CPY      };
-"dec"          { return DEC      };
-"dex"          { return DEX      };
-"dey"          { return DEY      };
-"eor"          { return EOR      };
-"inc"          { return INC      };
-"inx"          { return INX      };
-"iny"          { return INY      };
-"jml"          { return JML      };
-"jmp"          { return JMP      };
-"jsl"          { return JSL      };
-"jsr"          { return JSR      };
-"lda"          { return LDA      };
-"ldx"          { return LDX      };
-"ldy"          { return LDY      };
-"lsr"          { return LSR      };
-"mvn"          { return MVN      };
-"mvp"          { return MVP      };
-"nop"          { return NOP      };
-"ora"          { return ORA      };
-"pea"          { return PEA      };
-"pei"          { return PEI      };
-"per"          { return PER      };
-"pha"          { return PHA      };
-"phb"          { return PHB      };
-"phd"          { return PHD      };
-"phk"          { return PHK      };
-"php"          { return PHP      };
-"phx"          { return PHX      };
-"phy"          { return PHY      };
-"pla"          { return PLA      };
-"plb"          { return PLB      };
-"pld"          { return PLD      };
-"plp"          { return PLP      };
-"plx"          { return PLX      };
-"ply"          { return PLY      };
-"rep"          { return REP      };
-"rol"          { return ROL      };
-"ror"          { return ROR      };
-"rti"          { return RTI      };
-"rtl"          { return RTL      };
-"rts"          { return RTS      };
-"sbc"          { return SBC      };
-"sec"          { return SEC      };
-"sed"          { return SED      };
-"sei"          { return SEI      };
-"sep"          { return SEP      };
-"sta"          { return STA      };
-"stp"          { return STP      };
-"stx"          { return STX      };
-"sty"          { return STY      };
-"stz"          { return STZ      };
-"tax"          { return TAX      };
-"tay"          { return TAY      };
-"tcd"          { return TCD      };
-"tcs"          { return TCS      };
-"tdc"          { return TDC      };
-"trb"          { return TRB      };
-"tsb"          { return TSB      };
-"tsc"          { return TSC      };
-"tsx"          { return TSX      };
-"txa"          { return TXA      };
-"txs"          { return TXS      };
-"txy"          { return TXY      };
-"tya"          { return TYA      };
-"tyx"          { return TYX      };
-"wai"          { return WAI      };
-"wdm"          { return WDM      };
-"xba"          { return XBA      };
-"xce"          { return XCE      };
+"adc"          { return_token(ADC);      };
+"and"          { return_token(AND);      };
+"asl"          { return_token(ASL);      };
+"bcc"          { return_token(BCC);      };
+"blt"          { return_token(BLT);      };
+"bcs"          { return_token(BCS);      };
+"bge"          { return_token(BGE);      };
+"beq"          { return_token(BEQ);      };
+"bit"          { return_token(BIT);      };
+"bmi"          { return_token(BMI);      };
+"bne"          { return_token(BNE);      };
+"bpl"          { return_token(BPL);      };
+"bra"          { return_token(BRA);      };
+"brk"          { return_token(BRK);      };
+"brl"          { return_token(BRL);      };
+"bvc"          { return_token(BVC);      };
+"bvs"          { return_token(BVS);      };
+"clc"          { return_token(CLC);      };
+"cld"          { return_token(CLD);      };
+"cli"          { return_token(CLI);      };
+"clv"          { return_token(CLV);      };
+"cmp"          { return_token(CMP);      };
+"cop"          { return_token(COP);      };
+"cpx"          { return_token(CPX);      };
+"cpy"          { return_token(CPY);      };
+"dec"          { return_token(DEC);      };
+"dex"          { return_token(DEX);      };
+"dey"          { return_token(DEY);      };
+"eor"          { return_token(EOR);      };
+"inc"          { return_token(INC);      };
+"inx"          { return_token(INX);      };
+"iny"          { return_token(INY);      };
+"jml"          { return_token(JML);      };
+"jmp"          { return_token(JMP);      };
+"jsl"          { return_token(JSL);      };
+"jsr"          { return_token(JSR);      };
+"lda"          { return_token(LDA);      };
+"ldx"          { return_token(LDX);      };
+"ldy"          { return_token(LDY);      };
+"lsr"          { return_token(LSR);      };
+"mvn"          { return_token(MVN);      };
+"mvp"          { return_token(MVP);      };
+"nop"          { return_token(NOP);      };
+"ora"          { return_token(ORA);      };
+"pea"          { return_token(PEA);      };
+"pei"          { return_token(PEI);      };
+"per"          { return_token(PER);      };
+"pha"          { return_token(PHA);      };
+"phb"          { return_token(PHB);      };
+"phd"          { return_token(PHD);      };
+"phk"          { return_token(PHK);      };
+"php"          { return_token(PHP);      };
+"phx"          { return_token(PHX);      };
+"phy"          { return_token(PHY);      };
+"pla"          { return_token(PLA);      };
+"plb"          { return_token(PLB);      };
+"pld"          { return_token(PLD);      };
+"plp"          { return_token(PLP);      };
+"plx"          { return_token(PLX);      };
+"ply"          { return_token(PLY);      };
+"rep"          { return_token(REP);      };
+"rol"          { return_token(ROL);      };
+"ror"          { return_token(ROR);      };
+"rti"          { return_token(RTI);      };
+"rtl"          { return_token(RTL);      };
+"rts"          { return_token(RTS);      };
+"sbc"          { return_token(SBC);      };
+"sec"          { return_token(SEC);      };
+"sed"          { return_token(SED);      };
+"sei"          { return_token(SEI);      };
+"sep"          { return_token(SEP);      };
+"sta"          { return_token(STA);      };
+"stp"          { return_token(STP);      };
+"stx"          { return_token(STX);      };
+"sty"          { return_token(STY);      };
+"stz"          { return_token(STZ);      };
+"tax"          { return_token(TAX);      };
+"tay"          { return_token(TAY);      };
+"tcd"          { return_token(TCD);      };
+"tcs"          { return_token(TCS);      };
+"tdc"          { return_token(TDC);      };
+"trb"          { return_token(TRB);      };
+"tsb"          { return_token(TSB);      };
+"tsc"          { return_token(TSC);      };
+"tsx"          { return_token(TSX);      };
+"txa"          { return_token(TXA);      };
+"txs"          { return_token(TXS);      };
+"txy"          { return_token(TXY);      };
+"tya"          { return_token(TYA);      };
+"tyx"          { return_token(TYX);      };
+"wai"          { return_token(WAI);      };
+"wdm"          { return_token(WDM);      };
+"xba"          { return_token(XBA);      };
+"xce"          { return_token(XCE);      };
+"x"            { return_token(TOC_X);    };
+"y"            { return_token(TOC_Y);    };
+"s"            { return_token(TOC_S);    };
 
-ident          { return IDENT    };
+{ident}          { return_token(IDENT);    };
 
 %%
-int main(int, char**) {
-	// lex through the input:
-	yylex();
+/* int main(int argc, char** argv) { */
+/* 	// open a file handle to a particular file: */
+/*     if(argc == 1) { */
+/*         while(1) yylex(); */
+/*     } else if(argc == 2) { */
+/*         FILE* fp = fopen(argv[1], "r"); */
+/*         // make sure it is valid: */
+/*         if (!fp) { */
+/*             printf("Could not open %s\n", argv[1]); */
+/*         } else { */
+/*             yyin = fp; */
+/*             //do { */
+/*                 yylex(); */
+/*                 //} while (!feof(yyin)); */
+/*         } */
+/*     } else { */
+/*         printf("Too many arguments.\n"); */
+/*     }         */
+/* } */
+
+void yyerror(const char *s) {
+	// might as well halt now:
+    printf("Error on line %i: %s\n", yylineno, yytext);
 }
