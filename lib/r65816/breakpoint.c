@@ -1,4 +1,3 @@
-#include "stdint.h"
 #include "stdlib.h"
 
 #include "breakpoint.h"
@@ -23,7 +22,7 @@ void r65816_breakpoint_list_init(r65816_breakpoint_list_t* brk) {
 }
 
 
-uint8_t r65816_breakpoint_list_is_hit(r65816_breakpoint_list_t* brk, uint32_t address) {
+b32 r65816_breakpoint_list_is_hit(r65816_breakpoint_list_t* brk, u32 address) {
 //    for(int i = 0; i < BP_MAX_LENGTH; i++) {
     for(int i = 0; i < brk->length && brk->address[i].low <= address; i++) {
       if(brk->address[i].high >= address) return 1; 
@@ -37,7 +36,7 @@ uint8_t r65816_breakpoint_list_is_hit(r65816_breakpoint_list_t* brk, uint32_t ad
     return 0;
 }
 
-void r65816_breakpoint_list_add(r65816_breakpoint_list_t* brk, uint32_t address) {
+void r65816_breakpoint_list_add(r65816_breakpoint_list_t* brk, u32 address) {
 //    brk->address = realloc(brk->address, (brk->length + 1) * sizeof(r65816_breakpoint_t));
     if(brk->length == 0) {
         brk->address[0].low = address;
@@ -62,7 +61,7 @@ void r65816_breakpoint_list_add(r65816_breakpoint_list_t* brk, uint32_t address)
     }
 }
 
-void r65816_breakpoint_list_add_range(r65816_breakpoint_list_t* brk, uint32_t address_low, uint32_t address_high) {
+void r65816_breakpoint_list_add_range(r65816_breakpoint_list_t* brk, u32 address_low, u32 address_high) {
 //    brk->address = realloc(brk->address, (brk->length + 1) * sizeof(r65816_breakpoint_t));
     if(brk->length == 0) {
         brk->address[0].low = address_low;

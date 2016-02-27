@@ -8,6 +8,8 @@
 /* #include <llvm-c/BitWriter.h> */
 
 
+
+
 #include "cpu.h"
 #include "disassembler.h"
 #include "memory.h"
@@ -61,27 +63,27 @@ void r65816_cpu_clear(r65816_cpu_t* cpu) {
 
 }
 
-void r65816_cpu_add_exec_bp(r65816_cpu_t* cpu, uint32_t addr) {
+void r65816_cpu_add_exec_bp(r65816_cpu_t* cpu, u32 addr) {
     r65816_breakpoint_list_add(&cpu->breakpoints_exec, addr);
 }
 
-void r65816_cpu_add_read_bp(r65816_cpu_t* cpu, uint32_t addr) {
+void r65816_cpu_add_read_bp(r65816_cpu_t* cpu, u32 addr) {
     r65816_breakpoint_list_add(&cpu->breakpoints_read, addr);
 }
 
-void r65816_cpu_add_write_bp(r65816_cpu_t* cpu, uint32_t addr) {
+void r65816_cpu_add_write_bp(r65816_cpu_t* cpu, u32 addr) {
     r65816_breakpoint_list_add(&cpu->breakpoints_write, addr);
 }
 
-void r65816_cpu_add_exec_bp_range(r65816_cpu_t* cpu, uint32_t addr_low, uint32_t addr_high) {
+void r65816_cpu_add_exec_bp_range(r65816_cpu_t* cpu, u32 addr_low, u32 addr_high) {
     r65816_breakpoint_list_add_range(&cpu->breakpoints_exec, addr_low, addr_high);
 }
 
-void r65816_cpu_add_read_bp_range(r65816_cpu_t* cpu, uint32_t addr_low, uint32_t addr_high) {
+void r65816_cpu_add_read_bp_range(r65816_cpu_t* cpu, u32 addr_low, u32 addr_high) {
     r65816_breakpoint_list_add_range(&cpu->breakpoints_read, addr_low, addr_high);
 }
 
-void r65816_cpu_add_write_bp_range(r65816_cpu_t* cpu, uint32_t addr_low, uint32_t addr_high) {
+void r65816_cpu_add_write_bp_range(r65816_cpu_t* cpu, u32 addr_low, u32 addr_high) {
     r65816_breakpoint_list_add_range(&cpu->breakpoints_write, addr_low, addr_high);
 }
 
@@ -90,18 +92,18 @@ void r65816_cpu_show_state(r65816_cpu_t* cpu, char* output) {
     r65816_cpu_disassemble_opcode(cpu, output, cpu->regs.pc.d);
 }
 
-void r65816_cpu_disassemble_opcode(r65816_cpu_t* cpu, char* output, uint32_t addr) {
+void r65816_cpu_disassemble_opcode(r65816_cpu_t* cpu, char* output, u32 addr) {
   static r65816_reg24_t pc;
   char t[256];
   char* s = output;
 
   pc.d = addr;
-  sprintf(s, "%.6x ",  (uint32_t)pc.d);
+  sprintf(s, "%.6x ",  (u32)pc.d);
 
-  uint8_t op  = r65816_dreadb(cpu, pc.d); pc.w++;
-  uint8_t op0 = r65816_dreadb(cpu, pc.d); pc.w++;
-  uint8_t op1 = r65816_dreadb(cpu, pc.d); pc.w++;
-  uint8_t op2 = r65816_dreadb(cpu, pc.d);
+  u8 op  = r65816_dreadb(cpu, pc.d); pc.w++;
+  u8 op0 = r65816_dreadb(cpu, pc.d); pc.w++;
+  u8 op1 = r65816_dreadb(cpu, pc.d); pc.w++;
+  u8 op2 = r65816_dreadb(cpu, pc.d);
 
   #define op8  ((op0))
   #define op16 ((op0) | (op1 << 8))
@@ -127,7 +129,7 @@ void r65816_cpu_disassemble_opcode(r65816_cpu_t* cpu, char* output, uint32_t add
   case 0x0d: sprintf(t, "ora $%.4x     [%.6x]", op16, r65816_decode(cpu, OPTYPE_ADDR, op16)); break;
   case 0x0e: sprintf(t, "asl $%.4x     [%.6x]", op16, r65816_decode(cpu, OPTYPE_ADDR, op16)); break;
   case 0x0f: sprintf(t, "ora $%.6x   [%.6x]", op24, r65816_decode(cpu, OPTYPE_LONG, op24)); break;
-  case 0x10: sprintf(t, "bpl $%.4x     [%.6x]", (uint16_t)(r65816_decode(cpu, OPTYPE_RELB, op8)), r65816_decode(cpu, OPTYPE_RELB, op8)); break;
+  case 0x10: sprintf(t, "bpl $%.4x     [%.6x]", (u16)(r65816_decode(cpu, OPTYPE_RELB, op8)), r65816_decode(cpu, OPTYPE_RELB, op8)); break;
   case 0x11: sprintf(t, "ora ($%.2x),y   [%.6x]", op8, r65816_decode(cpu, OPTYPE_IDPY, op8)); break;
   case 0x12: sprintf(t, "ora ($%.2x)     [%.6x]", op8, r65816_decode(cpu, OPTYPE_IDP, op8)); break;
   case 0x13: sprintf(t, "ora ($%.2x,s),y [%.6x]", op8, r65816_decode(cpu, OPTYPE_ISRY, op8)); break;
@@ -160,7 +162,7 @@ void r65816_cpu_disassemble_opcode(r65816_cpu_t* cpu, char* output, uint32_t add
   case 0x2d: sprintf(t, "and $%.4x     [%.6x]", op16, r65816_decode(cpu, OPTYPE_ADDR, op16)); break;
   case 0x2e: sprintf(t, "rol $%.4x     [%.6x]", op16, r65816_decode(cpu, OPTYPE_ADDR, op16)); break;
   case 0x2f: sprintf(t, "and $%.6x   [%.6x]", op24, r65816_decode(cpu, OPTYPE_LONG, op24)); break;
-  case 0x30: sprintf(t, "bmi $%.4x     [%.6x]", (uint16_t)(r65816_decode(cpu, OPTYPE_RELB, op8)), r65816_decode(cpu, OPTYPE_RELB, op8)); break;
+  case 0x30: sprintf(t, "bmi $%.4x     [%.6x]", (u16)(r65816_decode(cpu, OPTYPE_RELB, op8)), r65816_decode(cpu, OPTYPE_RELB, op8)); break;
   case 0x31: sprintf(t, "and ($%.2x),y   [%.6x]", op8, r65816_decode(cpu, OPTYPE_IDPY, op8)); break;
   case 0x32: sprintf(t, "and ($%.2x)     [%.6x]", op8, r65816_decode(cpu, OPTYPE_IDP, op8)); break;
   case 0x33: sprintf(t, "and ($%.2x,s),y [%.6x]", op8, r65816_decode(cpu, OPTYPE_ISRY, op8)); break;
@@ -193,7 +195,7 @@ void r65816_cpu_disassemble_opcode(r65816_cpu_t* cpu, char* output, uint32_t add
   case 0x4d: sprintf(t, "eor $%.4x     [%.6x]", op16, r65816_decode(cpu, OPTYPE_ADDR, op16)); break;
   case 0x4e: sprintf(t, "lsr $%.4x     [%.6x]", op16, r65816_decode(cpu, OPTYPE_ADDR, op16)); break;
   case 0x4f: sprintf(t, "eor $%.6x   [%.6x]", op24, r65816_decode(cpu, OPTYPE_LONG, op24)); break;
-  case 0x50: sprintf(t, "bvc $%.4x     [%.6x]", (uint16_t)(r65816_decode(cpu, OPTYPE_RELB, op8)), r65816_decode(cpu, OPTYPE_RELB, op8)); break;
+  case 0x50: sprintf(t, "bvc $%.4x     [%.6x]", (u16)(r65816_decode(cpu, OPTYPE_RELB, op8)), r65816_decode(cpu, OPTYPE_RELB, op8)); break;
   case 0x51: sprintf(t, "eor ($%.2x),y   [%.6x]", op8, r65816_decode(cpu, OPTYPE_IDPY, op8)); break;
   case 0x52: sprintf(t, "eor ($%.2x)     [%.6x]", op8, r65816_decode(cpu, OPTYPE_IDP, op8)); break;
   case 0x53: sprintf(t, "eor ($%.2x,s),y [%.6x]", op8, r65816_decode(cpu, OPTYPE_ISRY, op8)); break;
@@ -226,7 +228,7 @@ void r65816_cpu_disassemble_opcode(r65816_cpu_t* cpu, char* output, uint32_t add
   case 0x6d: sprintf(t, "adc $%.4x     [%.6x]", op16, r65816_decode(cpu, OPTYPE_ADDR, op16)); break;
   case 0x6e: sprintf(t, "ror $%.4x     [%.6x]", op16, r65816_decode(cpu, OPTYPE_ADDR, op16)); break;
   case 0x6f: sprintf(t, "adc $%.6x   [%.6x]", op24, r65816_decode(cpu, OPTYPE_LONG, op24)); break;
-  case 0x70: sprintf(t, "bvs $%.4x     [%.6x]", (uint16_t)(r65816_decode(cpu, OPTYPE_RELB, op8)), r65816_decode(cpu, OPTYPE_RELB, op8)); break;
+  case 0x70: sprintf(t, "bvs $%.4x     [%.6x]", (u16)(r65816_decode(cpu, OPTYPE_RELB, op8)), r65816_decode(cpu, OPTYPE_RELB, op8)); break;
   case 0x71: sprintf(t, "adc ($%.2x),y   [%.6x]", op8, r65816_decode(cpu, OPTYPE_IDPY, op8)); break;
   case 0x72: sprintf(t, "adc ($%.2x)     [%.6x]", op8, r65816_decode(cpu, OPTYPE_IDP, op8)); break;
   case 0x73: sprintf(t, "adc ($%.2x,s),y [%.6x]", op8, r65816_decode(cpu, OPTYPE_ISRY, op8)); break;
@@ -242,9 +244,9 @@ void r65816_cpu_disassemble_opcode(r65816_cpu_t* cpu, char* output, uint32_t add
   case 0x7d: sprintf(t, "adc $%.4x,x   [%.6x]", op16, r65816_decode(cpu, OPTYPE_ADDRX, op16)); break;
   case 0x7e: sprintf(t, "ror $%.4x,x   [%.6x]", op16, r65816_decode(cpu, OPTYPE_ADDRX, op16)); break;
   case 0x7f: sprintf(t, "adc $%.6x,x [%.6x]", op24, r65816_decode(cpu, OPTYPE_LONGX, op24)); break;
-  case 0x80: sprintf(t, "bra $%.4x     [%.6x]", (uint16_t)(r65816_decode(cpu, OPTYPE_RELB, op8)), r65816_decode(cpu, OPTYPE_RELB, op8)); break;
+  case 0x80: sprintf(t, "bra $%.4x     [%.6x]", (u16)(r65816_decode(cpu, OPTYPE_RELB, op8)), r65816_decode(cpu, OPTYPE_RELB, op8)); break;
   case 0x81: sprintf(t, "sta ($%.2x,x)   [%.6x]", op8, r65816_decode(cpu, OPTYPE_IDPX, op8)); break;
-  case 0x82: sprintf(t, "brl $%.4x     [%.6x]", (uint16_t)(r65816_decode(cpu, OPTYPE_RELW, op16)), r65816_decode(cpu, OPTYPE_RELW, op16)); break;
+  case 0x82: sprintf(t, "brl $%.4x     [%.6x]", (u16)(r65816_decode(cpu, OPTYPE_RELW, op16)), r65816_decode(cpu, OPTYPE_RELW, op16)); break;
   case 0x83: sprintf(t, "sta $%.2x,s     [%.6x]", op8, r65816_decode(cpu, OPTYPE_SR, op8)); break;
   case 0x84: sprintf(t, "sty $%.2x       [%.6x]", op8, r65816_decode(cpu, OPTYPE_DP, op8)); break;
   case 0x85: sprintf(t, "sta $%.2x       [%.6x]", op8, r65816_decode(cpu, OPTYPE_DP, op8)); break;
@@ -259,7 +261,7 @@ void r65816_cpu_disassemble_opcode(r65816_cpu_t* cpu, char* output, uint32_t add
   case 0x8d: sprintf(t, "sta $%.4x     [%.6x]", op16, r65816_decode(cpu, OPTYPE_ADDR, op16)); break;
   case 0x8e: sprintf(t, "stx $%.4x     [%.6x]", op16, r65816_decode(cpu, OPTYPE_ADDR, op16)); break;
   case 0x8f: sprintf(t, "sta $%.6x   [%.6x]", op24, r65816_decode(cpu, OPTYPE_LONG, op24)); break;
-  case 0x90: sprintf(t, "bcc $%.4x     [%.6x]", (uint16_t)(r65816_decode(cpu, OPTYPE_RELB, op8)), r65816_decode(cpu, OPTYPE_RELB, op8)); break;
+  case 0x90: sprintf(t, "bcc $%.4x     [%.6x]", (u16)(r65816_decode(cpu, OPTYPE_RELB, op8)), r65816_decode(cpu, OPTYPE_RELB, op8)); break;
   case 0x91: sprintf(t, "sta ($%.2x),y   [%.6x]", op8, r65816_decode(cpu, OPTYPE_IDPY, op8)); break;
   case 0x92: sprintf(t, "sta ($%.2x)     [%.6x]", op8, r65816_decode(cpu, OPTYPE_IDP, op8)); break;
   case 0x93: sprintf(t, "sta ($%.2x,s),y [%.6x]", op8, r65816_decode(cpu, OPTYPE_ISRY, op8)); break;
@@ -294,7 +296,7 @@ void r65816_cpu_disassemble_opcode(r65816_cpu_t* cpu, char* output, uint32_t add
   case 0xad: sprintf(t, "lda $%.4x     [%.6x]", op16, r65816_decode(cpu, OPTYPE_ADDR, op16)); break;
   case 0xae: sprintf(t, "ldx $%.4x     [%.6x]", op16, r65816_decode(cpu, OPTYPE_ADDR, op16)); break;
   case 0xaf: sprintf(t, "lda $%.6x   [%.6x]", op24, r65816_decode(cpu, OPTYPE_LONG, op24)); break;
-  case 0xb0: sprintf(t, "bcs $%.4x     [%.6x]", (uint16_t)(r65816_decode(cpu, OPTYPE_RELB, op8)), r65816_decode(cpu, OPTYPE_RELB, op8)); break;
+  case 0xb0: sprintf(t, "bcs $%.4x     [%.6x]", (u16)(r65816_decode(cpu, OPTYPE_RELB, op8)), r65816_decode(cpu, OPTYPE_RELB, op8)); break;
   case 0xb1: sprintf(t, "lda ($%.2x),y   [%.6x]", op8, r65816_decode(cpu, OPTYPE_IDPY, op8)); break;
   case 0xb2: sprintf(t, "lda ($%.2x)     [%.6x]", op8, r65816_decode(cpu, OPTYPE_IDP, op8)); break;
   case 0xb3: sprintf(t, "lda ($%.2x,s),y [%.6x]", op8, r65816_decode(cpu, OPTYPE_ISRY, op8)); break;
@@ -328,7 +330,7 @@ void r65816_cpu_disassemble_opcode(r65816_cpu_t* cpu, char* output, uint32_t add
   case 0xcd: sprintf(t, "cmp $%.4x     [%.6x]", op16, r65816_decode(cpu, OPTYPE_ADDR, op16)); break;
   case 0xce: sprintf(t, "dec $%.4x     [%.6x]", op16, r65816_decode(cpu, OPTYPE_ADDR, op16)); break;
   case 0xcf: sprintf(t, "cmp $%.6x   [%.6x]", op24, r65816_decode(cpu, OPTYPE_LONG, op24)); break;
-  case 0xd0: sprintf(t, "bne $%.4x     [%.6x]", (uint16_t)(r65816_decode(cpu, OPTYPE_RELB, op8)), r65816_decode(cpu, OPTYPE_RELB, op8)); break;
+  case 0xd0: sprintf(t, "bne $%.4x     [%.6x]", (u16)(r65816_decode(cpu, OPTYPE_RELB, op8)), r65816_decode(cpu, OPTYPE_RELB, op8)); break;
   case 0xd1: sprintf(t, "cmp ($%.2x),y   [%.6x]", op8, r65816_decode(cpu, OPTYPE_IDPY, op8)); break;
   case 0xd2: sprintf(t, "cmp ($%.2x)     [%.6x]", op8, r65816_decode(cpu, OPTYPE_IDP, op8)); break;
   case 0xd3: sprintf(t, "cmp ($%.2x,s),y [%.6x]", op8, r65816_decode(cpu, OPTYPE_ISRY, op8)); break;
@@ -362,7 +364,7 @@ void r65816_cpu_disassemble_opcode(r65816_cpu_t* cpu, char* output, uint32_t add
   case 0xed: sprintf(t, "sbc $%.4x     [%.6x]", op16, r65816_decode(cpu, OPTYPE_ADDR, op16)); break;
   case 0xee: sprintf(t, "inc $%.4x     [%.6x]", op16, r65816_decode(cpu, OPTYPE_ADDR, op16)); break;
   case 0xef: sprintf(t, "sbc $%.6x   [%.6x]", op24, r65816_decode(cpu, OPTYPE_LONG, op24)); break;
-  case 0xf0: sprintf(t, "beq $%.4x     [%.6x]", (uint16_t)(r65816_decode(cpu, OPTYPE_RELB, op8)), r65816_decode(cpu, OPTYPE_RELB, op8)); break;
+  case 0xf0: sprintf(t, "beq $%.4x     [%.6x]", (u16)(r65816_decode(cpu, OPTYPE_RELB, op8)), r65816_decode(cpu, OPTYPE_RELB, op8)); break;
   case 0xf1: sprintf(t, "sbc ($%.2x),y   [%.6x]", op8, r65816_decode(cpu, OPTYPE_IDPY, op8)); break;
   case 0xf2: sprintf(t, "sbc ($%.2x)     [%.6x]", op8, r65816_decode(cpu, OPTYPE_IDP, op8)); break;
   case 0xf3: sprintf(t, "sbc ($%.2x,s),y [%.6x]", op8, r65816_decode(cpu, OPTYPE_ISRY, op8)); break;

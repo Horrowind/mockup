@@ -1,4 +1,3 @@
-#include "cpu.h"
 #include "algorithms.h"
 #include "disassembler.h"
 #include "memory.h"
@@ -9,58 +8,8 @@
 #include "opcode_rmw.h"
 #include "opcode_write.h"
 
-#define DEBUG_PRINT_CPU_STATE 0
 
-void (*op_table[5 * 256])(struct cpu*);
-
-void r65816_cpu_run_from(r65816_cpu_t* cpu, uint32_t address) {
-    cpu->regs.pc.d = address;
-    r65816_cpu_run(cpu);
-}
-
-void r65816_cpu_run(r65816_cpu_t* cpu) {
-    cpu->stop_execution = 0;
-    while(!cpu->stop_execution) {
-#if DEBUG_PRINT_CPU_STATE
-        char output[256];
-        r65816_cpu_disassemble_opcode(cpu, output, cpu->regs.pc.d);
-        printf("%s\n", output);
-#endif
-        r65816_cpu_step(cpu);
-        cpu->stop_execution |= r65816_breakpoint_list_is_hit(&cpu->breakpoints_exec, cpu->regs.pc.d);
-    }
-}
-
-void r65816_cpu_run_jsr(r65816_cpu_t* cpu, uint32_t address) {
-    cpu->regs.pc.d = address;
-    cpu->regs.s.w = 0x1FF;
-    while((cpu->regs.s.w != 0x1FF || r65816_cpu_read(cpu, cpu->regs.pc.d) != 0x60) && !cpu->stop_execution) {
-#if DEBUG_PRINT_CPU_STATE
-        char output[256];
-        r65816_cpu_disassemble_opcode(cpu, output, cpu->regs.pc.d);
-        printf("%s\n", output);
-#endif
-        r65816_cpu_step(cpu);
-        cpu->stop_execution |= r65816_breakpoint_list_is_hit(&cpu->breakpoints_exec, cpu->regs.pc.d);
-    }
-}
-
-void r65816_cpu_run_jsl(r65816_cpu_t* cpu, uint32_t address) {
-    cpu->regs.pc.d = address;
-    cpu->regs.s.w = 0x1FF;
-    while((cpu->regs.s.w != 0x1FF || r65816_cpu_read(cpu, cpu->regs.pc.d) != 0x6B) && !cpu->stop_execution) {
-#if DEBUG_PRINT_CPU_STATE
-        char output[256];
-        r65816_cpu_disassemble_opcode(cpu, output, cpu->regs.pc.d);
-        printf("%s\n", output);
-#endif
-        r65816_cpu_step(cpu);
-        cpu->stop_execution |= r65816_breakpoint_list_is_hit(&cpu->breakpoints_exec, cpu->regs.pc.d);
-    }
-}
-
-
-void r65816_initialize_opcode_table() {
+void r65816_initialize_opcode_table(r65816_cpu_t* cpu) {
     enum {
         table_EM =    0,  // 8-bit accumulator,  8-bit index (emulation mode)
         table_MX =  256,  // 8-bit accumulator,  8-bit index
@@ -69,25 +18,25 @@ void r65816_initialize_opcode_table() {
         table_mx = 1024,  //16-bit accumulator, 16-bit index
     };
 #define opA(  id, name       )                                          \
-    op_table[table_EM + id] = op_table[table_MX + id]         \
-        = op_table[table_Mx + id] = op_table[table_mX + id]   \
-        = op_table[table_mx + id] = &r65816_op_##name;
+    cpu->op_table[table_EM + id] = cpu->op_table[table_MX + id]         \
+        = cpu->op_table[table_Mx + id] = cpu->op_table[table_mX + id]   \
+        = cpu->op_table[table_mx + id] = &r65816_op_##name;
 
 #define opE(  id, name       )                                  \
-    op_table[table_EM + id] = &r65816_op_##name##_e;       \
-    op_table[table_MX + id] = op_table[table_Mx + id] \
-        = op_table[table_mX + id]                          \
-        = op_table[table_mx + id] = &r65816_op_##name##_n;
+    cpu->op_table[table_EM + id] = &r65816_op_##name##_e;       \
+    cpu->op_table[table_MX + id] = cpu->op_table[table_Mx + id] \
+        = cpu->op_table[table_mX + id]                          \
+        = cpu->op_table[table_mx + id] = &r65816_op_##name##_n;
     
 #define opM(  id, name       )                                          \
-    op_table[table_EM + id] = op_table[table_MX + id]         \
-        = op_table[table_Mx + id] = &r65816_op_##name##_b;         \
-    op_table[table_mX + id] = op_table[table_mx + id] = &r65816_op_##name##_w;
+    cpu->op_table[table_EM + id] = cpu->op_table[table_MX + id]         \
+        = cpu->op_table[table_Mx + id] = &r65816_op_##name##_b;         \
+    cpu->op_table[table_mX + id] = cpu->op_table[table_mx + id] = &r65816_op_##name##_w;
     
 #define opX(  id, name       )                                          \
-    op_table[table_EM + id] = op_table[table_MX + id]         \
-        = op_table[table_mX + id] = &r65816_op_##name##_b;         \
-    op_table[table_Mx + id] = op_table[table_mx + id] = &r65816_op_##name##_w;  
+    cpu->op_table[table_EM + id] = cpu->op_table[table_MX + id]         \
+        = cpu->op_table[table_mX + id] = &r65816_op_##name##_b;         \
+    cpu->op_table[table_Mx + id] = cpu->op_table[table_mx + id] = &r65816_op_##name##_w;  
     
 
     opE(0x00, interrupt_brk);
@@ -129,7 +78,7 @@ void r65816_initialize_opcode_table() {
     opM(0x24, read_dp_bit);
     opM(0x25, read_dp_and);
     opM(0x26, adjust_dp_rol);
-    opM(0x27, read_ildpy_and);
+    opM(0x27, read_ildp_and);
     opE(0x28, plp);
     opM(0x29, read_const_and);
     opM(0x2a, rol_imm);
@@ -161,7 +110,7 @@ void r65816_initialize_opcode_table() {
     opX(0x44, move_mvp);
     opM(0x45, read_dp_eor);
     opM(0x46, adjust_dp_lsr);
-    opM(0x47, read_ildpy_eor);
+    opM(0x47, read_ildp_eor);
     opM(0x48, push_pha);
     opM(0x49, read_const_eor);
     opM(0x4a, lsr_imm);
@@ -193,7 +142,7 @@ void r65816_initialize_opcode_table() {
     opM(0x64, write_dp_stz);
     opM(0x65, read_dp_adc);
     opM(0x66, adjust_dp_ror);
-    opM(0x67, read_ildpy_adc);
+    opM(0x67, read_ildp_adc);
     opM(0x68, pull_pla);
     opM(0x69, read_const_adc);
     opM(0x6a, ror_imm);
@@ -257,7 +206,7 @@ void r65816_initialize_opcode_table() {
     opX(0xa4, read_dp_ldy);
     opM(0xa5, read_dp_lda);
     opX(0xa6, read_dp_ldx);
-    opM(0xa7, read_ildpy_lda);
+    opM(0xa7, read_ildp_lda);
     opX(0xa8, transfer_tay);
     opM(0xa9, read_const_lda);
     opX(0xaa, transfer_tax);
@@ -289,7 +238,7 @@ void r65816_initialize_opcode_table() {
     opX(0xc4, read_dp_cpy);
     opM(0xc5, read_dp_cmp);
     opM(0xc6, adjust_dp_dec);
-    opM(0xc7, read_ildpy_cmp);
+    opM(0xc7, read_ildp_cmp);
     opX(0xc8, adjust_imm_incy);
     opM(0xc9, read_const_cmp);
     opX(0xca, adjust_imm_decx);
@@ -321,7 +270,7 @@ void r65816_initialize_opcode_table() {
     opX(0xe4, read_dp_cpx);
     opM(0xe5, read_dp_sbc);
     opM(0xe6, adjust_dp_inc);
-    opM(0xe7, read_ildpy_sbc);
+    opM(0xe7, read_ildp_sbc);
     opX(0xe8, adjust_imm_incx);
     opM(0xe9, read_const_sbc);
     opA(0xea, nop);
@@ -363,18 +312,18 @@ void r65816_update_table(r65816_cpu_t* cpu) {
         table_mx = 1024,  //16-bit accumulator, 16-bit index
     };
     if(cpu->regs.e) {
-        cpu->opcode_table = &op_table[table_EM];
+        cpu->opcode_table = &cpu->op_table[table_EM];
     } else if(cpu->regs.p.m) {
         if(cpu->regs.p.x) {
-            cpu->opcode_table = &op_table[table_MX];
+            cpu->opcode_table = &cpu->op_table[table_MX];
         } else {
-            cpu->opcode_table = &op_table[table_Mx];
+            cpu->opcode_table = &cpu->op_table[table_Mx];
         }
     } else {
         if(cpu->regs.p.x) {
-            cpu->opcode_table = &op_table[table_mX];
+            cpu->opcode_table = &cpu->op_table[table_mX];
         } else {
-            cpu->opcode_table = &op_table[table_mx];
+            cpu->opcode_table = &cpu->op_table[table_mx];
         }
     }
 }

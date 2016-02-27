@@ -2,7 +2,7 @@
 #include "memory.h"
 #include "disassembler.h"
 
-uint8_t r65816_dreadb(r65816_cpu_t* cpu, uint32_t addr) {
+u8 r65816_dreadb(r65816_cpu_t* cpu, u32 addr) {
   if((addr & 0x40ffff) >= 0x2000 && (addr & 0x40ffff) <= 0x5fff) {
     //$[00-3f|80-bf]:[2000-5fff]
     //do not read MMIO registers within debugger
@@ -11,23 +11,23 @@ uint8_t r65816_dreadb(r65816_cpu_t* cpu, uint32_t addr) {
   return r65816_cpu_read(cpu, addr);
 }
 
-uint16_t r65816_dreadw(r65816_cpu_t* cpu, uint32_t addr) {
-  uint16_t r;
+u16 r65816_dreadw(r65816_cpu_t* cpu, u32 addr) {
+  u16 r;
   r  = r65816_dreadb(cpu, (addr + 0) & 0xffffff) <<  0;
   r |= r65816_dreadb(cpu, (addr + 1) & 0xffffff) <<  8;
   return r;
 }
 
-uint32_t r65816_dreadl(r65816_cpu_t* cpu, uint32_t addr) {
-  uint32_t r;
+u32 r65816_dreadl(r65816_cpu_t* cpu, u32 addr) {
+  u32 r;
   r  = r65816_dreadb(cpu, (addr + 0) & 0xffffff) <<  0;
   r |= r65816_dreadb(cpu, (addr + 1) & 0xffffff) <<  8;
   r |= r65816_dreadb(cpu, (addr + 2) & 0xffffff) << 16;
   return r;
 }
 
-uint32_t r65816_decode(r65816_cpu_t* cpu, uint8_t offset_type, uint32_t addr) {
-  uint32_t r = 0;
+u32 r65816_decode(r65816_cpu_t* cpu, u8 offset_type, u32 addr) {
+  u32 r = 0;
 
   switch(offset_type) {
     case OPTYPE_DP:

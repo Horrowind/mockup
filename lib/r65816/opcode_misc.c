@@ -95,7 +95,7 @@ void r65816_op_wai(r65816_cpu_t* cpu) {
 }
 
 void r65816_op_xce(r65816_cpu_t* cpu) {
-    uint8_t carry = cpu->regs.p.c;
+    u8 carry = cpu->regs.p.c;
     cpu->regs.p.c = cpu->regs.e;
     cpu->regs.e = carry;
     if(cpu->regs.e) {

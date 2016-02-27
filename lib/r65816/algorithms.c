@@ -1,3 +1,5 @@
+#include "datasizes.h"
+
 #include "algorithms.h"
 
 void r65816_op_adc_b(r65816_cpu_t* cpu) {
@@ -15,7 +17,7 @@ void r65816_op_adc_b(r65816_cpu_t* cpu) {
     if(cpu->regs.p.d && result > 0x9f) result += 0x60;
     cpu->regs.p.c = result > 0xff;
     cpu->regs.p.n = 1 && (result & 0x80);
-    cpu->regs.p.z = ((uint8_t)result == 0);
+    cpu->regs.p.z = ((u8)result == 0);
 
     cpu->regs.a.l = result;
 }
@@ -42,7 +44,7 @@ void r65816_op_adc_w(r65816_cpu_t* cpu) {
     if(cpu->regs.p.d && result > 0x9fff) result += 0x6000;
     cpu->regs.p.c = result > 0xffff;
     cpu->regs.p.n = 1 && (result & 0x8000);
-    cpu->regs.p.z = (uint16_t)result == 0;
+    cpu->regs.p.z = (u16)result == 0;
 
     cpu->regs.a.w = result;
 }
@@ -74,42 +76,42 @@ void r65816_op_bit_w(r65816_cpu_t* cpu) {
 void r65816_op_cmp_b(r65816_cpu_t* cpu) {
     int r = cpu->regs.a.l - cpu->rd.l;
     cpu->regs.p.n = 1 && (r & 0x80);
-    cpu->regs.p.z = (uint8_t)r == 0;
+    cpu->regs.p.z = (u8)r == 0;
     cpu->regs.p.c = r >= 0;
 }
 
 void r65816_op_cmp_w(r65816_cpu_t* cpu) {
     int r = cpu->regs.a.w - cpu->rd.w;
     cpu->regs.p.n = 1 && (r & 0x8000);
-    cpu->regs.p.z = (uint8_t)r == 0;
+    cpu->regs.p.z = (u8)r == 0;
     cpu->regs.p.c = r >= 0;
 }
 
 void r65816_op_cpx_b(r65816_cpu_t* cpu) {
     int r = cpu->regs.x.l - cpu->rd.l;
     cpu->regs.p.n = 1 && (r & 0x80);
-    cpu->regs.p.z = (uint8_t)r == 0;
+    cpu->regs.p.z = (u8)r == 0;
     cpu->regs.p.c = r >= 0;
 }
 
 void r65816_op_cpx_w(r65816_cpu_t* cpu) {
     int r = cpu->regs.x.w - cpu->rd.w;
     cpu->regs.p.n = 1 && (r & 0x8000);
-    cpu->regs.p.z = (uint8_t)r == 0;
+    cpu->regs.p.z = (u8)r == 0;
     cpu->regs.p.c = r >= 0;
 }
 
 void r65816_op_cpy_b(r65816_cpu_t* cpu) {
     int r = cpu->regs.y.l - cpu->rd.l;
     cpu->regs.p.n = 1 && (r & 0x80);
-    cpu->regs.p.z = (uint8_t)r == 0;
+    cpu->regs.p.z = (u8)r == 0;
     cpu->regs.p.c = r >= 0;
 }
 
 void r65816_op_cpy_w(r65816_cpu_t* cpu) {
     int r = cpu->regs.y.w - cpu->rd.w;
     cpu->regs.p.n = 1 && (r & 0x8000);
-    cpu->regs.p.z = (uint16_t)r == 0;
+    cpu->regs.p.z = (u16)r == 0;
     cpu->regs.p.c = r >= 0;
 }
 
@@ -190,7 +192,7 @@ void r65816_op_sbc_b(r65816_cpu_t* cpu) {
     if(cpu->regs.p.d && result <= 0xff) result -= 0x60;
     cpu->regs.p.c = 1 && (result > 0xff);
     cpu->regs.p.n = 1 && (result & 0x80);
-    cpu->regs.p.z = (uint8_t)result == 0;
+    cpu->regs.p.z = (u8)result == 0;
 
     cpu->regs.a.l = result;
 }
@@ -218,7 +220,7 @@ void r65816_op_sbc_w(r65816_cpu_t* cpu) {
     if(cpu->regs.p.d && result <= 0xffff) result -= 0x6000;
     cpu->regs.p.c = 1 && (result > 0xffff);
     cpu->regs.p.n = 1 && (result & 0x8000);
-    cpu->regs.p.z = (uint16_t)result == 0;
+    cpu->regs.p.z = (u16)result == 0;
 
     cpu->regs.a.w = result;
 }

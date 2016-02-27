@@ -58,7 +58,7 @@ void r65816_op_lsr_imm_w(r65816_cpu_t* cpu) {
 }
 
 void r65816_op_rol_imm_b(r65816_cpu_t* cpu) {
-    uint8_t carry = cpu->regs.p.c;
+    u8 carry = cpu->regs.p.c;
     cpu->regs.p.c = 1 && (cpu->regs.a.l & 0x80);
     cpu->regs.a.l = (cpu->regs.a.l << 1) | carry;
     cpu->regs.p.n = 1 && (cpu->regs.a.l & 0x80);
@@ -66,7 +66,7 @@ void r65816_op_rol_imm_b(r65816_cpu_t* cpu) {
 }
 
 void r65816_op_rol_imm_w(r65816_cpu_t* cpu) {
-    uint8_t carry = cpu->regs.p.c;
+    u8 carry = cpu->regs.p.c;
     cpu->regs.p.c = 1 && (cpu->regs.a.w & 0x8000);
     cpu->regs.a.w = (cpu->regs.a.w << 1) | carry;
     cpu->regs.p.n = 1 && (cpu->regs.a.w & 0x8000);
@@ -74,7 +74,7 @@ void r65816_op_rol_imm_w(r65816_cpu_t* cpu) {
 }
 
 void r65816_op_ror_imm_b(r65816_cpu_t* cpu) {
-    uint8_t carry = cpu->regs.p.c;
+    u8 carry = cpu->regs.p.c;
     cpu->regs.p.c = 1 && (cpu->regs.a.l & 0x01);
     cpu->regs.a.l = (carry << 7) | (cpu->regs.a.l >> 1);
     cpu->regs.p.n = 1 && (cpu->regs.a.l & 0x80);
@@ -82,7 +82,7 @@ void r65816_op_ror_imm_b(r65816_cpu_t* cpu) {
 }
 
 void r65816_op_ror_imm_w(r65816_cpu_t* cpu) {
-    uint8_t carry = cpu->regs.p.c;
+    u8 carry = cpu->regs.p.c;
     cpu->regs.p.c = 1 && (cpu->regs.a.w & 0x0001);
     cpu->regs.a.w = (carry << 15) | (cpu->regs.a.w >> 1);
     cpu->regs.p.n = 1 && (cpu->regs.a.w & 0x8000);

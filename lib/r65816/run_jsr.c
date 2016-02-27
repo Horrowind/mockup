@@ -24,20 +24,18 @@
             goto *jump_table_mx[r65816_op_readpc(cpu)];     \
         }                                                   \
     }
-
-
 #ifdef DEBUG_65816
 #define opcode(funname)                                                 \
     r65816_cpu_disassemble_opcode(cpu, output, cpu->regs.pc.d);         \
     printf("%s\n", output);                                             \
     funname(cpu);                                                       \
     cpu->stop_execution |= r65816_breakpoint_list_is_hit(&cpu->breakpoints_exec, cpu->regs.pc.d); \
-    if((cpu->regs.s.w != 0x1FF || r65816_cpu_read(cpu, cpu->regs.pc.d) != 0x6B) && !cpu->stop_execution) return;
+    if((cpu->regs.s.w != 0x1FF || r65816_cpu_read(cpu, cpu->regs.pc.d) != 0x60) && !cpu->stop_execution) return;
 #else
 #define opcode(funname)                                                 \
     funname(cpu);                                                       \
     cpu->stop_execution |= r65816_breakpoint_list_is_hit(&cpu->breakpoints_exec, cpu->regs.pc.d); \
-    if((cpu->regs.s.w != 0x1FF || r65816_cpu_read(cpu, cpu->regs.pc.d) != 0x6B) && !cpu->stop_execution) return; 
+    if((cpu->regs.s.w != 0x1FF || r65816_cpu_read(cpu, cpu->regs.pc.d) != 0x60) && !cpu->stop_execution) return;
 #endif //DEBUG_65816
 
 #define opA(id, name)                               \
@@ -116,11 +114,11 @@
     Mx_##id:                                        \
     mX_##id:                                        \
     mx_##id:                                        \
-        if(!cpu->stop_execution) return;            \
         r65816_cpu_disassemble_opcode(cpu, output, cpu->regs.pc.d); \
         printf("%s\n", output);                     \
         r65816_op_##name(cpu);                      \
         cpu->stop_execution |= r65816_breakpoint_list_is_hit(&cpu->breakpoints_exec, cpu->regs.pc.d); \
+        if(!cpu->stop_execution) return;            \
         jump_flags();                               \
 
 #define opE_flags(id, name)                         \
@@ -129,7 +127,7 @@
         printf("%s\n", output);                     \
         r65816_op_##name##_e(cpu);                  \
         cpu->stop_execution |= r65816_breakpoint_list_is_hit(&cpu->breakpoints_exec, cpu->regs.pc.d); \
-        if(cpu->stop_execution) return;             \
+        if(!cpu->stop_execution) return;            \
         jump_flags();                               \
     MX_##id:                                        \
     Mx_##id:                                        \
@@ -139,7 +137,7 @@
         printf("%s\n", output);                     \
         r65816_op_##name##_n(cpu);                  \
         cpu->stop_execution |= r65816_breakpoint_list_is_hit(&cpu->breakpoints_exec, cpu->regs.pc.d); \
-        if(cpu->stop_execution) return;             \
+        if(!cpu->stop_execution) return;            \
         jump_flags();
 #else
 #define opA_flags(id, name)                         \
@@ -157,7 +155,7 @@
     EM_##id:                                        \
         r65816_op_##name##_e(cpu);                  \
         cpu->stop_execution |= r65816_breakpoint_list_is_hit(&cpu->breakpoints_exec, cpu->regs.pc.d); \
-        if(cpu->stop_execution) return;             \
+        if(!cpu->stop_execution) return;            \
         jump_flags();                               \
     MX_##id:                                        \
     Mx_##id:                                        \
@@ -165,16 +163,14 @@
     mx_##id:                                        \
         r65816_op_##name##_n(cpu);                  \
         cpu->stop_execution |= r65816_breakpoint_list_is_hit(&cpu->breakpoints_exec, cpu->regs.pc.d); \
-        if(cpu->stop_execution) return;             \
+        if(!cpu->stop_execution) return;            \
         jump_flags();
-
 #endif //DEBUG_65816
-void r65816_cpu_run_jsl(r65816_cpu_t* cpu, uint32_t address) {
+
+void r65816_cpu_run_jsr(r65816_cpu_t* cpu, u32 address) {
 #ifdef DEBUG_65816
     char output[256];
-    r65816_cpu_disassemble_opcode(cpu, output, cpu->regs.pc.d);   
-    printf("%s\n", output);                                            
-#endif
+#endif //DEBUG_65816
     cpu->regs.pc.d = address;
     cpu->regs.s.w = 0x1FF;
     cpu->stop_execution = 0;

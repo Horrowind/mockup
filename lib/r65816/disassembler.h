@@ -1,3 +1,6 @@
+#ifndef MOCKUP_DISASSEMBLER_H
+#define MOCKUP_DISASSEMBLER_H
+
 #include "cpu.h"
 
 enum {
@@ -24,7 +27,9 @@ enum {
   OPTYPE_RELW,      //relw
 };
 
-uint8_t r65816_dreadb(r65816_cpu_t* cpu, uint32_t addr);
-uint16_t r65816_dreadw(r65816_cpu_t* cpu, uint32_t addr);
-uint32_t r65816_dreadl(r65816_cpu_t* cpu, uint32_t addr);
-uint32_t r65816_decode(r65816_cpu_t* cpu, uint8_t offset_type, uint32_t addr);
+u8 r65816_dreadb(r65816_cpu_t* cpu, u32 addr);
+u16 r65816_dreadw(r65816_cpu_t* cpu, u32 addr);
+u32 r65816_dreadl(r65816_cpu_t* cpu, u32 addr);
+u32 r65816_decode(r65816_cpu_t* cpu, u8 offset_type, u32 addr);
+
+#endif //MOCKUP_DISASSEMBLER_H

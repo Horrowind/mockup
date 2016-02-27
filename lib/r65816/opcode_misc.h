@@ -1,3 +1,5 @@
+#ifndef R65816_OPCODE_MISC_H
+#define R65816__OPCODE_MISC_H
 #include "cpu.h"
 
 void r65816_op_nop(r65816_cpu_t* cpu);
@@ -78,3 +80,5 @@ void r65816_op_pei_e(r65816_cpu_t* cpu);
 void r65816_op_pei_n(r65816_cpu_t* cpu);
 void r65816_op_per_e(r65816_cpu_t* cpu);
 void r65816_op_per_n(r65816_cpu_t* cpu);
+
+#endif //R65816_OPCODE_MISC_H

@@ -5,8 +5,8 @@
 
 #include "rom.h"
 
-uint8_t r65816_guess_header(r65816_rom_t* rom);
-uint8_t r65816_score_header(r65816_rom_t* rom, uint32_t address);
+u8 r65816_guess_header(r65816_rom_t* rom);
+u8 r65816_score_header(r65816_rom_t* rom, u32 address);
 
 void r65816_rom_load(r65816_rom_t* rom, const char* path) {
     FILE* fp = fopen(path, "r");
@@ -36,7 +36,7 @@ void r65816_rom_save(r65816_rom_t* rom, const char* path) {
     fclose(fp);
 }
 
-void r65816_rom_save_headered(r65816_rom_t* rom, const char* path, uint8_t* header, int headersize) {
+void r65816_rom_save_headered(r65816_rom_t* rom, const char* path, u8* header, int headersize) {
     FILE* fp = fopen(path, "w");
     if(!fp) return;
     fwrite(header, 1, headersize, fp);
@@ -50,17 +50,17 @@ void r65816_rom_free(r65816_rom_t* rom) {
     free(rom->banks);
 }
 
-uint8_t r65816_score_header(r65816_rom_t* rom, uint32_t address) {
+u8 r65816_score_header(r65816_rom_t* rom, u32 address) {
     if(rom->banksize * rom->num_banks < address + 64){
         return 0;
     }
-    uint8_t score = 0;
+    u8 score = 0;
     r65816_rom_header_t* header = (r65816_rom_header_t*)(rom->data + address);
-    uint16_t reset_vector = header->interrupt_emulation[5];
-    uint16_t checksum = header->checksum;
-    uint16_t complement = header->checksum_complement;
-    uint8_t resetop = rom->data[(address & ~0x7fff) | (reset_vector & 0x7fff)];
-    uint8_t guessed_mapper = header->layout & ~0x10;
+    u16 reset_vector = header->interrupt_emulation[5];
+    u16 checksum = header->checksum;
+    u16 complement = header->checksum_complement;
+    u8 resetop = rom->data[(address & ~0x7fff) | (reset_vector & 0x7fff)];
+    u8 guessed_mapper = header->layout & ~0x10;
 
     if(reset_vector < 0x8000){
         return 0;
@@ -120,10 +120,10 @@ uint8_t r65816_score_header(r65816_rom_t* rom, uint32_t address) {
     return score;
 }
 
-uint8_t r65816_guess_header(r65816_rom_t* rom) {
-    uint8_t score_lo = r65816_score_header(rom, 0x007fc0);
-    uint8_t score_hi = r65816_score_header(rom, 0x00ffc0);
-    uint8_t score_ex = r65816_score_header(rom, 0x40ffc0);
+u8 r65816_guess_header(r65816_rom_t* rom) {
+    u8 score_lo = r65816_score_header(rom, 0x007fc0);
+    u8 score_hi = r65816_score_header(rom, 0x00ffc0);
+    u8 score_ex = r65816_score_header(rom, 0x40ffc0);
     
     if(score_lo >= score_hi && score_lo >= score_ex + 4){
         rom->header = (r65816_rom_header_t*)(rom->data + 0x007fc0);
@@ -137,7 +137,7 @@ uint8_t r65816_guess_header(r65816_rom_t* rom) {
     }
 }
 
-static uint32_t snes_header_sizes[0x0D] = {
+static u32 snes_header_sizes[0x0D] = {
     0x000000, //0
     0x000800, //1
     0x001000, //2
@@ -154,9 +154,9 @@ static uint32_t snes_header_sizes[0x0D] = {
 };
 
 // Uses the value in the SNES-Rom header (byte 0x17), see snes_header_sizes
-uint8_t r65816_rom_expand(r65816_rom_t* rom, uint8_t size) {
+u8 r65816_rom_expand(r65816_rom_t* rom, u8 size) {
     if(size > 0x0D) return -1;
-    uint8_t* ptr = realloc(rom->data, snes_header_sizes[size]);
+    u8* ptr = realloc(rom->data, snes_header_sizes[size]);
     if(ptr == 0) return -1;
     rom->data = ptr;
     rom->header->rom_size = size;
