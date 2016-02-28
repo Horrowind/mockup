@@ -1,0 +1,15 @@
+Todos:
+
+ [ ] Parse if, else, etc...
+ [ ] Parse macros
+ [ ] Parse ROM commands
+ [ ] Implement commands
+
+Bugs:
+
+ [ ] recursive incsrc's or defines will crash, implement a recursion depth.
+
+Further features:
+
+ [ ] other architectures than 65816
+ [ ] p4plus2's structures

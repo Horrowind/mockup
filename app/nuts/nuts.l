@@ -1,50 +1,45 @@
 %{
 #include <stdio.h>
 
-#define MAX_INCLUDE_DEPTH 10
+#include "base/variable_string.h"
+#include "base/hash.h"
+#include "base/stack.h"
 
-//YY_BUFFER_STATE include_stack[MAX_INCLUDE_DEPTH];
-//int include_stack_ptr = 0;
-//#define YY_DECL extern int yylex()
 
-void yyerror();
+#define IN_FLEX
+#include "parse.h"
+#undef IN_FLEX
 #include "nuts.tab.h"
 
-#ifdef NDEBUG
-#define return_token(token)                                \
-if(!NDEBUG) printf("Found " #token "\n");                 \
-return token;
-#else
-#define return_token(token)                                \
-return token;
-#endif
-
-
-
-/* void yyerror(const char *s) { */
-/* 	// might as well halt now: */
-/*     printf("Error: %s\n"); */
-/* } */
+string_t current_identifier;
 
 %}
 %option noyywrap
 %option yylineno
-digit   [0-9]
-hexdigit[0-9a-fA-F]
-letter  [a-zA-Z]
-ident   ({letter}|"_")({letter}|{digit}|"_")*
-byte    "$"{hexdigit}?{hexdigit}                        
-word    "$"{hexdigit}?{hexdigit}{hexdigit}{hexdigit}
-long    "$"{hexdigit}?{hexdigit}{hexdigit}{hexdigit}{hexdigit}{hexdigit}
-double    "$"{hexdigit}?{hexdigit}{hexdigit}{hexdigit}{hexdigit}{hexdigit}{hexdigit}{hexdigit}
-number  {digit}+
+                        
+digit        [0-9]
+hexdigit     [0-9a-fA-F]
+letter       [a-zA-Z]
+ident        ({letter}|"_")({letter}|{digit}|"_")*
+byte         "$"{hexdigit}?{hexdigit}                        
+word         "$"{hexdigit}?{hexdigit}{hexdigit}{hexdigit}
+long         "$"{hexdigit}?{hexdigit}{hexdigit}{hexdigit}{hexdigit}{hexdigit}
+double       "$"{hexdigit}?{hexdigit}{hexdigit}{hexdigit}{hexdigit}{hexdigit}{hexdigit}{hexdigit}
+number       {digit}+
+string       \"(\\.|[^\\\"])*\"
+nowhitespace [^ \"\t\r\n][^ \t\r\n]*
+
+
 %option case-insensitive
                         
 %x COMMENT
 %x MACRO_DECLLIST
+%x MACROCALL_DECLLIST
 %x MACRO_BODY
-                        
-                        
+%x INCL
+%x DEFINE_DEF
+%x DEFINE_CALL
+
 %%
 
 ";"            { BEGIN(COMMENT);                              };
@@ -55,18 +50,90 @@ number  {digit}+
 
 
 [ \t]          { }
-[\n]           { return_token(NEWLINE);  };
-{word}         { return_token(WORD);     };
-{byte}         { return_token(BYTE);     };
-{long}         { return_token(LONG);     };
-{double}       { return_token(DOUBLE);   };
+\r?\n          { return_token(NEWLINE);  };
+":"            { return_token(NEWLINE);  };
+{byte}         {
+                 if(yyleng == 2) {
+                     yylval.val_word  = char2hex(yytext[1]) <<  0;
+                 } else {
+                     yylval.val_word |= char2hex(yytext[1]) <<  4;
+                     yylval.val_word |= char2hex(yytext[2]) <<  0;
+                 }
+#ifdef PRINT_TOKENS
+                 printf("Found: BYTE (%02x)\n", yylval.val_byte);
+#endif
+                 return BYTE;
+               };
+
+{word}         {
+                 if(yyleng == 4) {
+                     yylval.val_word  = char2hex(yytext[1]) <<  8;
+                     yylval.val_word |= char2hex(yytext[2]) <<  4;
+                     yylval.val_word |= char2hex(yytext[3]) <<  0;
+                 } else {
+                     yylval.val_word  = char2hex(yytext[1]) << 12;
+                     yylval.val_word |= char2hex(yytext[2]) <<  8;
+                     yylval.val_word |= char2hex(yytext[3]) <<  4;
+                     yylval.val_word |= char2hex(yytext[4]) <<  0;
+                 }
+#ifdef PRINT_TOKENS
+                 printf("Found: WORD (%04x)\n", yylval.val_word);
+#endif
+                 return WORD;
+               };
+
+{long}         {
+                 if(yyleng == 6) {
+                     yylval.val_long  = char2hex(yytext[1]) << 16;
+                     yylval.val_long |= char2hex(yytext[2]) << 12;
+                     yylval.val_long |= char2hex(yytext[3]) <<  8;
+                     yylval.val_long |= char2hex(yytext[4]) <<  4;
+                     yylval.val_long |= char2hex(yytext[5]) <<  0;
+                 } else {
+                     yylval.val_long  = char2hex(yytext[1]) << 20;
+                     yylval.val_long |= char2hex(yytext[2]) << 16;
+                     yylval.val_long |= char2hex(yytext[3]) << 12;
+                     yylval.val_long |= char2hex(yytext[4]) <<  8;
+                     yylval.val_long |= char2hex(yytext[5]) <<  4;
+                     yylval.val_long |= char2hex(yytext[6]) <<  0;
+                 }
+#ifdef PRINT_TOKENS
+                 printf("Found: LONG (%06x)\n", yylval.val_long);
+#endif
+                 return LONG;
+               };
+
+{double}       {
+                 if(yyleng == 8) {
+                     yylval.val_double  = char2hex(yytext[1]) << 24;
+                     yylval.val_double |= char2hex(yytext[2]) << 20;
+                     yylval.val_double |= char2hex(yytext[3]) << 16;
+                     yylval.val_double |= char2hex(yytext[4]) << 12;
+                     yylval.val_double |= char2hex(yytext[5]) <<  8;
+                     yylval.val_double |= char2hex(yytext[6]) <<  4;
+                     yylval.val_double |= char2hex(yytext[7]) <<  0;
+                 } else {
+                     yylval.val_double  = char2hex(yytext[1]) << 28;
+                     yylval.val_double |= char2hex(yytext[2]) << 24;
+                     yylval.val_double |= char2hex(yytext[3]) << 20;
+                     yylval.val_double |= char2hex(yytext[4]) << 16;
+                     yylval.val_double |= char2hex(yytext[5]) << 12;
+                     yylval.val_double |= char2hex(yytext[6]) <<  8;
+                     yylval.val_double |= char2hex(yytext[7]) <<  4;
+                     yylval.val_double |= char2hex(yytext[8]) <<  0;
+                 }
+#ifdef PRINT_TOKENS
+                 printf("Found: DOUBLE (%08x)\n", yylval.val_double);
+#endif
+                 return DOUBLE;
+               };
+
 {number}       { return_token(NUMBER);   };
 "+"            { return_token(PLUS);     };
 "-"            { return_token(MINUS);    };
 "/"            { return_token(DIV);      };
 "*"            { return_token(MULT);     };
 "**"           { return_token(MULT);     };
-":"            { return_token(COLON);    };
 "<"            { return_token(LESS);     };
 ">"            { return_token(GREATER);  };
 "<<"           { return_token(LSHIFT);   };
@@ -97,37 +164,110 @@ number  {digit}+
 [-]-           { return_token(BWDLABEL); };
 {ident}":"     { return_token(LABELDEC); };
 "."{ident}":"? { return_token(SUBLABEL); };
-\"(\\.|[^\\\"])*\" { return_token(STRING); };
+{string}       { return_token(STRING);   };
+"!"{ident}[ \t]*"=" {
+                 current_identifier.data = yytext + 1; // We ignore the first '!'.
+                 uint length;
+                 for(length = yyleng - 1;
+                     yytext[length] == ' ' || yytext[length] == '\t';
+                     length--) { };
+                 current_identifier.length = length - 2; // -1 from starting after the first '!'
+                                                         // and another -1 for starting with index 0 
+#ifdef PRINT_TOKENS
+                 printf("Defined identifier \"%.*s\"\n", current_identifier.length, current_identifier.data);
+#endif
+                 BEGIN(DEFINE_DEF);
+               }
 
-   /* Asar Commands */
+"!"{ident}     {
+                 define_t define = {
+                     .identifier = {
+                         .data = yytext + 1,
+                         .length = yyleng - 1
+                     }
+                 };
+                 define_t* real_define;
+                 if(real_define = defines_hash_map_find(&defines_map, define)) {
+                     push_parse_buffer(real_define->replacement);
+                 } else {
+                     printf("Error: Undefined define\n");
+                 }
 
- "macro"                 {
+               }
+<DEFINE_DEF>[^:\r\n]*(":"|("\r"?"\n")) {
+                 define_t define = {
+                     .identifier = current_identifier,
+                     .replacement = {
+                         .data = yytext,
+                         .length = yyleng - 1
+                     }
+                 };
+                 defines_hash_map_insert(&defines_map, define);
+                 BEGIN(INITIAL);
+               }
+
+"macro"                  {
      BEGIN(MACRO_DECLLIST);
      return_token(MACRO);
  };
- <MACRO_DECLLIST>[ \t]*  { };
- <MACRO_DECLLIST>"("     { return_token(MACRO_LPAREN); };
- <MACRO_DECLLIST>","     { return_token(MACRO_COMMA); };
- <MACRO_DECLLIST>{ident} { return_token(MACRO_IDENT); };
- <MACRO_DECLLIST>")"     {
-     BEGIN(MACRO_BODY);
+<MACRO_DECLLIST>[ \t]*  { };
+<MACRO_DECLLIST>"("     { return_token(MACRO_LPAREN); };
+<MACRO_DECLLIST>","     { return_token(MACRO_COMMA); };
+<MACRO_DECLLIST>{ident} { return_token(MACRO_IDENT); };
+<MACRO_DECLLIST>")"     {
+                   BEGIN(MACRO_BODY);
      return_token(MACRO_RPAREN);
    };
- <MACRO_BODY>"\0"       { yyerror("EOF in macro body"); };
- <MACRO_BODY>"\nendmacro"     {
-     BEGIN(INITIAL);
-     return_token(ENDMACRO);
-   };
-<MACRO_BODY>.           { };
- "%"ident       {
-   // Macro call
- 
-   };
+<MACRO_BODY>"\0"        { yyerror("EOF in macro body"); };
+<MACRO_BODY>"\nendmacro" {
+                             BEGIN(INITIAL);
+                             return_token(ENDMACRO);
+                         };
+<MACRO_BODY>.            { };
+ "%"{ident}             { BEGIN(MACROCALL_DECLLIST);  };
+<MACROCALL_DECLLIST>[ \t]*  { };
+<MACROCALL_DECLLIST>"("     { };
+<MACROCALL_DECLLIST>","     { };
+<MACROCALL_DECLLIST>{ident} { };
+<MACROCALL_DECLLIST>")"     { BEGIN(INITIAL); }
+
+
+"incbin"       { return_token(INCBIN);   };
+"incsrc"       { BEGIN(INCL);             };
+     
+<INCL>[ \t]*     /* eat the whitespace */
+<INCL>{nowhitespace} {
+                   //got the include file name
+                   string_t new_file = read_file_to_buffer(yytext);
+                   printf("Open1: %s\n", yytext);
+                   push_parse_buffer(new_file);
+                   BEGIN(INITIAL);
+               }
+
+<INCL>{string} {
+                   char buffer[256];
+                   strncpy(buffer, yytext, 256);
+                   buffer[strlen(buffer) - 1] = '\0';
+                   string_t new_file = read_file_to_buffer(buffer + 1);
+                   printf("Open2: %s\n", buffer + 1);
+                   push_parse_buffer(new_file);
+                   BEGIN(INITIAL);
+               }
+
+<<EOF>>        {
+                   if(pop_parse_buffer()) {
+                       yyterminate();
+                   }
+
+                   /* parse_stack_pop(&parse_stack); */
+                   /* if(parse_stack_is_empty(&parse_stack)) yyterminate(); */
+               }
+
+
 
 "fill"         { return_token(FILL);     };
 "fillbyte"     { return_token(FILLBYTE); };
-"incbin"       { return_token(INCBIN);   };
-"incsrc"       { return_token(INCSRC);   };
+
 "pad"          { return_token(PAD);      };
 "padbyte"      { return_token(PADBYTE);  };
 "db"           { return_token(DB);       };
@@ -146,6 +286,12 @@ number  {digit}+
 "freedata"     { return_token(FREEDATA); };
 "pushpc"       { return_token(PUSHPC);   };
 "pullpc"       { return_token(PULLPC);   };
+"norom"        { return_token(NOROM);    };
+"lorom"        { return_token(LOROM);    };
+"hirom"        { return_token(HIROM);    };
+"sfxrom"       { return_token(SFXROM);   };
+"sa1rom"       { return_token(SA1ROM);   };
+"fullsa1rom"   { return_token(FSA1ROM);  };
 
   /* SFC Commands */
 "adc"          { return_token(ADC);      };
@@ -246,30 +392,20 @@ number  {digit}+
 "y"            { return_token(TOC_Y);    };
 "s"            { return_token(TOC_S);    };
 
-{ident}          { return_token(IDENT);    };
+{ident}        {
+                   yylval.val_ident = (string_t){
+                       .data = yytext,
+                       .length = yyleng
+                   };
+                   u32 hash = SuperFastHash(yylval.val_ident);
+                   if(!string_hash_map_find(&identifier_map, yylval.val_ident)) {
+                       string_hash_map_insert2(&identifier_map, yylval.val_ident, hash);
+                   }
+#ifdef PRINT_TOKENS
+                   printf("Found: IDENT (%s)\n", yytext);
+#endif
+                   return_token(IDENT);
+               };
 
 %%
-/* int main(int argc, char** argv) { */
-/* 	// open a file handle to a particular file: */
-/*     if(argc == 1) { */
-/*         while(1) yylex(); */
-/*     } else if(argc == 2) { */
-/*         FILE* fp = fopen(argv[1], "r"); */
-/*         // make sure it is valid: */
-/*         if (!fp) { */
-/*             printf("Could not open %s\n", argv[1]); */
-/*         } else { */
-/*             yyin = fp; */
-/*             //do { */
-/*                 yylex(); */
-/*                 //} while (!feof(yyin)); */
-/*         } */
-/*     } else { */
-/*         printf("Too many arguments.\n"); */
-/*     }         */
-/* } */
 
-void yyerror(const char *s) {
-	// might as well halt now:
-    printf("Error on line %i: %s\n", yylineno, yytext);
-}

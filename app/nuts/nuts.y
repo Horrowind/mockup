@@ -2,21 +2,38 @@
 //#define YYDEBUG 1
 //#define YYMAXDEPTH 10000
 #include <stdio.h>
+#include <base/variable_string.h>
+#include <base/datasizes.h>
+
+#include "parse.h"
+
 // stuff from flex that bison needs to know about:
-extern int yylex();
-extern int yyparse();
-extern FILE *yyin;
- 
-extern void yyerror(const char *s);
+/* extern int yylex(); */
+/* extern int yyparse(); */
+/* extern FILE *yyin; */
+/* extern void yyerror(const char *s); */
+
 %}
+
+%union {
+    string_t val_ident;
+    u8       val_byte;
+    u16      val_word;
+    u32      val_long;
+    u32      val_double;
+    int      number;
+}
                         
                         
 %token                  NEWLINE NUMBER STRING COLON LESS GREATER DOT
 %token                  EXCLAM HASH TILDE DOLLAR AT EQUAL LPAREN RPAREN LCURLY RCURLY LBRACK RBRACK
-%token                  QMARK COMMA SEMICOL FWDLABEL BWDLABEL MACRO ENDMACRO MACRO_LPAREN MACRO_RPAREN MACRO_COMMA MACRO_IDENT
+%token                  QMARK COMMA SEMICOL  MACRO ENDMACRO MACRO_LPAREN MACRO_RPAREN MACRO_COMMA MACRO_IDENT
 %token                  FILL FILLBYTE INCBIN INCSRC PAD PADBYTE DB DW DL DD SKIP NSPACE ON OFF ORG WARNPC BASE FREESP
-%token                  FREECODE FREEDATA AUTO NOASSUME BANK ERROR WARN PUSHPC PULLPC TOC_S TOC_X TOC_Y LABELDEC SUBLABEL
-%token                  SPECBYTE SPECWORD SPECLONG
+%token                  FREECODE FREEDATA AUTO NOASSUME BANK ERROR WARN PUSHPC PULLPC
+%token                  LABELDEC
+%token                  SUBLABEL
+%token                  FWDLABEL BWDLABEL
+%token                  LOROM HIROM NOROM SFXROM SA1ROM FSA1ROM
 
 %right                  POWER
 %left                   MULT DIV PERCENT
@@ -30,9 +47,14 @@ extern void yyerror(const char *s);
 %token                  RTI RTL RTS SBC SEC SED SEI SEP STA STP STX STY STZ TAX TAY TCD TCS TDC TRB TSB TSC
 %token                  TSX TXA TXS TXY TYA TYX WAI WDM XBA XCE
 
-%token                  BYTE WORD LONG DOUBLE IDENT
+%token                  SPECBYTE SPECWORD SPECLONG TOC_S TOC_X TOC_Y
+
+%token  <val_byte>      BYTE
+%token  <val_word>      WORD
+%token  <val_long>      LONG
+%token  <val_doub>      DOUBLE
+%token  <val_ident>     IDENT
                         
-%start program                      
 %%
 
 
@@ -52,7 +74,7 @@ program:        program stmt NEWLINE
         |
                 ;
 
-                stmt:           stmt_macro
+stmt:           stmt_macro
         |       stmt_fill
         |       stmt_fillbyte
         |       stmt_incbin
@@ -78,6 +100,13 @@ program:        program stmt NEWLINE
         |       stmt_pushpc
         |       stmt_pullpc
         |       stmt_decl
+        |       stmt_norom
+        |       stmt_lorom
+        |       stmt_hirom
+        |       stmt_sfxrom
+        |       stmt_sa1rom
+        |       stmt_fullsa1rom
+        /* |       stmt_macro_call */
         /* |       stmt_assert */
                 ;
 /* stmt_asser:     ASSERT comparison */
@@ -89,6 +118,8 @@ stmt_decl:      EXCLAM IDENT EQUAL byte
 
 stmt_macro:     MACRO MACRO_IDENT MACRO_LPAREN macro_decl_list MACRO_RPAREN ENDMACRO 
                 ;
+
+/* stmt_macro_call: */
 
 macro_decl_list:
                 MACRO_IDENT
@@ -146,10 +177,10 @@ stmt_rep:       REP num
                 ;
 
 stmt_incsrc:    INCSRC STRING
-        ;
+                ;
 
 stmt_incbin:    INCBIN STRING
-                STRING        ;
+                ;
 
 
 stmt_fill:      FILL /* TODO */
@@ -170,6 +201,20 @@ stmt_padbyte:   PADBYTE /* TODO */
         ;
 stmt_skip:      SKIP /* TODO */
         ;
+
+stmt_norom:     NOROM
+        ;
+stmt_lorom:     LOROM
+        ;
+stmt_hirom:     HIROM
+        ;
+stmt_sfxrom:    SFXROM
+        ;
+stmt_sa1rom:    SA1ROM
+        ;
+stmt_fullsa1rom:FSA1ROM                
+        ;
+
 
 stmt_opcode:    stmt_adc
         |       stmt_and
@@ -441,6 +486,7 @@ stmt_jml:       JML mode_long /* 5C */
 stmt_jmp:       JMP mode_addr /* 4C */
         |       JMP IDENT /* 4C */
         |       JMP mode_iaddr  /* 6C */
+        |       JMP mode_iladdr /* DC */
         |       JMP mode_iaddrx /* 7C */
                 ;
 
@@ -743,6 +789,8 @@ mode_iaddr:     LPAREN word RPAREN
 mode_iaddrx:    LPAREN word COMMA TOC_X RPAREN 
         ;
 mode_addr:      word
+        |       SPECBYTE byte
+        |       SPECBYTE word
         |       SPECWORD byte
         |       SPECWORD word
         ;
@@ -888,35 +936,4 @@ mode_nearlabel: SUBLABEL
         |       IDENT
         ;
 
-
-
-
 %%
-
-int main(int argc, char** argv) {
-#if YYDEBUG!=0
-    yydebug = 1;
-#endif
-	// open a file handle to a particular file:
-    if(argc != 2) {
-        printf("Run with exactly one argument.\n");
-    } else {
-        FILE* fp = fopen(argv[1], "r");
-        // make sure it is valid:
-        if (!fp) {
-            printf("Could not open %s\n", argv[1]);
-        } else {
-            // set flex to read from it instead of defaulting to STDIN:
-            yyin = fp;
-            
-            // parse through the input until there is no more:
-            do {
-                yyparse();
-            } while (!feof(yyin));
-        }
-    }
-}
-
-int yywrap() {
-    return 0;
-}
