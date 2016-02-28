@@ -1,8 +1,7 @@
-#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
-#include <r65816/cpu.h>
+#include <r65816.h>
 #include "addresses.h"
 #include "misc.h"
 #include "decode.h"
@@ -10,26 +9,26 @@
 #include "level.h"
 #include "pool.h"
 
-
+#define SPRITES
 typedef struct {
-    uint16_t x;
-    uint16_t y;
-    uint16_t tile;
-    uint16_t is_top;
+    u16 x;
+    u16 y;
+    u16 tile;
+    u16 is_top;
 } object_tile_t;
 
 void level_init(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gfx_store) {
-    uint32_t level_layer1_data_addr_sfc
+    u32 level_layer1_data_addr_sfc
         = (rom->data[level_layer1_data_table_pc + 2 + 3 * num_level] << 16)
         | (rom->data[level_layer1_data_table_pc + 1 + 3 * num_level] << 8)
         | (rom->data[level_layer1_data_table_pc + 0 + 3 * num_level] << 0);
 
-    uint32_t level_layer2_data_addr_sfc
+    u32 level_layer2_data_addr_sfc
         = (rom->data[level_layer2_data_table_pc + 2 + 3 * num_level] << 16)
         | (rom->data[level_layer2_data_table_pc + 1 + 3 * num_level] << 8)
         | (rom->data[level_layer2_data_table_pc + 0 + 3 * num_level] << 0);
 
-    uint32_t level_sprites_data_addr_sfc
+    u32 level_sprites_data_addr_sfc
         = 0x070000
         | (rom->data[level_layer2_data_table_pc + 0 + 2 * num_level] << 8)
         | (rom->data[level_layer2_data_table_pc + 1 + 2 * num_level] << 0);
@@ -41,14 +40,14 @@ void level_init(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gf
 }
 
 void level_init_by_address(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gfx_store,
-                           uint32_t level_layer1_data_addr_sfc,
-                           uint32_t level_layer2_data_addr_sfc,
-                           uint32_t level_sprite_data_addr_sfc) {
+                           u32 level_layer1_data_addr_sfc,
+                           u32 level_layer2_data_addr_sfc,
+                           u32 level_sprite_data_addr_sfc) {
 
     l->rom = rom;
     l->num_level = num_level;
-    printf("Layer 1: %x\n", level_layer1_data_addr_sfc);
-    uint32_t level_layer1_data_addr_pc = ((level_layer1_data_addr_sfc & 0x7f0000) >> 1) | (level_layer1_data_addr_sfc & 0x7fff);
+    //printf("Layer 1: %x\n", level_layer1_data_addr_sfc);
+    u32 level_layer1_data_addr_pc = ((level_layer1_data_addr_sfc & 0x7f0000) >> 1) | (level_layer1_data_addr_sfc & 0x7fff);
     
     r65816_cpu_t cpu = {.regs.p.b = 0x24};
     r65816_cpu_init(&cpu, rom);
@@ -86,9 +85,9 @@ void level_init_by_address(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_
             l->is_boss_level = 0;
             break;
             
-        case 0x09: // \
-        case 0x0B: // | Boss level
-        case 0x10: // /
+        case 0x09: // > 
+        case 0x0B: // >Boss level
+        case 0x10: // >
             l->has_layer2_objects = 0;
             l->has_layer2_bg = 0;
             l->is_boss_level = 1;
@@ -106,7 +105,7 @@ void level_init_by_address(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_
 
         int bg_color_addr = level_bg_area_color_data_table_pc + 2 * cpu.ram[level_header_bg_color_ram];
         // TODO: Maybe implement as macro/function
-        uint16_t bg_color = rom->data[bg_color_addr] | (rom->data[bg_color_addr + 1] << 8);
+        u16 bg_color = rom->data[bg_color_addr] | (rom->data[bg_color_addr + 1] << 8);
         int r = ((bg_color & 0x001F) << 3); r |= (r >> 5);
         int g = ((bg_color & 0x03E0) >> 2); g |= (g >> 5);
         int b = ((bg_color & 0x7C00) >> 7); b |= (b >> 5);
@@ -118,10 +117,10 @@ void level_init_by_address(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_
     {
         int num_tileset = cpu.ram[level_header_tileset_ram];
         int tileset_addr = 0x292B + num_tileset * 4;
-        uint8_t fg1 = rom->data[tileset_addr];
-        uint8_t fg2 = rom->data[tileset_addr + 1];
-        uint8_t bg1 = rom->data[tileset_addr + 2];
-        uint8_t fg3 = rom->data[tileset_addr + 3];
+        u8 fg1 = rom->data[tileset_addr];
+        u8 fg2 = rom->data[tileset_addr + 1];
+        u8 bg1 = rom->data[tileset_addr + 2];
+        u8 fg3 = rom->data[tileset_addr + 3];
         if(fg1 >= gfx_store->num_pages) return;
         if(fg2 >= gfx_store->num_pages) return;
         if(bg1 >= gfx_store->num_pages) return;
@@ -158,7 +157,7 @@ void level_init_by_address(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_
 
             for(int j = 0; j < 4; j++) {
                 l->map16_fg.tiles[i].properties[j] = (tile_properties_t)rom->data[map16lookupPC + j * 2 + 1];
-                uint16_t num_tile =  rom->data[map16lookupPC + j * 2];
+                u16 num_tile =  rom->data[map16lookupPC + j * 2];
                 num_tile         |= (rom->data[map16lookupPC + j * 2 + 1] & 0x03) << 8;
                 if(num_tile == 0x3FF) num_tile = 0;
                 l->map16_fg.tiles[i].tile8s[j] = &(l->map8.tiles[num_tile]);
@@ -176,7 +175,7 @@ void level_init_by_address(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_
             int map16_addr_pc  = ((map16_addr_sfc & 0x7f0000) >> 1) | (map16_addr_sfc & 0x7fff);        
             for(int j = 0; j < 4; j++) {
                 l->map16_bg.tiles[i].properties[j] = (tile_properties_t)(rom->data[map16_addr_pc + j * 2 + 1]);
-                uint16_t num_tile =  rom->data[map16_addr_pc + j * 2];
+                u16 num_tile =  rom->data[map16_addr_pc + j * 2];
                 num_tile         |= (rom->data[map16_addr_pc + j * 2 + 1] & 0x03) << 8;
                 if(num_tile >= 0x200) num_tile = 0;
                 l->map16_bg.tiles[i].tile8s[j] = &(l->map8.tiles[num_tile]);
@@ -236,13 +235,13 @@ void level_init_by_address(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_
                         object->settings = cpu.ram[0x59];
                         int width  = xmax - xmin + 1;
                         int height = ymax - ymin + 1;
-                        object->tiles = malloc(sizeof(uint16_t) * width * height);
+                        object->tiles = malloc(sizeof(u16) * width * height);
                         for(int i = 0; i < width * height; i++) object->tiles[i] = 0xFFFF;
                         for(int i = 0; i < tile_count; i++) {
-                            uint16_t x = ((object_tile_t*)tiles_pool.data)[i].x - xmin;
-                            uint16_t y = ((object_tile_t*)tiles_pool.data)[i].y - ymin;
-                            uint16_t tilenum = ((object_tile_t*)tiles_pool.data)[i].tile;
-                            uint16_t is_top = ((object_tile_t*)tiles_pool.data)[i].is_top;
+                            u16 x = ((object_tile_t*)tiles_pool.data)[i].x - xmin;
+                            u16 y = ((object_tile_t*)tiles_pool.data)[i].y - ymin;
+                            u16 tilenum = ((object_tile_t*)tiles_pool.data)[i].tile;
+                            u16 is_top = ((object_tile_t*)tiles_pool.data)[i].is_top;
                             int index = y * width + x;
                             if(object->tiles[index] == 0xFFFF) object->tiles[index] = 0x0025;
                             if(is_top) {
@@ -296,14 +295,14 @@ void level_init_by_address(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_
                 object->settings = cpu.ram[0x59];
                 int width  = xmax - xmin + 1;
                 int height = ymax - ymin + 1;
-                object->tiles = malloc(sizeof(uint16_t) * width * height);
+                object->tiles = malloc(sizeof(u16) * width * height);
                 // Mark each tile as unset (= 0xFFFF)
                 for(int i = 0; i < width * height; i++) object->tiles[i] = 0xFFFF;
                 for(int i = 0; i < tile_count; i++) {
-                    uint16_t x = ((object_tile_t*)tiles_pool.data)[i].x - xmin;
-                    uint16_t y = ((object_tile_t*)tiles_pool.data)[i].y - ymin;
-                    uint16_t tilenum = ((object_tile_t*)tiles_pool.data)[i].tile;
-                    uint16_t is_top = ((object_tile_t*)tiles_pool.data)[i].is_top;
+                    u16 x = ((object_tile_t*)tiles_pool.data)[i].x - xmin;
+                    u16 y = ((object_tile_t*)tiles_pool.data)[i].y - ymin;
+                    u16 tilenum = ((object_tile_t*)tiles_pool.data)[i].tile;
+                    u16 is_top = ((object_tile_t*)tiles_pool.data)[i].is_top;
                     int index = y * width + x;
                     // if tile is unset, initialize it to its default value.
                     if(object->tiles[index] == 0xFFFF) object->tiles[index] = 0x0025;
@@ -327,7 +326,7 @@ void level_init_by_address(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_
         // --- bg init ----------
 
         if(l->has_layer2_bg) {
-            l->layer2_background.data = malloc(432 * 2 * sizeof(uint16_t) + 300);
+            l->layer2_background.data = malloc(432 * 2 * sizeof(u16) + 300);
             int offset = 0;
             int addr = rom->data[level_layer2_data_table_pc + 2 + 3 * num_level];
             if(addr == 0xFF) addr = 0x0C;
@@ -335,12 +334,12 @@ void level_init_by_address(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_
             addr = (addr << 8) | rom->data[level_layer2_data_table_pc + 0 + 3 * num_level];
             if((addr & 0xFFFF) >= 0xE8FE) offset = 0x100; //See CODE_058046
             int pos = 0;
-            uint8_t cmd, byte;
+            u8 cmd, byte;
             while(pos < 432 * 2) {
                 cmd  = r65816_cpu_read(&cpu, addr);
                 byte = r65816_cpu_read(&cpu, addr + 1);
                 if(cmd == 0xFF && byte == 0xFF) break;
-                uint8_t length = cmd & 0b01111111;
+                u8 length = cmd & 0b01111111;
                 if(cmd & 0x80) {
                     for(int i = 0; i <= length; i++) {
                         l->layer2_background.data[pos + i] = offset + byte;
@@ -378,9 +377,9 @@ void level_init_by_address(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_
         // --- sprites init -----
         {
             int number_sprites = 0;
-            uint8_t low  = rom->data[0x02EC00 + 2 * num_level]; 
-            uint8_t high = rom->data[0x02EC01 + 2 * num_level];
-            uint8_t bank = 0x07;
+            u8 low  = rom->data[0x02EC00 + 2 * num_level]; 
+            u8 high = rom->data[0x02EC01 + 2 * num_level];
+            u8 bank = 0x07;
             int level_sprite_data_addr_sfc  = (bank << 16) | (high << 8) | low;
             int level_sprite_data_addr_pc = ((level_sprite_data_addr_sfc & 0x7f0000) >> 1) + (level_sprite_data_addr_sfc & 0x7fff);
 
@@ -450,7 +449,7 @@ void level_init_by_address(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_
                 for(int i = 0; i < 0x200; i+=4) {
                     if((cpu.ram[i + 0x200] | cpu.ram[i + 0x202] | cpu.ram[i + 0x203]) && (cpu.ram[i + 0x201] != 0xf0)) {
                     
-                        uint8_t extrabits = (cpu.ram[(i / 4) + 0x400] >> (i % 4)) & 0x03;
+                        u8 extrabits = (cpu.ram[(i / 4) + 0x400] >> (i % 4)) & 0x03;
                         //Does not take $2101 into account
                         if(extrabits & 0x02) {
                             sprite_tile_t* tile = (sprite_tile_t*)pool_alloc(&sprite_tile_pool, sizeof(sprite_tile_t));
@@ -462,8 +461,8 @@ void level_init_by_address(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_
                             tile->y = ((cpu.ram[0x1d] << 8) | cpu.ram[0x1c]) + cpu.ram[i + 0x201];
                         } else {
                             sprite_tile_t* tiles = (sprite_tile_t*)pool_alloc(&sprite_tile_pool, 4 * sizeof(sprite_tile_t));
-                            uint8_t flipx = cpu.ram[i + 0x203] & 0x40;
-                            uint8_t flipy = cpu.ram[i + 0x203] & 0x80;
+                            u8 flipx = cpu.ram[i + 0x203] & 0x40;
+                            u8 flipy = cpu.ram[i + 0x203] & 0x80;
 
                             for(int j = 0; j < 4; j++) {
                                 tiles[i].flip_x = (cpu.ram[i + 0x203] & 0x40) && 1;
@@ -546,7 +545,7 @@ void level_deinit(level_pc_t* l) {
 }
 
 
-void level_animate(level_pc_t* l, uint8_t frame, gfx_store_t* gfx_store) {
+void level_animate(level_pc_t* l, u8 frame, gfx_store_t* gfx_store) {
     if(l->is_boss_level) return;
     
     r65816_cpu_t cpu;
@@ -556,7 +555,7 @@ void level_animate(level_pc_t* l, uint8_t frame, gfx_store_t* gfx_store) {
     r65816_cpu_add_exec_bp(&cpu, 0x00A42F);
     r65816_cpu_run_from(&cpu, 0x00A418);
     int pos = cpu.sreg[0x0121];
-    uint32_t tmp_color = cpu.sreg[0x0122];
+    u32 tmp_color = cpu.sreg[0x0122];
     r65816_cpu_step(&cpu);
     r65816_cpu_step(&cpu);
     l->palette.data[pos] = tmp_color | (cpu.sreg[0x0122] << 8);
@@ -579,7 +578,7 @@ void level_animate(level_pc_t* l, uint8_t frame, gfx_store_t* gfx_store) {
     r65816_cpu_add_exec_bp(&cpu, 0x00A601);
     r65816_cpu_run_from(&cpu, 0x00A5FD);
 
-    uint16_t source[3], dest[3];
+    u16 source[3], dest[3];
     // Get the dma source addresses. It works... note that 1000 is decimal.
     source[0] = ((cpu.ram[0x0D77] << 8) + cpu.ram[0x0D76]) / 32 - 1000; 
     source[1] = ((cpu.ram[0x0D79] << 8) + cpu.ram[0x0D78]) / 32 - 1000;

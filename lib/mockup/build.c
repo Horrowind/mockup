@@ -1,0 +1,11 @@
+#include "decode.c"
+#include "gfx_store.c"
+#include "layer.c"
+#include "level.c"
+#include "level_objects.c"
+#include "palette.c"
+#include "pool.c"
+#include "smw.c"
+#include "tiles.c"
+#include "tileset.c"
+

@@ -7,14 +7,14 @@
 typedef struct {
     int height;
     int width;
-    uint16_t* data;
+    u16* data;
 } layer16_t;
 
 void layer16_init(layer16_t* layer);
 void layer16_deinit(layer16_t* layer);
 
 
-/*void layer16_render_line(layer16_t layer, int num_line, uint8_t* line) {
+/*void layer16_render_line(layer16_t layer, int num_line, u8* line) {
     int gy = num_line>>4;
     int by = num_line%16;
     for(int i = 0; i < layer->width * 16; i++) {
@@ -23,7 +23,7 @@ void layer16_deinit(layer16_t* layer);
     }
 }*/
 
-/* void Level::renderLineBG(uint8_t* line, int linenum) { */
+/* void Level::renderLineBG(u8* line, int linenum) { */
 /*     if(l->hasLayer2BG) { */
 /* 	int gy = (linenum>>4) % 27; */
 /* 	int by = linenum%16; */
@@ -47,7 +47,7 @@ void layer16_deinit(layer16_t* layer);
 /* } */
 
 /* //TODO: Method is not updated, see renderLine(F/B)G */
-/* uint8_t Level::renderPixel(int x, int y) { */
+/* u8 Level::renderPixel(int x, int y) { */
 /*     int gx = x>>4; */
 /*     int bx = x%16; */
 /*     int gy = y>>4; */

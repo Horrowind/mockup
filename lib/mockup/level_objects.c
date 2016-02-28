@@ -1,7 +1,7 @@
 #include <assert.h>
 #include <stdio.h>
 
-#include "r65816/cpu.h"
+#include "r65816.h"
 #include "addresses.h"
 #include "level.h"
 #include "pool.h"
@@ -27,14 +27,14 @@ void level_objects_sort_left_right(object_pc_t** objects, int n) {
     level_objects_sort_left_right(objects + i, n - i);
 }
 
-int level_object_list_pc_to_level_data(object_list_pc_t* object_list, uint8_t* output_data, int max_length) {
+int level_object_list_pc_to_level_data(object_list_pc_t* object_list, u8* output_data, int max_length) {
 
     int length = object_list->length;
     if(length == 0) return 0;
     
     // Get overlap data
     struct overlap_array {
-        uint16_t* data;
+        u16* data;
         int length;
     }* overlaps = malloc(length * sizeof(struct overlap_array));
     
@@ -43,7 +43,7 @@ int level_object_list_pc_to_level_data(object_list_pc_t* object_list, uint8_t* o
     object_pc_t* objects = object_list->objects;
 
     for(int i = 1; i < length; i++) {
-        overlaps[i].data = (uint16_t*)(overlap_pool.data + overlap_pool.fill);
+        overlaps[i].data = (u16*)(overlap_pool.data + overlap_pool.fill);
         for(int j = 0; j < i; j++) {
 
             if(!(objects[i].bb_xmin > objects[j].bb_xmax
@@ -51,11 +51,11 @@ int level_object_list_pc_to_level_data(object_list_pc_t* object_list, uint8_t* o
                  || objects[i].bb_ymin > objects[j].bb_ymax
                  || objects[i].bb_ymax < objects[j].bb_ymin)) {
                 //The bounding boxes overlap
-                uint16_t* overlap_instance = (uint16_t*)pool_alloc(&overlap_pool, sizeof(uint16_t));
+                u16* overlap_instance = (u16*)pool_alloc(&overlap_pool, sizeof(u16));
                 *overlap_instance = j;
             }
         }
-        overlaps[i].length = (overlap_pool.data + overlap_pool.fill - (uint8_t*)overlaps[i].data) / sizeof(uint16_t);
+        overlaps[i].length = (overlap_pool.data + overlap_pool.fill - (u8*)overlaps[i].data) / sizeof(u16);
     }
     
     object_pc_t** object_pointers = malloc(2 * length * sizeof(object_pc_t*));
@@ -74,7 +74,7 @@ int level_object_list_pc_to_level_data(object_list_pc_t* object_list, uint8_t* o
             if(overlaps[i].length == 0) {
                 object_pointers2[index] = object;
                 object_pointers[i] = NULL;
-                uint16_t object_index = (object - object_list->objects) / sizeof(uint16_t);
+                u16 object_index = (object - object_list->objects) / sizeof(u16);
                 for(int j = 0; j < length; j++) {
                     for(int k = 0; k < overlaps[j].length; k++) {
                         if(overlaps[j].data[k] == object_index) {
@@ -103,7 +103,7 @@ int level_object_list_pc_to_level_data(object_list_pc_t* object_list, uint8_t* o
     // TODO: Insert screen exits.
     int size = 0;
     for(int i = 0; i < length - 1; i++) {
-        uint8_t* data;
+        u8* data;
         object_pc_t* object = object_pointers2[i];
         int screen1 = object_pointers2[i]->x / 16;
         int screen2 = object_pointers2[i + 1]->x / 16;
@@ -137,12 +137,12 @@ int level_object_list_pc_to_level_data(object_list_pc_t* object_list, uint8_t* o
     return size;
 }
 
-void level_move_object(level_pc_t* level, int index, uint16_t x, uint16_t y, gfx_store_t* gfx_store) {
+void level_move_object(level_pc_t* level, int index, u16 x, u16 y, gfx_store_t* gfx_store) {
     object_list_pc_t* object_list = &level->layer1_objects;
         
     object_list->objects[index].x = x;
     object_list->objects[index].y = y;
-    uint8_t* addr = level->rom->data + ((0x0EF0F0&0x7F0000)>>1|(0x0EF0F0&0x7FFF));
+    u8* addr = level->rom->data + ((0x0EF0F0&0x7F0000)>>1|(0x0EF0F0&0x7FFF));
     memcpy(addr, &level->header, 5);
     level_object_list_pc_to_level_data(&level->layer1_objects, addr + 5, 5000);
     printf("Finished\n");

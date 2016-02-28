@@ -1,15 +1,14 @@
 #ifndef MOCKUP_PALETTE_H
 #define MOCKUP_PALETTE_H
 
-#include "r65816/rom.h"
-#include "r65816/cpu.h"
+#include "r65816.h"
 
 typedef struct {
-    uint16_t data[256];
+    u16 data[256];
 } palette_t;
 
 typedef struct {
-    uint32_t data[256];
+    u32 data[256];
 } palette_pc_t;
 
 void palette_init(palette_t* palette, r65816_rom_t* rom, int num_level);

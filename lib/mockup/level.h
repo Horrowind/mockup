@@ -1,7 +1,7 @@
 #ifndef MOCKUP_LEVEL_H
 #define MOCKUP_LEVEL_H
 
-#include "r65816/cpu.h"
+#include "r65816.h"
 #include "gfx_store.h"
 #include "layer.h"
 #include "overworld.h"
@@ -12,50 +12,50 @@
 #define SPRITES
 
 typedef struct {
-    uint16_t x;
-    uint16_t y;
-    uint8_t num : 6;
-    uint8_t settings;
+    u16 x;
+    u16 y;
+    u8 num : 6;
+    u8 settings;
 
-    uint16_t  bb_xmin;
-    uint16_t  bb_ymin;
-    uint16_t  bb_xmax;
-    uint16_t  bb_ymax;
-    uint16_t  zindex;
-    uint16_t* tiles;
+    u16  bb_xmin;
+    u16  bb_ymin;
+    u16  bb_xmax;
+    u16  bb_ymax;
+    u16  zindex;
+    u16* tiles;
 } object_pc_t;
 
 typedef struct {
     object_pc_t* objects;
-    uint16_t length;
+    u16 length;
 } object_list_pc_t;
 
 
 #ifdef SPRITES
 typedef struct {
-    uint8_t y1         : 4;
-    uint8_t extra_bits : 2;
-    uint8_t screen1    : 1;
-    uint8_t y2         : 1;
-    uint8_t x          : 4;
-    uint8_t screen2    : 4;
-    uint8_t enemy;
+    u8 y1         : 4;
+    u8 extra_bits : 2;
+    u8 screen1    : 1;
+    u8 y2         : 1;
+    u8 x          : 4;
+    u8 screen2    : 4;
+    u8 enemy;
 } sprite_t;
 
 typedef struct {
     int x;
     int y;
-    uint8_t flip_x : 1;
-    uint8_t flip_y : 1;
+    u8 flip_x : 1;
+    u8 flip_y : 1;
     
-    uint8_t palette;
-    uint16_t tile_num;
+    u8 palette;
+    u16 tile_num;
 } sprite_tile_t;
 
 typedef struct {
     int x, y;
-    uint8_t enemy;
-    uint8_t extra_bits;
+    u8 enemy;
+    u8 extra_bits;
     int num_tiles;
     sprite_tile_t* tiles;   
 } sprite_pc_t;
@@ -67,29 +67,29 @@ typedef struct {
 #endif
 
 typedef struct {
-    uint8_t* layer1_objects_data;
+    u8* layer1_objects_data;
     int layer1_objects_length;
 } level_save_locations_t;
 
 
 typedef struct {
-    uint8_t screens         : 5;
-    uint8_t bg_palette      : 3;
+    u8 screens         : 5;
+    u8 bg_palette      : 3;
 
-    uint8_t level_mode      : 5;
-    uint8_t bg_color        : 3;
+    u8 level_mode      : 5;
+    u8 bg_color        : 3;
     
-    uint8_t sprite_set      : 4;
-    uint8_t music           : 3;
-    uint8_t layer3_priority : 1;
+    u8 sprite_set      : 4;
+    u8 music           : 3;
+    u8 layer3_priority : 1;
 
-    uint8_t fg_palette      : 3;
-    uint8_t sprite_palette  : 3;
-    uint8_t time            : 2;
+    u8 fg_palette      : 3;
+    u8 sprite_palette  : 3;
+    u8 time            : 2;
     
-    uint8_t tile_set        : 4;
-    uint8_t vert_scroll     : 2;
-    uint8_t item_memory     : 2;
+    u8 tile_set        : 4;
+    u8 vert_scroll     : 2;
+    u8 item_memory     : 2;
 } level_header_t;
 
 typedef struct {
@@ -102,12 +102,12 @@ typedef struct {
         object_list_pc_t layer2_objects;
         layer16_t        layer2_background;
     };
-    uint8_t has_layer2_bg      : 1;
-    uint8_t has_layer2_objects : 1;
-    uint8_t is_vertical_level  : 1;
-    uint8_t is_boss_level      : 1;
+    u8 has_layer2_bg      : 1;
+    u8 has_layer2_objects : 1;
+    u8 is_vertical_level  : 1;
+    u8 is_boss_level      : 1;
 
-    uint32_t  background_color;
+    u32  background_color;
     
     palette_t palette;
     tileset_t tileset;
@@ -126,16 +126,16 @@ typedef struct {
 
 void level_init(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gfx_store);
 void level_init_by_address(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gfx_store,
-                           uint32_t level_layer1_data_addr_sfc,
-                           uint32_t level_layer2_data_addr_sfc,
-                           uint32_t level_sprite_data_addr_sfc);
+                           u32 level_layer1_data_addr_sfc,
+                           u32 level_layer2_data_addr_sfc,
+                           u32 level_sprite_data_addr_sfc);
 
 void level_deinit(level_pc_t* l);
 
-int level_object_list_pc_to_level_data(object_list_pc_t* object_list, uint8_t* output_data, int max_length);
-void level_move_object(level_pc_t* l, int index, uint16_t x, uint16_t y, gfx_store_t* gfx_store);
+int level_object_list_pc_to_level_data(object_list_pc_t* object_list, u8* output_data, int max_length);
+void level_move_object(level_pc_t* l, int index, u16 x, u16 y, gfx_store_t* gfx_store);
 
-void level_animate(level_pc_t* l, uint8_t frame, gfx_store_t* gfx_store);
+void level_animate(level_pc_t* l, u8 frame, gfx_store_t* gfx_store);
 
 
 #endif //MOCKUP_LEVEL

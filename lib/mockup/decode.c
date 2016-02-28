@@ -4,10 +4,10 @@
 
 #include "decode.h"
 
-void decode_rle1(const uint8_t* data, uint8_t* output) {
-    uint8_t cmd, length;
+void decode_rle1(const u8* data, u8* output) {
+    u8 cmd, length;
     int pos = 0;
-    uint8_t* tmp = output;
+    u8* tmp = output;
     while((cmd = data[pos]) != 0xFF || data[pos + 1] != 0xFF) {
         length = cmd & 0b01111111;
         if(cmd & 0x80) {
@@ -23,9 +23,9 @@ void decode_rle1(const uint8_t* data, uint8_t* output) {
     output = tmp;
 }
 
-int decode_rle1_get_size(const uint8_t* data) {
+int decode_rle1_get_size(const u8* data) {
     int size = 0, pos = 0;
-    uint8_t cmd, length;
+    u8 cmd, length;
     while((cmd = data[pos]) != 0xFF || data[pos + 1] != 0xFF) {
         length = cmd & 0b01111111;
         size += length + 1;
@@ -34,8 +34,8 @@ int decode_rle1_get_size(const uint8_t* data) {
     return size;
 }
 
-void decode_lz2(const uint8_t* data, uint8_t* output) {
-    uint8_t cmd; 
+void decode_lz2(const u8* data, u8* output) {
+    u8 cmd; 
     int length;
     int pos = 0, pos_out = 0, copy_pos;
         
@@ -91,8 +91,8 @@ void decode_lz2(const uint8_t* data, uint8_t* output) {
     }
 }
 
-int decode_lz2_get_size(const uint8_t* data) {
-    uint8_t cmd, length;
+int decode_lz2_get_size(const u8* data) {
+    u8 cmd, length;
     int pos = 0, size = 0;
     while((cmd = data[pos]) != 0xFF) {
         if((cmd & 0xE0) == 0xE0) {

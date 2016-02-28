@@ -18,7 +18,7 @@
 /*     return tile_new; */
 /* } */
 
-tile8_t tile8_from_3bpp(uint8_t* data) {
+tile8_t tile8_from_3bpp(u8* data) {
     tile8_t tile;
     for(int k = 0; k < 8; k++) {
         unsigned char bp1, bp2, bp3;
@@ -37,7 +37,7 @@ tile8_t tile8_from_3bpp(uint8_t* data) {
     return tile;
 }
 
-tile8_t tile8_from_4bpp(uint8_t* data) {
+tile8_t tile8_from_4bpp(u8* data) {
     tile8_t tile;
     for(int k = 0; k < 8; k++) {
         unsigned char bp1, bp2, bp3, bp4;
@@ -102,7 +102,7 @@ void map16_init_fg(map16_t* map16, r65816_rom_t* rom, int num_level, map8_t* map
 
         for(int j = 0; j < 4; j++) {
             map16->tiles[i].properties[j] = (tile_properties_t)rom->data[map16lookupPC + j * 2 + 1];
-            uint16_t num_tile             = rom->data[map16lookupPC + j * 2] | ((rom->data[map16lookupPC + j * 2 + 1] & 0x03) << 8);
+            u16 num_tile             = rom->data[map16lookupPC + j * 2] | ((rom->data[map16lookupPC + j * 2 + 1] & 0x03) << 8);
             map16->tiles[i].tile8s[j]     = &map8->tiles[num_tile];
         }
     }
@@ -124,12 +124,12 @@ void map16_init_bg(map16_t* map16, r65816_rom_t* rom, int num_level, map8_t* map
     map16->length = 512;
     map16->tiles = malloc(512 * sizeof(tile16_t));
     for(int i = 0; i < 512; i++) {
-        int map16lookupSNES = 0x0D9100 + i*8;
-        int map16lookupPC   = ((map16lookupSNES & 0x7f0000) >> 1) + (map16lookupSNES & 0x7fff);
+        /* int map16lookupSNES = 0x0D9100 + i*8; */
+        /* int map16lookupPC   = ((map16lookupSNES & 0x7f0000) >> 1) + (map16lookupSNES & 0x7fff); */
 
         for(int j = 0; j < 4; j++) {
             map16->tiles[i].properties[j] = (tile_properties_t)rom->banks[0xD][9100 + i * 8 + j * 2 + 1];
-            uint16_t num_tile             = rom->banks[0xD][9100 + i * 8 + j * 2];
+            u16 num_tile             = rom->banks[0xD][9100 + i * 8 + j * 2];
             num_tile                     |= (rom->banks[0xD][9100 + i * 8 + j * 2 + 1] & 0b00000011) << 8;
             map16->tiles[i].tile8s[j]     = &map8->tiles[num_tile];
         }
@@ -193,7 +193,7 @@ void tile16_pc_init(tile16_pc_t* tile16_pc, tile16_t* tile16) {
 
 void map16_pc_init(map16_pc_t* map16_pc, map16_t* map16_snes) {
     map16_pc->length = map16_snes->length;
-    map16_pc->tiles = malloc(map16_pc->length * 256 * sizeof(uint32_t));
+    map16_pc->tiles = malloc(map16_pc->length * 256 * sizeof(u32));
     for(int i = 0; i < map16_pc->length; i++) {
         tile16_pc_init(&map16_pc->tiles[i], &map16_snes->tiles[i]);
     }
