@@ -35,15 +35,14 @@ u32 SuperFastHash (string_t str);
         map->size = size;                                               \
         map->fill = 0;                                                  \
         uint num_bytes = size * sizeof(struct { type data; u32 hash;}); \
-        map->entries = malloc(num_bytes);                               \
-        memset(map->entries, 0xFF, num_bytes);                          \
+        map->entries = calloc(num_bytes);                               \
     }                                                                   \
                                                                         \
     void name##_insert2(name##_t* map, type data, u32 hash);            \
     void name##_resize(name##_t* map) {                                 \
         struct { type data; u32 hash;}* new_entries;                    \
         uint entry_size = sizeof(struct { type data; u32 hash;});       \
-        new_entries = malloc(2 * map->size * entry_size);               \
+        new_entries = calloc(2 * map->size * entry_size);               \
         for(int i = 0; i < map->size; i++) {                            \
             type data = map->entries[i].data;                           \
             u32 hash = map->entries[i].hash;                            \

@@ -12,6 +12,8 @@ typedef struct {
 #define L(cstr) (string_t){.data = cstr, .length = array_length(cstr) - 1 }
 
 b32 string_equal(string_t s1, string_t s2);
+string_t string_from_c_string(char* buf);
+
 
 #ifdef BASE_VARIABLE_STRING_IMPLEMENTATION
 
@@ -23,6 +25,21 @@ b32 string_equal(string_t s1, string_t s2) {
     }
     return 1;
 }
+
+string_t string_from_c_string(char* buf) {
+    int length = 0;
+    string_t s = {
+        .data = buf
+    };
+    while(*buf != '\0') {
+        buf++;
+        length++;
+    }
+    
+    s.length = length;
+    return s;
+}
+
 
 #endif //BASE_VARIABLE_STRING_IMPLEMENTATION
 
