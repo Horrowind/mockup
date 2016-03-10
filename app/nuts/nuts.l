@@ -12,11 +12,11 @@
 #include "nuts.tab.h"
 
 string_t current_identifier;
-
+int parenthesis_level;
 %}
 %option noyywrap
 %option yylineno
-                        
+                       
 digit        [0-9]
 hexdigit     [0-9a-fA-F]
 letter       [a-zA-Z]
@@ -33,8 +33,16 @@ nowhitespace [^ \"\t\r\n][^ \t\r\n]*
 %option case-insensitive
                         
 %x COMMENT
-%x MACRO_DECLLIST
-%x MACROCALL_DECLLIST
+%x MACRO_DECLLIST_A
+%x MACRO_DECLLIST_B
+%x MACRO_DECLLIST_C
+%x MACRO_DECLLIST_D
+%x MACRO_DECLLIST_E
+%x MACROCALL_DECLLIST_A
+%x MACROCALL_DECLLIST_B
+%x MACROCALL_DECLLIST_C
+%x MACROCALL_DECLLIST_D
+%x MACROCALL_DECLLIST_E
 %x MACRO_BODY
 %x INCL
 %x DEFINE_DEF
@@ -49,9 +57,7 @@ nowhitespace [^ \"\t\r\n][^ \t\r\n]*
 
 
 
-[ \t]          { }
-\r?\n          { return_token(NEWLINE);  };
-":"            { return_token(NEWLINE);  };
+[ \r\t]        { }
 {byte}         {
                  if(yyleng == 2) {
                      yylval.val_word  = char2hex(yytext[1]) <<  0;
@@ -138,6 +144,7 @@ nowhitespace [^ \"\t\r\n][^ \t\r\n]*
 ">"            { return_token(GREATER);  };
 "<<"           { return_token(LSHIFT);   };
 ">>"           { return_token(RSHIFT);   };
+":"            { return_token(COLON);    };
 "."            { return_token(DOT);      };
 "!"            { return_token(EXCLAM);   };
 "#"            { return_token(HASH);     };
@@ -181,22 +188,24 @@ nowhitespace [^ \"\t\r\n][^ \t\r\n]*
 
 "!"{ident}     {
                  define_t define = {
-                     .identifier = {
+                     .name = {
                          .data = yytext + 1,
                          .length = yyleng - 1
                      }
                  };
                  define_t* real_define;
                  if(real_define = defines_hash_map_find(&defines_map, define)) {
-                     push_parse_buffer(real_define->replacement);
+                     push_parse_buffer(real_define->replacement, real_define->filename);
                  } else {
-                     printf("Error: Undefined define\n");
+                     yyerror("Error: Undefined define");
                  }
 
                }
 <DEFINE_DEF>[^:\r\n]*(":"|("\r"?"\n")) {
                  define_t define = {
-                     .identifier = current_identifier,
+                     .name = current_identifier,
+                     .filename = parse_stack_top(&parse_stack)->filename,
+                     .line_num = yylineno,
                      .replacement = {
                          .data = yytext,
                          .length = yyleng - 1
@@ -207,30 +216,77 @@ nowhitespace [^ \"\t\r\n][^ \t\r\n]*
                }
 
 "macro"                  {
-     BEGIN(MACRO_DECLLIST);
-     return_token(MACRO);
+     BEGIN(MACRO_DECLLIST_A);
  };
-<MACRO_DECLLIST>[ \t]*  { };
-<MACRO_DECLLIST>"("     { return_token(MACRO_LPAREN); };
-<MACRO_DECLLIST>","     { return_token(MACRO_COMMA); };
-<MACRO_DECLLIST>{ident} { return_token(MACRO_IDENT); };
-<MACRO_DECLLIST>")"     {
-                   BEGIN(MACRO_BODY);
-     return_token(MACRO_RPAREN);
-   };
-<MACRO_BODY>"\0"        { yyerror("EOF in macro body"); };
-<MACRO_BODY>"\nendmacro" {
-                             BEGIN(INITIAL);
-                             return_token(ENDMACRO);
-                         };
-<MACRO_BODY>.            { };
- "%"{ident}             { BEGIN(MACROCALL_DECLLIST);  };
-<MACROCALL_DECLLIST>[ \t]*  { };
-<MACROCALL_DECLLIST>"("     { };
-<MACROCALL_DECLLIST>","     { };
-<MACROCALL_DECLLIST>{ident} { };
-<MACROCALL_DECLLIST>")"     { BEGIN(INITIAL); }
 
+<MACRO_DECLLIST_A>{ident}  {
+#ifdef PRINT_TOKENS
+                           printf("Found: MACRO NAME (%s)\n", yytext);
+#endif
+                           BEGIN(MACRO_DECLLIST_B);
+                           return_token(MACRO);
+                         }
+<MACRO_DECLLIST_A>[ \t\r]* { };
+<MACRO_DECLLIST_A>.      { yyerror("Expected identifier"); };
+<MACRO_DECLLIST_A>"\n"   { yyerror("Expected identifier, got NEWLINE"); };
+<MACRO_DECLLIST_B>"("    { BEGIN(MACRO_DECLLIST_C); }
+<MACRO_DECLLIST_B>[ \t\r]* { };
+<MACRO_DECLLIST_B>.      { yyerror("Expected identifier"); };
+<MACRO_DECLLIST_B>"\n"   { yyerror("Expected identifier, got NEWLINE"); };
+<MACRO_DECLLIST_C>{ident}  {
+#ifdef PRINT_TOKENS
+                           printf("Found MACRO IDENTIFIER (%s)\n", yytext);
+#endif
+                           BEGIN(MACRO_DECLLIST_D);
+                         }
+<MACRO_DECLLIST_C>[ \t\r]* { };
+<MACRO_DECLLIST_C>")"    { BEGIN(MACRO_BODY); };
+<MACRO_DECLLIST_C>.      { yyerror("Expected identifier or ')'"); };
+<MACRO_DECLLIST_C>"\n"   { yyerror("Expected identifier or ')', got NEWLINE"); };
+<MACRO_DECLLIST_D>[ \t\r]* { };
+<MACRO_DECLLIST_D>")"    {BEGIN(MACRO_BODY); }
+<MACRO_DECLLIST_D>","    {BEGIN(MACRO_DECLLIST_E); }
+<MACRO_DECLLIST_D>.      { yyerror("Expected ','"); };
+<MACRO_DECLLIST_D>"\n"   { yyerror("Expected ',', got NEWLINE"); };
+<MACRO_DECLLIST_E>{ident}  {
+                           printf("Found macro identifier: %s\n", yytext);
+                           BEGIN(MACRO_DECLLIST_D);
+                         }
+<MACRO_DECLLIST_E>[ \t\r]* { };
+<MACRO_DECLLIST_E>")"    { BEGIN(MACRO_BODY); };
+<MACRO_DECLLIST_E>.      { yyerror("Expected identifier"); };
+<MACRO_DECLLIST_E>"\n"   { yyerror("Expected identifier, got NEWLINE"); };
+
+<MACRO_BODY>"\0"        { yyerror("EOF in macro body"); };
+<MACRO_BODY>"\nendmacro"  {
+                            BEGIN(INITIAL);
+                            return_token(ENDMACRO);
+                        };
+<MACRO_BODY>.|\n        { };
+ "%"{ident}             { BEGIN(MACROCALL_DECLLIST_B);  };
+<MACROCALL_DECLLIST_B>"("    {
+                               parenthesis_level = 1;
+                               BEGIN(MACROCALL_DECLLIST_C);
+                             }
+<MACROCALL_DECLLIST_B>[ \t\r]* { };
+<MACROCALL_DECLLIST_B>.      { yyerror("Expected '('"); };
+<MACROCALL_DECLLIST_B>"\n"   { yyerror("Expected '(', got NEWLINE"); };
+<MACROCALL_DECLLIST_C>"("    { parenthesis_level++; };
+<MACROCALL_DECLLIST_C>")"    {
+                               parenthesis_level--;
+                               if(parenthesis_level == 0) {
+                                   //TODO: Call macro here.
+                                   BEGIN(INITIAL);
+                               }
+                             }
+<MACROCALL_DECLLIST_C>","    {
+                               if(parenthesis_level == 1) {
+                                   //TODO: Manage macro parameter here
+                                   //      Count the number of parameters too.
+                               }
+                             };
+<MACROCALL_DECLLIST_C>.      { };
+<MACROCALL_DECLLIST_C>"\n"   { yyerror("Unexpected NEWLINE"); };
 
 "incbin"       { return_token(INCBIN);   };
 "incsrc"       { BEGIN(INCL);             };
@@ -239,8 +295,11 @@ nowhitespace [^ \"\t\r\n][^ \t\r\n]*
 <INCL>{nowhitespace} {
                    //got the include file name
                    string_t new_file = read_file_to_buffer(yytext);
+                   string_t filename = { .data = yytext, .length = yyleng };
+#ifdef PRINT_TOKENS
                    printf("Open1: %s\n", yytext);
-                   push_parse_buffer(new_file);
+#endif
+                   push_parse_buffer(new_file, filename);
                    BEGIN(INITIAL);
                }
 
@@ -249,8 +308,11 @@ nowhitespace [^ \"\t\r\n][^ \t\r\n]*
                    strncpy(buffer, yytext, 256);
                    buffer[strlen(buffer) - 1] = '\0';
                    string_t new_file = read_file_to_buffer(buffer + 1);
+                   string_t filename = { .data = yytext + 1, .length = yyleng - 2 };
+#ifdef PRINT_TOKENS
                    printf("Open2: %s\n", buffer + 1);
-                   push_parse_buffer(new_file);
+#endif
+                   push_parse_buffer(new_file, filename);
                    BEGIN(INITIAL);
                }
 
@@ -258,9 +320,6 @@ nowhitespace [^ \"\t\r\n][^ \t\r\n]*
                    if(pop_parse_buffer()) {
                        yyterminate();
                    }
-
-                   /* parse_stack_pop(&parse_stack); */
-                   /* if(parse_stack_is_empty(&parse_stack)) yyterminate(); */
                }
 
 
@@ -392,6 +451,7 @@ nowhitespace [^ \"\t\r\n][^ \t\r\n]*
 "y"            { return_token(TOC_Y);    };
 "s"            { return_token(TOC_S);    };
 
+\n             { return_token(NEWLINE);  };
 {ident}        {
                    yylval.val_ident = (string_t){
                        .data = yytext,

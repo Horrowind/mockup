@@ -6,27 +6,29 @@ implement_hashmap(defines_hash_map, define_t, define_hash, define_equal);
 implement_stack(parse_stack, parse_state_t);
 
 u32 define_hash(define_t define) {
-    return SuperFastHash(define.identifier);
+    return SuperFastHash(define.name);
 }
 
 b32 define_equal(define_t define1, define_t define2) {
-    return string_equal(define1.identifier, define2.identifier);
+    return string_equal(define1.name, define2.name);
 }
 
 
 
 void yyerror(const char *s) {
 	// might as well halt now:
-    printf("Error on line %i (%s): %s\n", yylineno, yytext, s);
+    string_t filename = parse_stack_top(&parse_stack)->filename;
+    printf("Error in file \"%.*s\" on line %i (\"%s\"): %s\n", filename.length, filename.data, yylineno, yytext, s);
     exit(-1);
 }
 
 
 // This function assumes that buffer is a string which one can access two characters after buffer.data + buffer.length
-void push_parse_buffer(string_t buffer) {
+void push_parse_buffer(string_t buffer, string_t filename) {
     parse_stack_reserve(&parse_stack);
     parse_state_t* state = parse_stack_top(&parse_stack);
     state->buffer = buffer;
+    state->filename = filename;
     state->overwritten_end_char0 = buffer.data[buffer.length + 0];
     state->overwritten_end_char1 = buffer.data[buffer.length + 1];
     buffer.data[buffer.length + 0] = '\0';
@@ -58,3 +60,5 @@ b32 pop_parse_buffer() {
         return 0;
     }
 }
+
+

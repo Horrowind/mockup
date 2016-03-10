@@ -19,23 +19,7 @@ void build_mockup_imgui() {
     string_t build_dir;
     target_t libr65816;
     string_t libr65816_sources[] = {
-            "lib/r65816/src/algorithms.c",
-            "lib/r65816/src/breakpoint.c",
-            "lib/r65816/src/cpu.c",
-            "lib/r65816/src/cpu_io.c",
-            "lib/r65816/src/disassembler.c",
-            "lib/r65816/src/memory.c",
-            "lib/r65816/src/opcode_misc.c",
-            "lib/r65816/src/opcode_pc.c",
-            "lib/r65816/src/opcode_read.c",
-            "lib/r65816/src/opcode_rmw.c",
-            "lib/r65816/src/opcode_write.c",
-            "lib/r65816/src/rom.c",
-            /* "lib/r65816/src/run.c", */
-            /* "lib/r65816/src/run_jsl.c", */
-            /* "lib/r65816/src/run_jsr.c", */
-            "lib/r65816/src/run_table.c",
-            "lib/r65816/src/step.c"
+        "lib(r65816/build.cpp"
         };
     object_t libr65816_objects[array_length(libr65816_sources)];
     string_t libr65816_include = "lib/r65816/include/r65816";

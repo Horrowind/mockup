@@ -221,12 +221,20 @@ extern char *yytext;
 #ifdef YY_HEADER_EXPORT_START_CONDITIONS
 #define INITIAL 0
 #define COMMENT 1
-#define MACRO_DECLLIST 2
-#define MACROCALL_DECLLIST 3
-#define MACRO_BODY 4
-#define INCL 5
-#define DEFINE_DEF 6
-#define DEFINE_CALL 7
+#define MACRO_DECLLIST_A 2
+#define MACRO_DECLLIST_B 3
+#define MACRO_DECLLIST_C 4
+#define MACRO_DECLLIST_D 5
+#define MACRO_DECLLIST_E 6
+#define MACROCALL_DECLLIST_A 7
+#define MACROCALL_DECLLIST_B 8
+#define MACROCALL_DECLLIST_C 9
+#define MACROCALL_DECLLIST_D 10
+#define MACROCALL_DECLLIST_E 11
+#define MACRO_BODY 12
+#define INCL 13
+#define DEFINE_DEF 14
+#define DEFINE_CALL 15
 
 #endif
 
@@ -335,9 +343,9 @@ extern int yylex (void);
 #undef YY_DECL
 #endif
 
-#line 410 "nuts.l"
+#line 470 "nuts.l"
 
 
-#line 342 "flex.h"
+#line 350 "flex.h"
 #undef yyIN_HEADER
 #endif /* yyHEADER_H */

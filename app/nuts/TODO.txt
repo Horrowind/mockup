@@ -4,10 +4,11 @@ Todos:
  [ ] Parse macros
  [ ] Parse ROM commands
  [ ] Implement commands
-
+ [X] Display filenames in error messages.
 Bugs:
 
  [ ] recursive incsrc's or defines will crash, implement a recursion depth.
+ [ ] line numbers are not correct
 
 Further features:
 

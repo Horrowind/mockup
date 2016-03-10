@@ -59,20 +59,17 @@
 
 
 
-program:        program stmt NEWLINE 
-        |       program stmt COLON
-        |       program LABELDEC stmt NEWLINE
-        |       program LABELDEC stmt COLON
-        |       program SUBLABEL stmt NEWLINE
-        |       program SUBLABEL stmt COLON
-        |       program LABELDEC NEWLINE
-        |       program LABELDEC COLON
-        |       program SUBLABEL NEWLINE
-        |       program SUBLABEL COLON
-        |       program NEWLINE
-        |       program COLON
-        |
-                ;
+program:        program stmt end_command
+        |       program LABELDEC stmt end_command
+        |       program SUBLABEL stmt end_command
+        |       program LABELDEC end_command
+        |       program SUBLABEL end_command
+        |       program end_command
+        |       ;
+
+end_command:    NEWLINE
+        |       COLON
+        ;
 
 stmt:           stmt_macro
         |       stmt_fill
@@ -116,20 +113,8 @@ stmt_decl:      EXCLAM IDENT EQUAL byte
         |       EXCLAM IDENT EQUAL word
         |       EXCLAM IDENT EQUAL long
 
-stmt_macro:     MACRO MACRO_IDENT MACRO_LPAREN macro_decl_list MACRO_RPAREN ENDMACRO 
+stmt_macro:     MACRO ENDMACRO 
                 ;
-
-/* stmt_macro_call: */
-
-macro_decl_list:
-                MACRO_IDENT
-        |       macro_decl_list2
-                ;
-macro_decl_list2:
-                MACRO_IDENT MACRO_COMMA macro_decl_list2
-        |       MACRO_IDENT
-        ;
-
 
 stmt_error:     ERROR
         |       ERROR STRING
