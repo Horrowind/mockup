@@ -1,7 +1,7 @@
 #ifndef MOCKUP_SMW_ROM_H
 #define MOCKUP_SMW_ROM_H
 
-#include "r65816/rom.h"
+#include "r65816.h"
 #include "level.h"
 #include "gfx_store.h"
 #include "overworld.h"

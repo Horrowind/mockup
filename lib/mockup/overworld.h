@@ -2,7 +2,8 @@
 #define MOCKUP_OVERWORLD_H
 
 typedef struct {
-
+    int bogus;
+    
 
 } overworld_t;
 

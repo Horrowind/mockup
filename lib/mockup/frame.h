@@ -2,12 +2,12 @@
 #define MOCKUP_FRAME_H
 
 typedef struct {
-    uint8_t width;
-    uint8_t height;
+    u8 width;
+    u8 height;
     tile16_t* map16;
-    uint16_t* data;
+    u16* data;
 
-    uint32_t background_color;
+    u32 background_color;
 } frame_t;
 
 

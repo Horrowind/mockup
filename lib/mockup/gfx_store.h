@@ -1,12 +1,11 @@
 #ifndef MOCKUP_GFX_STORE_H
 #define MOCKUP_GFX_STORE_H
 
-#include <stdint.h>
-#include "r65816/rom.h"
+#include "r65816.h"
 
 typedef struct {
     int length;
-    uint8_t* data;
+    u8* data;
 } gfx_page_t;
 
 typedef struct {
