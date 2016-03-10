@@ -34,6 +34,7 @@ typedef struct {
     r65816_rom_header_t* header;
 } r65816_rom_t;
 
+void r65816_rom_init(r65816_rom_t* rom, const uint8_t* data);
 void r65816_rom_load(r65816_rom_t* rom, const char* path);
 void r65816_rom_free(r65816_rom_t* rom);
 void r65816_rom_save(r65816_rom_t* rom, const char* path);
