@@ -8,6 +8,8 @@
 #include "variable_string.h"
 
 #define get16bits(d) (*((const u16 *) (d)))
+#define MAX_FILL_NOMINATOR 9
+#define MAX_FILL_DENOMINATOR 10
 
 u32 SuperFastHash (string_t str);
 
@@ -35,20 +37,22 @@ u32 SuperFastHash (string_t str);
         map->size = size;                                               \
         map->fill = 0;                                                  \
         uint num_bytes = size * sizeof(struct { type data; u32 hash;}); \
-        map->entries = calloc(num_bytes);                               \
+        map->entries = calloc(1, num_bytes);				\
     }                                                                   \
                                                                         \
     void name##_insert2(name##_t* map, type data, u32 hash);            \
     void name##_resize(name##_t* map) {                                 \
-        struct { type data; u32 hash;}* new_entries;                    \
-        uint entry_size = sizeof(struct { type data; u32 hash;});       \
-        new_entries = calloc(2 * map->size * entry_size);               \
+	name##_t new_map;						\
+	name##_init(&new_map, 2 * map->size);				\
         for(int i = 0; i < map->size; i++) {                            \
             type data = map->entries[i].data;                           \
             u32 hash = map->entries[i].hash;                            \
-            if(hash != 0xFFFFFFFF)                                      \
-                name##_insert2(map, data, hash);                        \
-        }                                                               \
+            if(hash != 0x00000000) {					\
+                name##_insert2(&new_map, data, hash);			\
+	    }								\
+	}								\
+	free(map->entries);						\
+	*map = new_map;							\
     }                                                                   \
                                                                         \
     inline                                                              \
@@ -57,7 +61,7 @@ u32 SuperFastHash (string_t str);
         u32 pos = hash & mask;                                          \
         u32 dist = 0;                                                   \
         for(;;) {                                                       \
-            if(map->entries[pos].hash == 0xFFFFFFFF) {                  \
+            if(map->entries[pos].hash == 0x00000000) {                  \
                 map->entries[pos].data = data;                          \
                 map->entries[pos].hash = hash;                          \
                 break;                                                  \
@@ -78,7 +82,7 @@ u32 SuperFastHash (string_t str);
             dist++;                                                     \
         }                                                               \
         map->fill++;                                                    \
-        if(map->fill * 10 > map->size * 9)                              \
+        if(map->fill * MAX_FILL_DENOMINATOR > map->size * MAX_FILL_NOMINATOR) \
             name##_resize(map);                                         \
     }                                                                   \
                                                                         \
@@ -95,7 +99,7 @@ u32 SuperFastHash (string_t str);
         u32 dist = 0;                                                   \
         u32 pos = hash & mask;                                          \
         for(;;) {                                                       \
-            if(map->entries[pos].hash == 0xFFFFFFFF) {                  \
+            if(map->entries[pos].hash == 0x00000000) {                  \
                 return NULL;                                            \
             } else  if(cmp(map->entries[pos].data, data)) {             \
                 return &map->entries[pos].data;                         \
