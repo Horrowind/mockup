@@ -15,6 +15,9 @@
 
 %}
 
+/*%define lr.type ielr*/
+%glr-parser
+
 %union {
     string_t val_ident;
     u8       val_byte;
@@ -28,7 +31,7 @@
 %token                  NEWLINE NUMBER STRING COLON LESS GREATER DOT
 %token                  EXCLAM HASH TILDE DOLLAR AT EQUAL LPAREN RPAREN LCURLY RCURLY LBRACK RBRACK
 %token                  QMARK COMMA SEMICOL  MACRO ENDMACRO MACRO_LPAREN MACRO_RPAREN MACRO_COMMA MACRO_IDENT
-%token                  FILL FILLBYTE INCBIN INCSRC PAD PADBYTE DB DW DL DD SKIP NSPACE ON OFF ORG WARNPC BASE FREESP
+%token                  FILL FILLBYTE INCBIN PAD PADBYTE DB DW DL DD SKIP NSPACE ON OFF ORG WARNPC BASE FREESP
 %token                  FREECODE FREEDATA AUTO NOASSUME BANK ERROR WARN PUSHPC PULLPC
 %token                  LABELDEC
 %token                  SUBLABEL
@@ -75,7 +78,6 @@ stmt:           stmt_macro
         |       stmt_fill
         |       stmt_fillbyte
         |       stmt_incbin
-        |       stmt_incsrc
         |       stmt_pad
         |       stmt_padbyte
         |       stmt_db
@@ -96,7 +98,6 @@ stmt:           stmt_macro
         |       stmt_opcode
         |       stmt_pushpc
         |       stmt_pullpc
-        |       stmt_decl
         |       stmt_norom
         |       stmt_lorom
         |       stmt_hirom
@@ -109,10 +110,6 @@ stmt:           stmt_macro
 /* stmt_asser:     ASSERT comparison */
 /*         ; */
 
-stmt_decl:      EXCLAM IDENT EQUAL byte
-        |       EXCLAM IDENT EQUAL word
-        |       EXCLAM IDENT EQUAL long
-
 stmt_macro:     MACRO ENDMACRO 
                 ;
 
@@ -124,29 +121,29 @@ stmt_warn:      WARN
         |       WARN STRING
                 ;
 
-stmt_db:        DB byte_list
+stmt_db:        DB expr_list
         |       DB STRING
                 ;
 
-stmt_dw:        DW word_list
+stmt_dw:        DW expr_list
                 ;
 
-stmt_dl:        DL long_list
+stmt_dl:        DL expr_list
                 ;
 
-stmt_dd:        DD double_list
+stmt_dd:        DD expr_list
                 ;
 
-stmt_org:       ORG long
+stmt_org:       ORG expr
                 ;
 
 stmt_base:      BASE OFF
-                BASE num
+                BASE expr
                 ;
 
 stmt_bank:      BANK AUTO
         |       BANK NOASSUME
-        |       BANK num
+        |       BANK expr
                 ;
 
 stmt_pushpc:   PUSHPC
@@ -155,13 +152,10 @@ stmt_pushpc:   PUSHPC
 stmt_pullpc:   PULLPC
         ;
 
-stmt_warnpc:    WARNPC num
+stmt_warnpc:    WARNPC expr
                 ;
 
-stmt_rep:       REP num
-                ;
-
-stmt_incsrc:    INCSRC STRING
+stmt_rep:       REP expr
                 ;
 
 stmt_incbin:    INCBIN STRING
@@ -296,9 +290,10 @@ stmt_opcode:    stmt_adc
         ;
 
 stmt_adc:
-                ADC mode_idpx /* 61 */
+                ADC mode_gen /* byte: 65, word: 6D, long: 6F */
+        |       ADC mode_genx /* byte: 75, word: 7D, long: 7F */
+        |       ADC mode_idpx /* 61 */
         |       ADC mode_sr /* 63 */
-        |       ADC mode_dp /* 65 */
         |       ADC mode_ildp /* 67 */
         |       ADC mode_const /* 69 */
         |       ADC mode_addr /* 6D */
@@ -306,7 +301,6 @@ stmt_adc:
         |       ADC mode_idpy /* 71 */
         |       ADC mode_idp /* 72 */
         |       ADC mode_isry /* 73 */
-        |       ADC mode_dpx /* 75 */
         |       ADC mode_ildpy /* 77 */
         |       ADC mode_addry /* 79 */
         |       ADC mode_addrx /* 7D */
@@ -314,9 +308,10 @@ stmt_adc:
                 ;
 
 
-stmt_and:       AND mode_idpx /* 21 */
+stmt_and:       AND mode_gen /* byte: 25, word: 2D, long: 2F*/
+        |       AND mode_genx /* byte: 35, word: 3D, long: 3F */
+        |       AND mode_idpx /* 21 */
         |       AND mode_sr /* 23 */
-        |       AND mode_dp /* 25 */
         |       AND mode_ildp /* 27 */
         |       AND mode_const /* 29 */
         |       AND mode_addr /* 2D */
@@ -324,17 +319,16 @@ stmt_and:       AND mode_idpx /* 21 */
         |       AND mode_idpy /* 31 */
         |       AND mode_idp /* 32 */
         |       AND mode_isry /* 33 */
-        |       AND mode_dpx /* 35 */
         |       AND mode_ildpy /* 37 */
         |       AND mode_addry /* 39 */
         |       AND mode_addrx /* 3D */
         |       AND mode_longx /* 3F */
                 ;
 
-stmt_asl:       ASL mode_dp /* 06 */
+stmt_asl:       ASL mode_gen /* byte: 06, word: 0E */
         |       ASL /* 0A */
         |       ASL mode_addr /* 0E */
-        |       ASL mode_dpx /* 16 */
+        |       ASL mode_genx /* byte: 16, word: 1E */
         |       ASL mode_addrx /* 1E */
                 ;
 
@@ -347,9 +341,9 @@ stmt_bcs:       BCS mode_nearlabel /* %B0	Program Counter Relative */
 stmt_beq:       BEQ mode_nearlabel /* %F0	Program Counter Relative */
                 ;
 
-stmt_bit:       BIT mode_dp /* 24 */
+stmt_bit:       BIT mode_gen /* byte: 24, word: 2C */
         |       BIT mode_addr /* 2C */
-        |       BIT mode_dpx /* 34 */
+        |       BIT mode_genx /* byte: 34, word: 3C */
         |       BIT mode_addrx /* 3C */
         |       BIT mode_const /* 89 */
                 ;
@@ -390,9 +384,9 @@ stmt_cli:       CLI /* 58 */
 stmt_clv:       CLV /* B8 */
                 ;
 
-stmt_cmp:       CMP mode_idpx /* C1 */
+stmt_cmp:       CMP mode_gen /* byte: C5, word: CD, long: CF*/
+        |       CMP mode_idpx /* C1 */
         |       CMP mode_sr /* C3 */
-        |       CMP mode_dp /* C5 */
         |       CMP mode_ildp /* C7 */
         |       CMP mode_const /* C9 */
         |       CMP mode_addr /* CD */
@@ -400,7 +394,7 @@ stmt_cmp:       CMP mode_idpx /* C1 */
         |       CMP mode_idpy /* D1 */
         |       CMP mode_idp /* D2 */
         |       CMP mode_isry /* D3 */
-        |       CMP mode_dpx /* D5 */
+        |       CMP mode_genx /* byte: D5, word: DD, long: DF */
         |       CMP mode_ildpy /* D7 */
         |       CMP mode_addry /* D9 */
         |       CMP mode_addrx /* DD */
@@ -411,19 +405,19 @@ stmt_cop:       COP mode_const /* 02 */
                 ;
 
 stmt_cpx:       CPX mode_const /* E0 */
-        |       CPX mode_dp /* E4 */
+        |       CPX mode_gen /* byte: E4, word: EC */
         |       CPX mode_addr /* EC */
                 ;
 
 stmt_cpy:       CPY mode_const /* C0 */
-        |       CPY mode_dp /* C4 */
+        |       CPY mode_gen /* byte: C4, word: CC */
         |       CPY mode_addr /* CC */
                 ;
 
 stmt_dec:       DEC /* 3A */
-        |       DEC mode_dp /* C6 */
+        |       DEC mode_gen /* byte: C6, word: CE */
         |       DEC mode_addr /* CE */
-        |       DEC mode_dpx /* D6 */
+        |       DEC mode_genx /* byte: D6, word: DE */
         |       DEC mode_addrx /* DE */
                 ;
 
@@ -433,9 +427,9 @@ stmt_dex:       DEX /* CA */
 stmt_dey:       DEY /* 88 */
                 ;
 
-stmt_eor:       EOR mode_idpx /* 41 */
+stmt_eor:       EOR mode_gen /* byte: 45, word: 4D, long: 4F */
+        |       EOR mode_idpx /* 41 */
         |       EOR mode_sr /* 43 */
-        |       EOR mode_dp /* 45 */
         |       EOR mode_ildp /* 47 */
         |       EOR mode_const /* 49 */
         |       EOR mode_addr /* 4D */
@@ -443,7 +437,7 @@ stmt_eor:       EOR mode_idpx /* 41 */
         |       EOR mode_idpy /* 51 */
         |       EOR mode_idp /* 52 */
         |       EOR mode_isry /* 53 */
-        |       EOR mode_dpx /* 55 */
+        |       EOR mode_genx /* byte: 55, word: 5D, long: 5F */
         |       EOR mode_ildpy /* 57 */
         |       EOR mode_addry /* 59 */
         |       EOR mode_addrx /* 5D */
@@ -451,9 +445,9 @@ stmt_eor:       EOR mode_idpx /* 41 */
                 ;
 
 stmt_inc:       INC /* 1A */
-        |       INC mode_dp /* E6 */
+        |       INC mode_gen /* byte: E6, word: EE */
         |       INC mode_addr /* EE */
-        |       INC mode_dpx /* F6 */
+        |       INC mode_genx /* byte: F6, word: FE */
         |       INC mode_addrx /* FE */
                 ;
 
@@ -463,29 +457,30 @@ stmt_inx:       INX /* E8 */
 stmt_iny:       INY /* C8 */
                 ;
 
-stmt_jml:       JML mode_long /* 5C */
-        |       JML IDENT /* 5C */
+stmt_jml:       JML mode_gen /* long: 5C */
+        |       JML mode_long /* 5C */
         |       JML mode_iladdr /* DC */
                 ;
 
-stmt_jmp:       JMP mode_addr /* 4C */
-        |       JMP IDENT /* 4C */
+stmt_jmp:       JMP mode_gen /* 4C */
+        |       JMP mode_addr /* 4C */
         |       JMP mode_iaddr  /* 6C */
         |       JMP mode_iladdr /* DC */
         |       JMP mode_iaddrx /* 7C */
                 ;
 
-stmt_jsr:       JSR mode_addr /* 20 */
-        |       JSR IDENT /* 20 */
+stmt_jsr:       JSR mode_gen /* 20 */
+        |       JSR mode_addr /* 20 */
         |       JSR mode_iaddrx /* FC */
                 ;
 
-stmt_jsl:       JSL mode_long /* 22 */
+stmt_jsl:       JSL mode_gen /* 22 */
+        |       JSL mode_long /* 22 */
 
 
-stmt_lda:       LDA mode_idpx /* A1 */
+stmt_lda:       LDA mode_gen /* byte: A5, word: AD, long: AF*/
+        |       LDA mode_idpx /* A1 */
         |       LDA mode_sr /* A3 */
-        |       LDA mode_dp /* A5 */
         |       LDA mode_ildp /* A7 */
         |       LDA mode_const /* A9 */
         |       LDA mode_addr /* AD */
@@ -493,7 +488,7 @@ stmt_lda:       LDA mode_idpx /* A1 */
         |       LDA mode_idpy /* B1 */
         |       LDA mode_idp /* B2 */
         |       LDA mode_isry /* B3 */
-        |       LDA mode_dpx /* B5 */
+        |       LDA mode_genx /* byte: B5, word: BD, long: BF */
         |       LDA mode_ildpy /* B7 */
         |       LDA mode_addry /* B9 */
         |       LDA mode_addrx /* BD */
@@ -501,39 +496,39 @@ stmt_lda:       LDA mode_idpx /* A1 */
                 ;
 
 stmt_ldx:       LDX mode_const /* A2 */
-        |       LDX mode_dp /* A6 */
+        |       LDX mode_gen /* byte: A6, word: AE */
         |       LDX mode_addr /* AE */
-        |       LDX /*dp,Y B6	 DP Indexed,Y */
+        |       LDX /*dp,Y B6	 DP Indexed,Y                                    <---- ??? TODO*/
         |       LDX mode_addry /* BE */
                 ;
 
 stmt_ldy:       LDY mode_const /* A0 */
-        |       LDY mode_dp /* A4 */
+        |       LDY mode_gen /* byte: A4, word: AC */
         |       LDY mode_addr /* AC */
-        |       LDY mode_dpx /* B4 */
+        |       LDY mode_genx /* byte: B4, word: BC */
         |       LDY mode_addrx /* BC */
                 ;
 
-stmt_lsr:       LSR mode_dp /* 46 */
+stmt_lsr:       LSR mode_gen /* byte: 46, word: 4E */
         |       LSR /* 4A */
         |       LSR mode_addr /* 4E */
-        |       LSR mode_dpx /* 56 */
+        |       LSR mode_genx /* byte: 56, word: 5E */
         |       LSR mode_addrx /* 5E */
                 ;
 
-stmt_mvn:       MVN byte COMMA byte /* srcbk,destbk %54	Block Move */
+stmt_mvn:       MVN expr COMMA expr /* srcbk,destbk %54	Block Move */
                 ;
 
-stmt_mvp:       MVP byte COMMA byte /* srcbk,destbk %44	Block Move */
+stmt_mvp:       MVP expr COMMA expr /* srcbk,destbk %44	Block Move */
                 ;
 
 stmt_nop:       NOP /* EA */
         |       NOP mode_const /*Meta-Statement EA*/
                 ;
 
-stmt_ora:       ORA mode_idpx /* 01 */
+stmt_ora:       ORA mode_gen /* byte: 05, word: 0D, long: 0F */
+        |       ORA mode_idpx /* 01 */
         |       ORA mode_sr /* 03 */
-        |       ORA mode_dp /* 05 */
         |       ORA mode_ildp /* 07 */
         |       ORA mode_const /* 09 */
         |       ORA mode_addr /* 0D */
@@ -541,20 +536,22 @@ stmt_ora:       ORA mode_idpx /* 01 */
         |       ORA mode_idpy /* 11 */
         |       ORA mode_idp /* 12 */
         |       ORA mode_isry /* 13 */
-        |       ORA mode_dpx /* 15 */
+        |       ORA mode_genx /* byte: 15, word: 1D, long: 1F */
         |       ORA mode_ildpy /* 17 */
         |       ORA mode_addry /* 19 */
         |       ORA mode_addrx /* 1D */
         |       ORA mode_longx /* 1F */
                 ;
 
-stmt_pea:       PEA mode_addr /* F4 */
+stmt_pea:       PEA mode_gen  /* F4 */
+        |       PEA mode_addr /* F4 */
                 ;
 
 stmt_pei:       PEI mode_idp /* %D4	Stack (mode_idp */
                 ;
 
-stmt_per:       PER mode_addr /* %62	Stack (PC Relative Long */
+stmt_per:       PER mode_gen  /* 62 */
+        |       PER mode_addr /* 62	Stack (PC Relative Long */
                 ;
 
 stmt_pha:       PHA /* 48 */
@@ -599,17 +596,17 @@ stmt_ply:       PLY /* 7A */
 stmt_rep:       REP mode_const /* C2 */
                 ;
 
-stmt_rol:       ROL mode_dp /* 26 */
+stmt_rol:       ROL mode_gen /* byte: 26, word: 2E */
         |       ROL /* 2A */
         |       ROL mode_addr /* 2E */
-        |       ROL mode_dpx /* 36 */
+        |       ROL mode_genx /* byte: 36, word: 3E */
         |       ROL mode_addrx /* 3E */
                 ;
 
-stmt_ror:       ROR mode_dp /* 66 */
+stmt_ror:       ROR mode_gen /* byte: 66, word: 6E */
         |       ROR /* 6A */
         |       ROR mode_addr /* 6E */
-        |       ROR mode_dpx /* 76 */
+        |       ROR mode_genx /* byte: 76, word: 7E */
         |       ROR mode_addrx /* 7E */
                 ;
 
@@ -622,9 +619,9 @@ stmt_rtl:       RTL /* 6B */
 stmt_rts:       RTS /* 60 */
                 ;
 
-stmt_sbc:       SBC mode_idpx /* E1 */
+stmt_sbc:       SBC mode_gen /* byte: E5, word: ED, long: EF */
+        |       SBC mode_idpx /* E1 */
         |       SBC mode_sr /* E3 */
-        |       SBC mode_dp /* E5 */
         |       SBC mode_ildp /* E7 */
         |       SBC mode_const /* E9 */
         |       SBC mode_addr /* ED */
@@ -632,7 +629,7 @@ stmt_sbc:       SBC mode_idpx /* E1 */
         |       SBC mode_idpy /* F1 */
         |       SBC mode_idp /* F2 */
         |       SBC mode_isry /* F3 */
-        |       SBC mode_dpx /* F5 */
+        |       SBC mode_genx /* byte: F5, word: FD, long: FF */
         |       SBC mode_ildpy /* F7 */
         |       SBC mode_addry /* F9 */
         |       SBC mode_addrx /* FD */
@@ -652,16 +649,16 @@ stmt_sei:       SEI /* 78 */
 stmt_sep:       SEP mode_const /* E2 */
                 ;
 
-stmt_sta:       STA mode_idpx /* 81 */
+stmt_sta:       STA mode_gen /* byte: 85, word: 8D, long: 8F */
+        |       STA mode_idpx /* 81 */
         |       STA mode_sr /* 83 */
-        |       STA mode_dp /* 85 */
         |       STA mode_ildp /* 87 */
         |       STA mode_addr /* 8D */
         |       STA mode_long /* 8F */
         |       STA mode_idpy /* 91 */
         |       STA mode_idp /* 92 */
         |       STA mode_isry /* 93 */
-        |       STA mode_dpx /* 95 */
+        |       STA mode_genx /* byte: 95, word: 9D, long: 9F */
         |       STA mode_ildpy /* 97 */
         |       STA mode_addry /* 99 */
         |       STA mode_addrx /* 9D */
@@ -671,18 +668,18 @@ stmt_sta:       STA mode_idpx /* 81 */
 stmt_stp:       STP /* DB */
                 ;
 
-stmt_stx:       STX mode_dp /* 86 */
+stmt_stx:       STX mode_gen /* byte: 86, word: 8E */
         |       STX mode_addr /* 8E */
         |       STX mode_dpy /* 96 */
                 ;
 
-stmt_sty:       STY mode_dp /* 84 */
+stmt_sty:       STY mode_gen /* byte: 84, word: 8C */
         |       STY mode_addr /* 8C */
-        |       STY mode_dpx /* 94 */
+        |       STY mode_genx /* 94 */
                 ;
 
-stmt_stz:       STZ mode_dp /* 64 */
-        |       STZ mode_dpx /* 74 */
+stmt_stz:       STZ mode_gen /* byte: 64, word: 8C */
+        |       STZ mode_genx /* byte: 74, word: 9E */
         |       STZ mode_addr /* 9C */
         |       STZ mode_addrx /* 9E */
                 ;
@@ -702,11 +699,11 @@ stmt_tcs:       TCS /* 1B */
 stmt_tdc:       TDC /* 7B */
                 ;
 
-stmt_trb:       TRB mode_dp /* 14 */
+stmt_trb:       TRB mode_gen /* byte: 14, word: 1C */
         |       TRB mode_addr /* 1C */
                 ;
 
-stmt_tsb:       TSB mode_dp /* 04 */
+stmt_tsb:       TSB mode_gen /* byte: 04, word: 0C */
         |       TSB mode_addr /* 0C */
                 ;
 
@@ -746,173 +743,106 @@ stmt_xce:       XCE /* FB */
 
 /* mode_imm:       HASH DOLLAR NUMBER //#$2424 */
 /*                 ; */
-mode_idp:       LPAREN byte RPAREN
+
+mode_gen:       expr 
+                ;
+mode_genx:      expr COMMA TOC_X
+                ;
+mode_idp:       LPAREN expr RPAREN
                 ; 
-mode_idpx:      LPAREN byte COMMA TOC_X RPAREN
+mode_idpx:      LPAREN expr COMMA TOC_X RPAREN
                 ;
-mode_idpy:      LPAREN byte COMMA TOC_Y RPAREN
+mode_idpy:      LPAREN expr COMMA TOC_Y RPAREN
                 ;
-mode_ildp:      LBRACK byte RBRACK
+mode_ildp:      LBRACK expr RBRACK
                 ;
-mode_ildpy:     LBRACK byte RBRACK COMMA TOC_Y
+mode_ildpy:     LBRACK expr RBRACK COMMA TOC_Y
                 ;
-mode_isry:      LPAREN byte COMMA TOC_S RPAREN COMMA TOC_Y
+mode_isry:      LPAREN expr COMMA TOC_S RPAREN COMMA TOC_Y
                 ;
-mode_dp:        byte
+mode_dpy:       expr COMMA TOC_Y
                 ;
-mode_dpx:       byte COMMA TOC_X
+mode_sr:        expr COMMA TOC_S
                 ;
-mode_dpy:       byte COMMA TOC_Y
-                ;
-mode_sr:        byte COMMA TOC_S
-                ;
-mode_iladdr:    LBRACK word RBRACK
+mode_iladdr:    LBRACK expr RBRACK
 /*              mode_iladdr:    LBRACK long RBRACK*/
         ;
-mode_iaddr:     LPAREN word RPAREN
+mode_iaddr:     LPAREN expr RPAREN
         ;
-mode_iaddrx:    LPAREN word COMMA TOC_X RPAREN 
+mode_iaddrx:    LPAREN expr COMMA TOC_X RPAREN 
         ;
-mode_addr:      word
-        |       SPECBYTE byte
-        |       SPECBYTE word
-        |       SPECWORD byte
-        |       SPECWORD word
+mode_addr:      SPECBYTE expr
+        |       SPECWORD expr
         ;
 
-mode_addrx:     /*byte COMMA TOC_X
-        |     */word COMMA TOC_X
-        |       SPECBYTE byte COMMA TOC_X
-        |       SPECBYTE word COMMA TOC_X
-        |       SPECWORD byte COMMA TOC_X
-        |       SPECWORD word COMMA TOC_X
+mode_addrx:     SPECBYTE expr COMMA TOC_X
+        |       SPECWORD expr COMMA TOC_X
         ;
 
-mode_addry:     byte COMMA TOC_Y
-        |       word COMMA TOC_Y
-        |       SPECBYTE byte COMMA TOC_Y
-        |       SPECBYTE word COMMA TOC_Y
-        |       SPECBYTE long COMMA TOC_Y
-        |       SPECWORD byte COMMA TOC_Y
-        |       SPECWORD word COMMA TOC_Y
-        |       SPECWORD long COMMA TOC_Y
+mode_addry:     expr COMMA TOC_Y
+        |       SPECBYTE expr COMMA TOC_Y
+        |       SPECWORD expr COMMA TOC_Y
         ;
 
-mode_long:      long
-        |       SPECLONG long
+mode_long:      SPECLONG expr
         ;
 
-mode_longx:     long COMMA TOC_X
-        |       SPECLONG long COMMA TOC_X
+mode_longx:     SPECLONG expr COMMA TOC_X
         ;
 
-mode_const:     HASH byte
-        |       HASH word
-        |       SPECBYTE HASH byte
-        |       SPECBYTE HASH word
-        |       SPECWORD HASH byte
-        |       SPECWORD HASH word
+mode_const:     HASH expr
+        |       SPECBYTE HASH expr
+        |       SPECWORD HASH expr
         ;
 
 
 
-byte_list:      byte
-        |       byte COMMA byte_list
+expr_list:      expr
+        |       expr COMMA expr_list
                 ;
 
-word_list:      word
-        |       word COMMA word_list
-                ;
-
-long_list:      long
-        |       long COMMA long_list
-                ;
-
-double_list:    double
-        |       double COMMA double_list
-                ;
-
-
-num:            NUMBER
-                ;
-
-byte:           BYTE
+expr:           BYTE
+        |       WORD
+        |       LONG
+        |       DOUBLE
         |       NUMBER
-        |       byte PLUS byte
-        |       byte MINUS byte
-        |       byte MULT byte
-        |       byte DIV byte
-        |       byte POWER byte
-        |       byte LSHIFT byte
-        |       byte RSHIFT byte
-        |       byte PERCENT byte
-        |       byte AMPER byte
-        |       byte PIPE byte
-        |       byte HAT byte
-        |       LPAREN byte RPAREN
-        |       EXCLAM IDENT
-        |       SUBLABEL
-        |       IDENT
-
-        ;
-
-word:           WORD
-        |       NUMBER
-        |       word PLUS word
-        |       word MINUS word
-        |       word MULT word
-        |       word DIV word
-        |       word POWER word
-        |       word LSHIFT word
-        |       word RSHIFT word
-        |       word PERCENT word
-        |       word AMPER word
-        |       word PIPE word
-        |       word HAT word
-        |       LPAREN word RPAREN
+        |       expr2 PLUS expr2
+        |       expr2 MINUS expr2
+        |       expr2 MULT expr2
+        |       expr2 DIV expr2
+        |       expr2 POWER expr2
+        |       expr2 LSHIFT expr2
+        |       expr2 RSHIFT expr2
+        |       expr2 PERCENT expr2
+        |       expr2 AMPER expr2
+        |       expr2 PIPE expr2
+        |       expr2 HAT expr2
         |       EXCLAM IDENT
         |       SUBLABEL
         |       IDENT
         ;
 
-long:           LONG
+expr2:          BYTE
+        |       WORD
+        |       LONG
+        |       DOUBLE
         |       NUMBER
-        |       long PLUS long
-        |       long MINUS long
-        |       long MULT long
-        |       long DIV long
-        |       long POWER long
-        |       long LSHIFT long
-        |       long RSHIFT long
-        |       long PERCENT long
-        |       long AMPER long
-        |       long PIPE long
-        |       long HAT long
-        |       LPAREN long RPAREN
+        |       expr2 PLUS expr2
+        |       expr2 MINUS expr2
+        |       expr2 MULT expr2
+        |       expr2 DIV expr2
+        |       expr2 POWER expr2
+        |       expr2 LSHIFT expr2
+        |       expr2 RSHIFT expr2
+        |       expr2 PERCENT expr2
+        |       expr2 AMPER expr2
+        |       expr2 PIPE expr2
+        |       expr2 HAT expr2
+        |       LPAREN expr RPAREN
         |       EXCLAM IDENT
         |       SUBLABEL
         |       IDENT
         ;
-
-double:         DOUBLE
-        |       NUMBER
-        |       double PLUS double
-        |       double MINUS double
-        |       double MULT double
-        |       double DIV double
-        |       double POWER double
-        |       double LSHIFT double
-        |       double RSHIFT double
-        |       double PERCENT double
-        |       double AMPER double
-        |       double PIPE double
-        |       double HAT double
-        |       LPAREN double RPAREN
-        |       EXCLAM IDENT
-        |       SUBLABEL
-        |       IDENT
-        ;
-
 
 mode_label:     IDENT
         |       SUBLABEL

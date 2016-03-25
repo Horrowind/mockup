@@ -229,7 +229,7 @@ struct yy_buffer_state
 	/* Number of characters read into yy_ch_buf, not including EOB
 	 * characters.
 	 */
-	yy_size_t yy_n_chars;
+	int yy_n_chars;
 
 	/* Whether we "own" the buffer - i.e., we know we created it,
 	 * and can realloc() it to grow it, and should free() it to
@@ -299,7 +299,7 @@ static YY_BUFFER_STATE * yy_buffer_stack = 0; /**< Stack as an array. */
 
 /* yy_hold_char holds the character lost when yytext is formed. */
 static char yy_hold_char;
-static yy_size_t yy_n_chars;		/* number of characters read into yy_ch_buf */
+static int yy_n_chars;		/* number of characters read into yy_ch_buf */
 yy_size_t yyleng;
 
 /* Points to current character in buffer. */
@@ -8321,12 +8321,12 @@ YY_RULE_SETUP
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 60 "nuts.l"
+#line 57 "nuts.l"
 { }
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 61 "nuts.l"
+#line 58 "nuts.l"
 {
                  if(yyleng == 2) {
                      yylval.val_word  = char2hex(yytext[1]) <<  0;
@@ -8342,7 +8342,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 74 "nuts.l"
+#line 71 "nuts.l"
 {
                  if(yyleng == 4) {
                      yylval.val_word  = char2hex(yytext[1]) <<  8;
@@ -8362,7 +8362,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 91 "nuts.l"
+#line 88 "nuts.l"
 {
                  if(yyleng == 6) {
                      yylval.val_long  = char2hex(yytext[1]) << 16;
@@ -8386,7 +8386,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 112 "nuts.l"
+#line 109 "nuts.l"
 {
                  if(yyleng == 8) {
                      yylval.val_double  = char2hex(yytext[1]) << 24;
@@ -8414,198 +8414,198 @@ YY_RULE_SETUP
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 137 "nuts.l"
+#line 134 "nuts.l"
 { return_token(NUMBER);   };
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 138 "nuts.l"
+#line 135 "nuts.l"
 { return_token(PLUS);     };
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 139 "nuts.l"
+#line 136 "nuts.l"
 { return_token(MINUS);    };
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 140 "nuts.l"
+#line 137 "nuts.l"
 { return_token(DIV);      };
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 141 "nuts.l"
+#line 138 "nuts.l"
 { return_token(MULT);     };
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 142 "nuts.l"
+#line 139 "nuts.l"
 { return_token(MULT);     };
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 143 "nuts.l"
+#line 140 "nuts.l"
 { return_token(LESS);     };
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 144 "nuts.l"
+#line 141 "nuts.l"
 { return_token(GREATER);  };
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 145 "nuts.l"
+#line 142 "nuts.l"
 { return_token(LSHIFT);   };
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 146 "nuts.l"
+#line 143 "nuts.l"
 { return_token(RSHIFT);   };
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 147 "nuts.l"
+#line 144 "nuts.l"
 { return_token(COLON);    };
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 148 "nuts.l"
+#line 145 "nuts.l"
 { return_token(DOT);      };
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 149 "nuts.l"
+#line 146 "nuts.l"
 { return_token(EXCLAM);   };
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 150 "nuts.l"
+#line 147 "nuts.l"
 { return_token(HASH);     };
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 151 "nuts.l"
+#line 148 "nuts.l"
 { return_token(AMPER);    };
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 152 "nuts.l"
+#line 149 "nuts.l"
 { return_token(HAT);      };
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 153 "nuts.l"
+#line 150 "nuts.l"
 { return_token(PERCENT);  };
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 154 "nuts.l"
+#line 151 "nuts.l"
 { return_token(PIPE);     };
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 155 "nuts.l"
+#line 152 "nuts.l"
 { return_token(TILDE);    };
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 156 "nuts.l"
+#line 153 "nuts.l"
 { return_token(DOLLAR);   };
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 157 "nuts.l"
+#line 154 "nuts.l"
 { return_token(AT);       };
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 158 "nuts.l"
+#line 155 "nuts.l"
 { return_token(EQUAL);    };
 	YY_BREAK
 case 31:
 YY_RULE_SETUP
-#line 159 "nuts.l"
+#line 156 "nuts.l"
 { return_token(LCURLY);   };
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 160 "nuts.l"
+#line 157 "nuts.l"
 { return_token(RCURLY);   };
 	YY_BREAK
 case 33:
 YY_RULE_SETUP
-#line 161 "nuts.l"
+#line 158 "nuts.l"
 { return_token(LPAREN);   };
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 162 "nuts.l"
+#line 159 "nuts.l"
 { return_token(RPAREN);   };
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
-#line 163 "nuts.l"
+#line 160 "nuts.l"
 { return_token(LBRACK);   };
 	YY_BREAK
 case 36:
 YY_RULE_SETUP
-#line 164 "nuts.l"
+#line 161 "nuts.l"
 { return_token(RBRACK);   };
 	YY_BREAK
 case 37:
 YY_RULE_SETUP
-#line 165 "nuts.l"
+#line 162 "nuts.l"
 { return_token(QMARK);    };
 	YY_BREAK
 case 38:
 YY_RULE_SETUP
-#line 166 "nuts.l"
+#line 163 "nuts.l"
 { return_token(COMMA);    };
 	YY_BREAK
 case 39:
 YY_RULE_SETUP
-#line 167 "nuts.l"
+#line 164 "nuts.l"
 { return_token(SPECBYTE); };
 	YY_BREAK
 case 40:
 YY_RULE_SETUP
-#line 168 "nuts.l"
+#line 165 "nuts.l"
 { return_token(SPECWORD); };
 	YY_BREAK
 case 41:
 YY_RULE_SETUP
-#line 169 "nuts.l"
+#line 166 "nuts.l"
 { return_token(SPECLONG); };
 	YY_BREAK
 case 42:
 YY_RULE_SETUP
-#line 170 "nuts.l"
+#line 167 "nuts.l"
 { return_token(FWDLABEL); };
 	YY_BREAK
 case 43:
 YY_RULE_SETUP
-#line 171 "nuts.l"
+#line 168 "nuts.l"
 { return_token(BWDLABEL); };
 	YY_BREAK
 case 44:
 YY_RULE_SETUP
-#line 172 "nuts.l"
+#line 169 "nuts.l"
 { return_token(LABELDEC); };
 	YY_BREAK
 case 45:
 YY_RULE_SETUP
-#line 173 "nuts.l"
+#line 170 "nuts.l"
 { return_token(SUBLABEL); };
 	YY_BREAK
 case 46:
 /* rule 46 can match eol */
 YY_RULE_SETUP
-#line 174 "nuts.l"
+#line 171 "nuts.l"
 { return_token(STRING);   };
 	YY_BREAK
 case 47:
 YY_RULE_SETUP
-#line 175 "nuts.l"
+#line 172 "nuts.l"
 {
                  current_identifier.data = yytext + 1; // We ignore the first '!'.
                  uint length;
@@ -8622,7 +8622,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 48:
 YY_RULE_SETUP
-#line 189 "nuts.l"
+#line 186 "nuts.l"
 {
                  define_t define = {
                      .name = {
@@ -8642,7 +8642,7 @@ YY_RULE_SETUP
 case 49:
 /* rule 49 can match eol */
 YY_RULE_SETUP
-#line 204 "nuts.l"
+#line 201 "nuts.l"
 {
                  define_t define = {
                      .name = current_identifier,
@@ -8659,14 +8659,14 @@ YY_RULE_SETUP
 	YY_BREAK
 case 50:
 YY_RULE_SETUP
-#line 218 "nuts.l"
+#line 215 "nuts.l"
 {
      BEGIN(MACRO_DECLLIST_A);
  };
 	YY_BREAK
 case 51:
 YY_RULE_SETUP
-#line 222 "nuts.l"
+#line 219 "nuts.l"
 {
 #ifdef PRINT_TOKENS
                            printf("Found: MACRO NAME (%s)\n", yytext);
@@ -8677,44 +8677,44 @@ YY_RULE_SETUP
 	YY_BREAK
 case 52:
 YY_RULE_SETUP
-#line 229 "nuts.l"
+#line 226 "nuts.l"
 { };
 	YY_BREAK
 case 53:
 YY_RULE_SETUP
-#line 230 "nuts.l"
+#line 227 "nuts.l"
 { yyerror("Expected identifier"); };
 	YY_BREAK
 case 54:
 /* rule 54 can match eol */
 YY_RULE_SETUP
-#line 231 "nuts.l"
+#line 228 "nuts.l"
 { yyerror("Expected identifier, got NEWLINE"); };
 	YY_BREAK
 case 55:
 YY_RULE_SETUP
-#line 232 "nuts.l"
+#line 229 "nuts.l"
 { BEGIN(MACRO_DECLLIST_C); }
 	YY_BREAK
 case 56:
 YY_RULE_SETUP
-#line 233 "nuts.l"
+#line 230 "nuts.l"
 { };
 	YY_BREAK
 case 57:
 YY_RULE_SETUP
-#line 234 "nuts.l"
+#line 231 "nuts.l"
 { yyerror("Expected identifier"); };
 	YY_BREAK
 case 58:
 /* rule 58 can match eol */
 YY_RULE_SETUP
-#line 235 "nuts.l"
+#line 232 "nuts.l"
 { yyerror("Expected identifier, got NEWLINE"); };
 	YY_BREAK
 case 59:
 YY_RULE_SETUP
-#line 236 "nuts.l"
+#line 233 "nuts.l"
 {
 #ifdef PRINT_TOKENS
                            printf("Found MACRO IDENTIFIER (%s)\n", yytext);
@@ -8724,54 +8724,54 @@ YY_RULE_SETUP
 	YY_BREAK
 case 60:
 YY_RULE_SETUP
-#line 242 "nuts.l"
+#line 239 "nuts.l"
 { };
 	YY_BREAK
 case 61:
 YY_RULE_SETUP
-#line 243 "nuts.l"
+#line 240 "nuts.l"
 { BEGIN(MACRO_BODY); };
 	YY_BREAK
 case 62:
 YY_RULE_SETUP
-#line 244 "nuts.l"
+#line 241 "nuts.l"
 { yyerror("Expected identifier or ')'"); };
 	YY_BREAK
 case 63:
 /* rule 63 can match eol */
 YY_RULE_SETUP
-#line 245 "nuts.l"
+#line 242 "nuts.l"
 { yyerror("Expected identifier or ')', got NEWLINE"); };
 	YY_BREAK
 case 64:
 YY_RULE_SETUP
-#line 246 "nuts.l"
+#line 243 "nuts.l"
 { };
 	YY_BREAK
 case 65:
 YY_RULE_SETUP
-#line 247 "nuts.l"
+#line 244 "nuts.l"
 {BEGIN(MACRO_BODY); }
 	YY_BREAK
 case 66:
 YY_RULE_SETUP
-#line 248 "nuts.l"
+#line 245 "nuts.l"
 {BEGIN(MACRO_DECLLIST_E); }
 	YY_BREAK
 case 67:
 YY_RULE_SETUP
-#line 249 "nuts.l"
+#line 246 "nuts.l"
 { yyerror("Expected ','"); };
 	YY_BREAK
 case 68:
 /* rule 68 can match eol */
 YY_RULE_SETUP
-#line 250 "nuts.l"
+#line 247 "nuts.l"
 { yyerror("Expected ',', got NEWLINE"); };
 	YY_BREAK
 case 69:
 YY_RULE_SETUP
-#line 251 "nuts.l"
+#line 248 "nuts.l"
 {
                            printf("Found macro identifier: %s\n", yytext);
                            BEGIN(MACRO_DECLLIST_D);
@@ -8779,34 +8779,34 @@ YY_RULE_SETUP
 	YY_BREAK
 case 70:
 YY_RULE_SETUP
-#line 255 "nuts.l"
+#line 252 "nuts.l"
 { };
 	YY_BREAK
 case 71:
 YY_RULE_SETUP
-#line 256 "nuts.l"
+#line 253 "nuts.l"
 { BEGIN(MACRO_BODY); };
 	YY_BREAK
 case 72:
 YY_RULE_SETUP
-#line 257 "nuts.l"
+#line 254 "nuts.l"
 { yyerror("Expected identifier"); };
 	YY_BREAK
 case 73:
 /* rule 73 can match eol */
 YY_RULE_SETUP
-#line 258 "nuts.l"
+#line 255 "nuts.l"
 { yyerror("Expected identifier, got NEWLINE"); };
 	YY_BREAK
 case 74:
 YY_RULE_SETUP
-#line 260 "nuts.l"
+#line 257 "nuts.l"
 { yyerror("EOF in macro body"); };
 	YY_BREAK
 case 75:
 /* rule 75 can match eol */
 YY_RULE_SETUP
-#line 261 "nuts.l"
+#line 258 "nuts.l"
 {
                             BEGIN(INITIAL);
                             return_token(ENDMACRO);
@@ -8815,17 +8815,17 @@ YY_RULE_SETUP
 case 76:
 /* rule 76 can match eol */
 YY_RULE_SETUP
-#line 265 "nuts.l"
+#line 262 "nuts.l"
 { };
 	YY_BREAK
 case 77:
 YY_RULE_SETUP
-#line 266 "nuts.l"
+#line 263 "nuts.l"
 { BEGIN(MACROCALL_DECLLIST_B);  };
 	YY_BREAK
 case 78:
 YY_RULE_SETUP
-#line 267 "nuts.l"
+#line 264 "nuts.l"
 {
                                parenthesis_level = 1;
                                BEGIN(MACROCALL_DECLLIST_C);
@@ -8833,28 +8833,28 @@ YY_RULE_SETUP
 	YY_BREAK
 case 79:
 YY_RULE_SETUP
-#line 271 "nuts.l"
+#line 268 "nuts.l"
 { };
 	YY_BREAK
 case 80:
 YY_RULE_SETUP
-#line 272 "nuts.l"
+#line 269 "nuts.l"
 { yyerror("Expected '('"); };
 	YY_BREAK
 case 81:
 /* rule 81 can match eol */
 YY_RULE_SETUP
-#line 273 "nuts.l"
+#line 270 "nuts.l"
 { yyerror("Expected '(', got NEWLINE"); };
 	YY_BREAK
 case 82:
 YY_RULE_SETUP
-#line 274 "nuts.l"
+#line 271 "nuts.l"
 { parenthesis_level++; };
 	YY_BREAK
 case 83:
 YY_RULE_SETUP
-#line 275 "nuts.l"
+#line 272 "nuts.l"
 {
                                parenthesis_level--;
                                if(parenthesis_level == 0) {
@@ -8865,7 +8865,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 84:
 YY_RULE_SETUP
-#line 282 "nuts.l"
+#line 279 "nuts.l"
 {
                                if(parenthesis_level == 1) {
                                    //TODO: Manage macro parameter here
@@ -8875,33 +8875,33 @@ YY_RULE_SETUP
 	YY_BREAK
 case 85:
 YY_RULE_SETUP
-#line 288 "nuts.l"
+#line 285 "nuts.l"
 { };
 	YY_BREAK
 case 86:
 /* rule 86 can match eol */
 YY_RULE_SETUP
-#line 289 "nuts.l"
+#line 286 "nuts.l"
 { yyerror("Unexpected NEWLINE"); };
 	YY_BREAK
 case 87:
 YY_RULE_SETUP
-#line 291 "nuts.l"
+#line 288 "nuts.l"
 { return_token(INCBIN);   };
 	YY_BREAK
 case 88:
 YY_RULE_SETUP
-#line 292 "nuts.l"
+#line 289 "nuts.l"
 { BEGIN(INCL);             };
 	YY_BREAK
 case 89:
 YY_RULE_SETUP
-#line 294 "nuts.l"
+#line 291 "nuts.l"
 /* eat the whitespace */
 	YY_BREAK
 case 90:
 YY_RULE_SETUP
-#line 295 "nuts.l"
+#line 292 "nuts.l"
 {
                    //got the include file name
                    string_t new_file = read_file_to_buffer(yytext);
@@ -8916,7 +8916,7 @@ YY_RULE_SETUP
 case 91:
 /* rule 91 can match eol */
 YY_RULE_SETUP
-#line 306 "nuts.l"
+#line 303 "nuts.l"
 {
                    char buffer[256];
                    strncpy(buffer, yytext, 256);
@@ -8946,7 +8946,7 @@ case YY_STATE_EOF(MACRO_BODY):
 case YY_STATE_EOF(INCL):
 case YY_STATE_EOF(DEFINE_DEF):
 case YY_STATE_EOF(DEFINE_CALL):
-#line 319 "nuts.l"
+#line 316 "nuts.l"
 {
                    if(pop_parse_buffer()) {
                        yyterminate();
@@ -8955,629 +8955,629 @@ case YY_STATE_EOF(DEFINE_CALL):
 	YY_BREAK
 case 92:
 YY_RULE_SETUP
-#line 327 "nuts.l"
+#line 324 "nuts.l"
 { return_token(FILL);     };
 	YY_BREAK
 case 93:
 YY_RULE_SETUP
-#line 328 "nuts.l"
+#line 325 "nuts.l"
 { return_token(FILLBYTE); };
 	YY_BREAK
 case 94:
 YY_RULE_SETUP
-#line 330 "nuts.l"
+#line 327 "nuts.l"
 { return_token(PAD);      };
 	YY_BREAK
 case 95:
 YY_RULE_SETUP
-#line 331 "nuts.l"
+#line 328 "nuts.l"
 { return_token(PADBYTE);  };
 	YY_BREAK
 case 96:
 YY_RULE_SETUP
-#line 332 "nuts.l"
+#line 329 "nuts.l"
 { return_token(DB);       };
 	YY_BREAK
 case 97:
 YY_RULE_SETUP
-#line 333 "nuts.l"
+#line 330 "nuts.l"
 { return_token(DW);       };
 	YY_BREAK
 case 98:
 YY_RULE_SETUP
-#line 334 "nuts.l"
+#line 331 "nuts.l"
 { return_token(DL);       };
 	YY_BREAK
 case 99:
 YY_RULE_SETUP
-#line 335 "nuts.l"
+#line 332 "nuts.l"
 { return_token(DD);       };
 	YY_BREAK
 case 100:
 YY_RULE_SETUP
-#line 336 "nuts.l"
+#line 333 "nuts.l"
 { return_token(SKIP);     };
 	YY_BREAK
 case 101:
 YY_RULE_SETUP
-#line 337 "nuts.l"
+#line 334 "nuts.l"
 { return_token(NSPACE);   };
 	YY_BREAK
 case 102:
 YY_RULE_SETUP
-#line 338 "nuts.l"
+#line 335 "nuts.l"
 { return_token(ON);       };
 	YY_BREAK
 case 103:
 YY_RULE_SETUP
-#line 339 "nuts.l"
+#line 336 "nuts.l"
 { return_token(OFF);      };
 	YY_BREAK
 case 104:
 YY_RULE_SETUP
-#line 340 "nuts.l"
+#line 337 "nuts.l"
 { return_token(ORG);      };
 	YY_BREAK
 case 105:
 YY_RULE_SETUP
-#line 341 "nuts.l"
+#line 338 "nuts.l"
 { return_token(WARNPC);   };
 	YY_BREAK
 case 106:
 YY_RULE_SETUP
-#line 342 "nuts.l"
+#line 339 "nuts.l"
 { return_token(BASE);     };
 	YY_BREAK
 case 107:
 YY_RULE_SETUP
-#line 343 "nuts.l"
+#line 340 "nuts.l"
 { return_token(FREESP);   };
 	YY_BREAK
 case 108:
 YY_RULE_SETUP
-#line 344 "nuts.l"
+#line 341 "nuts.l"
 { return_token(FREECODE); };
 	YY_BREAK
 case 109:
 YY_RULE_SETUP
-#line 345 "nuts.l"
+#line 342 "nuts.l"
 { return_token(FREEDATA); };
 	YY_BREAK
 case 110:
 YY_RULE_SETUP
-#line 346 "nuts.l"
+#line 343 "nuts.l"
 { return_token(PUSHPC);   };
 	YY_BREAK
 case 111:
 YY_RULE_SETUP
-#line 347 "nuts.l"
+#line 344 "nuts.l"
 { return_token(PULLPC);   };
 	YY_BREAK
 case 112:
 YY_RULE_SETUP
-#line 348 "nuts.l"
+#line 345 "nuts.l"
 { return_token(NOROM);    };
 	YY_BREAK
 case 113:
 YY_RULE_SETUP
-#line 349 "nuts.l"
+#line 346 "nuts.l"
 { return_token(LOROM);    };
 	YY_BREAK
 case 114:
 YY_RULE_SETUP
-#line 350 "nuts.l"
+#line 347 "nuts.l"
 { return_token(HIROM);    };
 	YY_BREAK
 case 115:
 YY_RULE_SETUP
-#line 351 "nuts.l"
+#line 348 "nuts.l"
 { return_token(SFXROM);   };
 	YY_BREAK
 case 116:
 YY_RULE_SETUP
-#line 352 "nuts.l"
+#line 349 "nuts.l"
 { return_token(SA1ROM);   };
 	YY_BREAK
 case 117:
 YY_RULE_SETUP
-#line 353 "nuts.l"
+#line 350 "nuts.l"
 { return_token(FSA1ROM);  };
 	YY_BREAK
 /* SFC Commands */
 case 118:
 YY_RULE_SETUP
-#line 356 "nuts.l"
+#line 353 "nuts.l"
 { return_token(ADC);      };
 	YY_BREAK
 case 119:
 YY_RULE_SETUP
-#line 357 "nuts.l"
+#line 354 "nuts.l"
 { return_token(AND);      };
 	YY_BREAK
 case 120:
 YY_RULE_SETUP
-#line 358 "nuts.l"
+#line 355 "nuts.l"
 { return_token(ASL);      };
 	YY_BREAK
 case 121:
 YY_RULE_SETUP
-#line 359 "nuts.l"
+#line 356 "nuts.l"
 { return_token(BCC);      };
 	YY_BREAK
 case 122:
 YY_RULE_SETUP
-#line 360 "nuts.l"
+#line 357 "nuts.l"
 { return_token(BLT);      };
 	YY_BREAK
 case 123:
 YY_RULE_SETUP
-#line 361 "nuts.l"
+#line 358 "nuts.l"
 { return_token(BCS);      };
 	YY_BREAK
 case 124:
 YY_RULE_SETUP
-#line 362 "nuts.l"
+#line 359 "nuts.l"
 { return_token(BGE);      };
 	YY_BREAK
 case 125:
 YY_RULE_SETUP
-#line 363 "nuts.l"
+#line 360 "nuts.l"
 { return_token(BEQ);      };
 	YY_BREAK
 case 126:
 YY_RULE_SETUP
-#line 364 "nuts.l"
+#line 361 "nuts.l"
 { return_token(BIT);      };
 	YY_BREAK
 case 127:
 YY_RULE_SETUP
-#line 365 "nuts.l"
+#line 362 "nuts.l"
 { return_token(BMI);      };
 	YY_BREAK
 case 128:
 YY_RULE_SETUP
-#line 366 "nuts.l"
+#line 363 "nuts.l"
 { return_token(BNE);      };
 	YY_BREAK
 case 129:
 YY_RULE_SETUP
-#line 367 "nuts.l"
+#line 364 "nuts.l"
 { return_token(BPL);      };
 	YY_BREAK
 case 130:
 YY_RULE_SETUP
-#line 368 "nuts.l"
+#line 365 "nuts.l"
 { return_token(BRA);      };
 	YY_BREAK
 case 131:
 YY_RULE_SETUP
-#line 369 "nuts.l"
+#line 366 "nuts.l"
 { return_token(BRK);      };
 	YY_BREAK
 case 132:
 YY_RULE_SETUP
-#line 370 "nuts.l"
+#line 367 "nuts.l"
 { return_token(BRL);      };
 	YY_BREAK
 case 133:
 YY_RULE_SETUP
-#line 371 "nuts.l"
+#line 368 "nuts.l"
 { return_token(BVC);      };
 	YY_BREAK
 case 134:
 YY_RULE_SETUP
-#line 372 "nuts.l"
+#line 369 "nuts.l"
 { return_token(BVS);      };
 	YY_BREAK
 case 135:
 YY_RULE_SETUP
-#line 373 "nuts.l"
+#line 370 "nuts.l"
 { return_token(CLC);      };
 	YY_BREAK
 case 136:
 YY_RULE_SETUP
-#line 374 "nuts.l"
+#line 371 "nuts.l"
 { return_token(CLD);      };
 	YY_BREAK
 case 137:
 YY_RULE_SETUP
-#line 375 "nuts.l"
+#line 372 "nuts.l"
 { return_token(CLI);      };
 	YY_BREAK
 case 138:
 YY_RULE_SETUP
-#line 376 "nuts.l"
+#line 373 "nuts.l"
 { return_token(CLV);      };
 	YY_BREAK
 case 139:
 YY_RULE_SETUP
-#line 377 "nuts.l"
+#line 374 "nuts.l"
 { return_token(CMP);      };
 	YY_BREAK
 case 140:
 YY_RULE_SETUP
-#line 378 "nuts.l"
+#line 375 "nuts.l"
 { return_token(COP);      };
 	YY_BREAK
 case 141:
 YY_RULE_SETUP
-#line 379 "nuts.l"
+#line 376 "nuts.l"
 { return_token(CPX);      };
 	YY_BREAK
 case 142:
 YY_RULE_SETUP
-#line 380 "nuts.l"
+#line 377 "nuts.l"
 { return_token(CPY);      };
 	YY_BREAK
 case 143:
 YY_RULE_SETUP
-#line 381 "nuts.l"
+#line 378 "nuts.l"
 { return_token(DEC);      };
 	YY_BREAK
 case 144:
 YY_RULE_SETUP
-#line 382 "nuts.l"
+#line 379 "nuts.l"
 { return_token(DEX);      };
 	YY_BREAK
 case 145:
 YY_RULE_SETUP
-#line 383 "nuts.l"
+#line 380 "nuts.l"
 { return_token(DEY);      };
 	YY_BREAK
 case 146:
 YY_RULE_SETUP
-#line 384 "nuts.l"
+#line 381 "nuts.l"
 { return_token(EOR);      };
 	YY_BREAK
 case 147:
 YY_RULE_SETUP
-#line 385 "nuts.l"
+#line 382 "nuts.l"
 { return_token(INC);      };
 	YY_BREAK
 case 148:
 YY_RULE_SETUP
-#line 386 "nuts.l"
+#line 383 "nuts.l"
 { return_token(INX);      };
 	YY_BREAK
 case 149:
 YY_RULE_SETUP
-#line 387 "nuts.l"
+#line 384 "nuts.l"
 { return_token(INY);      };
 	YY_BREAK
 case 150:
 YY_RULE_SETUP
-#line 388 "nuts.l"
+#line 385 "nuts.l"
 { return_token(JML);      };
 	YY_BREAK
 case 151:
 YY_RULE_SETUP
-#line 389 "nuts.l"
+#line 386 "nuts.l"
 { return_token(JMP);      };
 	YY_BREAK
 case 152:
 YY_RULE_SETUP
-#line 390 "nuts.l"
+#line 387 "nuts.l"
 { return_token(JSL);      };
 	YY_BREAK
 case 153:
 YY_RULE_SETUP
-#line 391 "nuts.l"
+#line 388 "nuts.l"
 { return_token(JSR);      };
 	YY_BREAK
 case 154:
 YY_RULE_SETUP
-#line 392 "nuts.l"
+#line 389 "nuts.l"
 { return_token(LDA);      };
 	YY_BREAK
 case 155:
 YY_RULE_SETUP
-#line 393 "nuts.l"
+#line 390 "nuts.l"
 { return_token(LDX);      };
 	YY_BREAK
 case 156:
 YY_RULE_SETUP
-#line 394 "nuts.l"
+#line 391 "nuts.l"
 { return_token(LDY);      };
 	YY_BREAK
 case 157:
 YY_RULE_SETUP
-#line 395 "nuts.l"
+#line 392 "nuts.l"
 { return_token(LSR);      };
 	YY_BREAK
 case 158:
 YY_RULE_SETUP
-#line 396 "nuts.l"
+#line 393 "nuts.l"
 { return_token(MVN);      };
 	YY_BREAK
 case 159:
 YY_RULE_SETUP
-#line 397 "nuts.l"
+#line 394 "nuts.l"
 { return_token(MVP);      };
 	YY_BREAK
 case 160:
 YY_RULE_SETUP
-#line 398 "nuts.l"
+#line 395 "nuts.l"
 { return_token(NOP);      };
 	YY_BREAK
 case 161:
 YY_RULE_SETUP
-#line 399 "nuts.l"
+#line 396 "nuts.l"
 { return_token(ORA);      };
 	YY_BREAK
 case 162:
 YY_RULE_SETUP
-#line 400 "nuts.l"
+#line 397 "nuts.l"
 { return_token(PEA);      };
 	YY_BREAK
 case 163:
 YY_RULE_SETUP
-#line 401 "nuts.l"
+#line 398 "nuts.l"
 { return_token(PEI);      };
 	YY_BREAK
 case 164:
 YY_RULE_SETUP
-#line 402 "nuts.l"
+#line 399 "nuts.l"
 { return_token(PER);      };
 	YY_BREAK
 case 165:
 YY_RULE_SETUP
-#line 403 "nuts.l"
+#line 400 "nuts.l"
 { return_token(PHA);      };
 	YY_BREAK
 case 166:
 YY_RULE_SETUP
-#line 404 "nuts.l"
+#line 401 "nuts.l"
 { return_token(PHB);      };
 	YY_BREAK
 case 167:
 YY_RULE_SETUP
-#line 405 "nuts.l"
+#line 402 "nuts.l"
 { return_token(PHD);      };
 	YY_BREAK
 case 168:
 YY_RULE_SETUP
-#line 406 "nuts.l"
+#line 403 "nuts.l"
 { return_token(PHK);      };
 	YY_BREAK
 case 169:
 YY_RULE_SETUP
-#line 407 "nuts.l"
+#line 404 "nuts.l"
 { return_token(PHP);      };
 	YY_BREAK
 case 170:
 YY_RULE_SETUP
-#line 408 "nuts.l"
+#line 405 "nuts.l"
 { return_token(PHX);      };
 	YY_BREAK
 case 171:
 YY_RULE_SETUP
-#line 409 "nuts.l"
+#line 406 "nuts.l"
 { return_token(PHY);      };
 	YY_BREAK
 case 172:
 YY_RULE_SETUP
-#line 410 "nuts.l"
+#line 407 "nuts.l"
 { return_token(PLA);      };
 	YY_BREAK
 case 173:
 YY_RULE_SETUP
-#line 411 "nuts.l"
+#line 408 "nuts.l"
 { return_token(PLB);      };
 	YY_BREAK
 case 174:
 YY_RULE_SETUP
-#line 412 "nuts.l"
+#line 409 "nuts.l"
 { return_token(PLD);      };
 	YY_BREAK
 case 175:
 YY_RULE_SETUP
-#line 413 "nuts.l"
+#line 410 "nuts.l"
 { return_token(PLP);      };
 	YY_BREAK
 case 176:
 YY_RULE_SETUP
-#line 414 "nuts.l"
+#line 411 "nuts.l"
 { return_token(PLX);      };
 	YY_BREAK
 case 177:
 YY_RULE_SETUP
-#line 415 "nuts.l"
+#line 412 "nuts.l"
 { return_token(PLY);      };
 	YY_BREAK
 case 178:
 YY_RULE_SETUP
-#line 416 "nuts.l"
+#line 413 "nuts.l"
 { return_token(REP);      };
 	YY_BREAK
 case 179:
 YY_RULE_SETUP
-#line 417 "nuts.l"
+#line 414 "nuts.l"
 { return_token(ROL);      };
 	YY_BREAK
 case 180:
 YY_RULE_SETUP
-#line 418 "nuts.l"
+#line 415 "nuts.l"
 { return_token(ROR);      };
 	YY_BREAK
 case 181:
 YY_RULE_SETUP
-#line 419 "nuts.l"
+#line 416 "nuts.l"
 { return_token(RTI);      };
 	YY_BREAK
 case 182:
 YY_RULE_SETUP
-#line 420 "nuts.l"
+#line 417 "nuts.l"
 { return_token(RTL);      };
 	YY_BREAK
 case 183:
 YY_RULE_SETUP
-#line 421 "nuts.l"
+#line 418 "nuts.l"
 { return_token(RTS);      };
 	YY_BREAK
 case 184:
 YY_RULE_SETUP
-#line 422 "nuts.l"
+#line 419 "nuts.l"
 { return_token(SBC);      };
 	YY_BREAK
 case 185:
 YY_RULE_SETUP
-#line 423 "nuts.l"
+#line 420 "nuts.l"
 { return_token(SEC);      };
 	YY_BREAK
 case 186:
 YY_RULE_SETUP
-#line 424 "nuts.l"
+#line 421 "nuts.l"
 { return_token(SED);      };
 	YY_BREAK
 case 187:
 YY_RULE_SETUP
-#line 425 "nuts.l"
+#line 422 "nuts.l"
 { return_token(SEI);      };
 	YY_BREAK
 case 188:
 YY_RULE_SETUP
-#line 426 "nuts.l"
+#line 423 "nuts.l"
 { return_token(SEP);      };
 	YY_BREAK
 case 189:
 YY_RULE_SETUP
-#line 427 "nuts.l"
+#line 424 "nuts.l"
 { return_token(STA);      };
 	YY_BREAK
 case 190:
 YY_RULE_SETUP
-#line 428 "nuts.l"
+#line 425 "nuts.l"
 { return_token(STP);      };
 	YY_BREAK
 case 191:
 YY_RULE_SETUP
-#line 429 "nuts.l"
+#line 426 "nuts.l"
 { return_token(STX);      };
 	YY_BREAK
 case 192:
 YY_RULE_SETUP
-#line 430 "nuts.l"
+#line 427 "nuts.l"
 { return_token(STY);      };
 	YY_BREAK
 case 193:
 YY_RULE_SETUP
-#line 431 "nuts.l"
+#line 428 "nuts.l"
 { return_token(STZ);      };
 	YY_BREAK
 case 194:
 YY_RULE_SETUP
-#line 432 "nuts.l"
+#line 429 "nuts.l"
 { return_token(TAX);      };
 	YY_BREAK
 case 195:
 YY_RULE_SETUP
-#line 433 "nuts.l"
+#line 430 "nuts.l"
 { return_token(TAY);      };
 	YY_BREAK
 case 196:
 YY_RULE_SETUP
-#line 434 "nuts.l"
+#line 431 "nuts.l"
 { return_token(TCD);      };
 	YY_BREAK
 case 197:
 YY_RULE_SETUP
-#line 435 "nuts.l"
+#line 432 "nuts.l"
 { return_token(TCS);      };
 	YY_BREAK
 case 198:
 YY_RULE_SETUP
-#line 436 "nuts.l"
+#line 433 "nuts.l"
 { return_token(TDC);      };
 	YY_BREAK
 case 199:
 YY_RULE_SETUP
-#line 437 "nuts.l"
+#line 434 "nuts.l"
 { return_token(TRB);      };
 	YY_BREAK
 case 200:
 YY_RULE_SETUP
-#line 438 "nuts.l"
+#line 435 "nuts.l"
 { return_token(TSB);      };
 	YY_BREAK
 case 201:
 YY_RULE_SETUP
-#line 439 "nuts.l"
+#line 436 "nuts.l"
 { return_token(TSC);      };
 	YY_BREAK
 case 202:
 YY_RULE_SETUP
-#line 440 "nuts.l"
+#line 437 "nuts.l"
 { return_token(TSX);      };
 	YY_BREAK
 case 203:
 YY_RULE_SETUP
-#line 441 "nuts.l"
+#line 438 "nuts.l"
 { return_token(TXA);      };
 	YY_BREAK
 case 204:
 YY_RULE_SETUP
-#line 442 "nuts.l"
+#line 439 "nuts.l"
 { return_token(TXS);      };
 	YY_BREAK
 case 205:
 YY_RULE_SETUP
-#line 443 "nuts.l"
+#line 440 "nuts.l"
 { return_token(TXY);      };
 	YY_BREAK
 case 206:
 YY_RULE_SETUP
-#line 444 "nuts.l"
+#line 441 "nuts.l"
 { return_token(TYA);      };
 	YY_BREAK
 case 207:
 YY_RULE_SETUP
-#line 445 "nuts.l"
+#line 442 "nuts.l"
 { return_token(TYX);      };
 	YY_BREAK
 case 208:
 YY_RULE_SETUP
-#line 446 "nuts.l"
+#line 443 "nuts.l"
 { return_token(WAI);      };
 	YY_BREAK
 case 209:
 YY_RULE_SETUP
-#line 447 "nuts.l"
+#line 444 "nuts.l"
 { return_token(WDM);      };
 	YY_BREAK
 case 210:
 YY_RULE_SETUP
-#line 448 "nuts.l"
+#line 445 "nuts.l"
 { return_token(XBA);      };
 	YY_BREAK
 case 211:
 YY_RULE_SETUP
-#line 449 "nuts.l"
+#line 446 "nuts.l"
 { return_token(XCE);      };
 	YY_BREAK
 case 212:
 YY_RULE_SETUP
-#line 450 "nuts.l"
+#line 447 "nuts.l"
 { return_token(TOC_X);    };
 	YY_BREAK
 case 213:
 YY_RULE_SETUP
-#line 451 "nuts.l"
+#line 448 "nuts.l"
 { return_token(TOC_Y);    };
 	YY_BREAK
 case 214:
 YY_RULE_SETUP
-#line 452 "nuts.l"
+#line 449 "nuts.l"
 { return_token(TOC_S);    };
 	YY_BREAK
 case 215:
 /* rule 215 can match eol */
 YY_RULE_SETUP
-#line 454 "nuts.l"
+#line 451 "nuts.l"
 { return_token(NEWLINE);  };
 	YY_BREAK
 case 216:
 YY_RULE_SETUP
-#line 455 "nuts.l"
+#line 452 "nuts.l"
 {
                    yylval.val_ident = (string_t){
                        .data = yytext,
@@ -9595,7 +9595,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 217:
 YY_RULE_SETUP
-#line 470 "nuts.l"
+#line 467 "nuts.l"
 YY_FATAL_ERROR( "flex scanner jammed" );
 	YY_BREAK
 #line 9602 "lex.yy.c"
@@ -9852,9 +9852,9 @@ static int yy_get_next_buffer (void)
 	else
 		ret_val = EOB_ACT_CONTINUE_SCAN;
 
-	if ((yy_size_t) ((yy_n_chars) + number_to_move) > YY_CURRENT_BUFFER_LVALUE->yy_buf_size) {
+	if ((int) ((yy_n_chars) + number_to_move) > YY_CURRENT_BUFFER_LVALUE->yy_buf_size) {
 		/* Extend the array by 50%, plus the number we really need. */
-		yy_size_t new_size = (yy_n_chars) + number_to_move + ((yy_n_chars) >> 1);
+		int new_size = (yy_n_chars) + number_to_move + ((yy_n_chars) >> 1);
 		YY_CURRENT_BUFFER_LVALUE->yy_ch_buf = (char *) yyrealloc((void *) YY_CURRENT_BUFFER_LVALUE->yy_ch_buf,new_size  );
 		if ( ! YY_CURRENT_BUFFER_LVALUE->yy_ch_buf )
 			YY_FATAL_ERROR( "out of dynamic memory in yy_get_next_buffer()" );
@@ -10604,7 +10604,7 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 470 "nuts.l"
+#line 467 "nuts.l"
 
 
 

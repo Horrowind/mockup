@@ -21,10 +21,10 @@ digit        [0-9]
 hexdigit     [0-9a-fA-F]
 letter       [a-zA-Z]
 ident        ({letter}|"_")({letter}|{digit}|"_")*
-byte         "$"{hexdigit}?{hexdigit}                        
-word         "$"{hexdigit}?{hexdigit}{hexdigit}{hexdigit}
-long         "$"{hexdigit}?{hexdigit}{hexdigit}{hexdigit}{hexdigit}{hexdigit}
-double       "$"{hexdigit}?{hexdigit}{hexdigit}{hexdigit}{hexdigit}{hexdigit}{hexdigit}{hexdigit}
+byte         "$"{hexdigit}{hexdigit}?
+word         "$"{hexdigit}{hexdigit}{hexdigit}{hexdigit}?
+long         "$"{hexdigit}{hexdigit}{hexdigit}{hexdigit}{hexdigit}{hexdigit}?
+double       "$"{hexdigit}{hexdigit}{hexdigit}{hexdigit}{hexdigit}{hexdigit}{hexdigit}{hexdigit}?
 number       {digit}+
 string       \"(\\.|[^\\\"])*\"
 nowhitespace [^ \"\t\r\n][^ \t\r\n]*
@@ -53,9 +53,6 @@ nowhitespace [^ \"\t\r\n][^ \t\r\n]*
 ";"            { BEGIN(COMMENT);                              };
 <COMMENT>"\n"  { BEGIN(INITIAL); return_token(NEWLINE);       };
 <COMMENT>.     {                                              };
-
-
-
 
 [ \r\t]        { }
 {byte}         {
