@@ -28,6 +28,7 @@ double       "$"{hexdigit}{hexdigit}{hexdigit}{hexdigit}{hexdigit}{hexdigit}{hex
 number       {digit}+
 string       \"(\\.|[^\\\"])*\"
 nowhitespace [^ \"\t\r\n][^ \t\r\n]*
+nl           \r?\n
 
 
 %option case-insensitive
@@ -51,10 +52,10 @@ nowhitespace [^ \"\t\r\n][^ \t\r\n]*
 %%
 
 ";"            { BEGIN(COMMENT);                              };
-<COMMENT>"\n"  { BEGIN(INITIAL); return_token(NEWLINE);       };
+<COMMENT>{nl}  { BEGIN(INITIAL); return_token(NEWLINE);       };
 <COMMENT>.     {                                              };
 
-[ \r\t]        { }
+[ \t]          { }
 {byte}         {
                  if(yyleng == 2) {
                      yylval.val_word  = char2hex(yytext[1]) <<  0;
@@ -176,7 +177,7 @@ nowhitespace [^ \"\t\r\n][^ \t\r\n]*
                      yytext[length] == ' ' || yytext[length] == '\t';
                      length--) { };
                  current_identifier.length = length - 2; // -1 from starting after the first '!'
-                                                         // and another -1 for starting with index 0 
+                                                         // and another -1 for starting with index 0
 #ifdef PRINT_TOKENS
                  printf("Defined identifier \"%.*s\"\n", current_identifier.length, current_identifier.data);
 #endif
@@ -198,14 +199,17 @@ nowhitespace [^ \"\t\r\n][^ \t\r\n]*
                  }
 
                }
-<DEFINE_DEF>[^:\r\n]*(":"|("\r"?"\n")) {
+<DEFINE_DEF>[^:\r\n]*(":"|{nl}) {
+                 assert(yyleng > 1); // we later access yytext[yyleng - 2], but the shortest word matched should be "a:".
                  define_t define = {
                      .name = current_identifier,
                      .filename = parse_stack_top(&parse_stack)->filename,
                      .line_num = yylineno,
                      .replacement = {
                          .data = yytext,
-                         .length = yyleng - 1
+			 // Here we test if we have a windows style CR LF
+			 //
+                         .length = yytext[yyleng - 2] == '\r' ? yyleng - 2 : yyleng - 1
                      }
                  };
                  defines_hash_map_insert(&defines_map, define);
@@ -223,51 +227,51 @@ nowhitespace [^ \"\t\r\n][^ \t\r\n]*
                            BEGIN(MACRO_DECLLIST_B);
                            return_token(MACRO);
                          }
-<MACRO_DECLLIST_A>[ \t\r]* { };
+<MACRO_DECLLIST_A>[ \r]* { };
 <MACRO_DECLLIST_A>.      { yyerror("Expected identifier"); };
-<MACRO_DECLLIST_A>"\n"   { yyerror("Expected identifier, got NEWLINE"); };
+<MACRO_DECLLIST_A>{nl}   { yyerror("Expected identifier, got NEWLINE"); };
 <MACRO_DECLLIST_B>"("    { BEGIN(MACRO_DECLLIST_C); }
-<MACRO_DECLLIST_B>[ \t\r]* { };
+<MACRO_DECLLIST_B>[ \r]* { };
 <MACRO_DECLLIST_B>.      { yyerror("Expected identifier"); };
-<MACRO_DECLLIST_B>"\n"   { yyerror("Expected identifier, got NEWLINE"); };
+<MACRO_DECLLIST_B>{nl}   { yyerror("Expected identifier, got NEWLINE"); };
 <MACRO_DECLLIST_C>{ident}  {
 #ifdef PRINT_TOKENS
                            printf("Found MACRO IDENTIFIER (%s)\n", yytext);
 #endif
                            BEGIN(MACRO_DECLLIST_D);
                          }
-<MACRO_DECLLIST_C>[ \t\r]* { };
+<MACRO_DECLLIST_C>[ \r]* { };
 <MACRO_DECLLIST_C>")"    { BEGIN(MACRO_BODY); };
 <MACRO_DECLLIST_C>.      { yyerror("Expected identifier or ')'"); };
-<MACRO_DECLLIST_C>"\n"   { yyerror("Expected identifier or ')', got NEWLINE"); };
-<MACRO_DECLLIST_D>[ \t\r]* { };
+<MACRO_DECLLIST_C>{nl}   { yyerror("Expected identifier or ')', got NEWLINE"); };
+<MACRO_DECLLIST_D>[ \r]* { };
 <MACRO_DECLLIST_D>")"    {BEGIN(MACRO_BODY); }
 <MACRO_DECLLIST_D>","    {BEGIN(MACRO_DECLLIST_E); }
 <MACRO_DECLLIST_D>.      { yyerror("Expected ','"); };
-<MACRO_DECLLIST_D>"\n"   { yyerror("Expected ',', got NEWLINE"); };
+<MACRO_DECLLIST_D>{nl}   { yyerror("Expected ',', got NEWLINE"); };
 <MACRO_DECLLIST_E>{ident}  {
                            printf("Found macro identifier: %s\n", yytext);
                            BEGIN(MACRO_DECLLIST_D);
                          }
-<MACRO_DECLLIST_E>[ \t\r]* { };
+<MACRO_DECLLIST_E>[ \r]* { };
 <MACRO_DECLLIST_E>")"    { BEGIN(MACRO_BODY); };
 <MACRO_DECLLIST_E>.      { yyerror("Expected identifier"); };
-<MACRO_DECLLIST_E>"\n"   { yyerror("Expected identifier, got NEWLINE"); };
+<MACRO_DECLLIST_E>{nl}   { yyerror("Expected identifier, got NEWLINE"); };
 
-<MACRO_BODY>"\0"        { yyerror("EOF in macro body"); };
-<MACRO_BODY>"\nendmacro"  {
+<MACRO_BODY>"\0"         { yyerror("EOF in macro body"); };
+<MACRO_BODY>"\nendmacro" {
                             BEGIN(INITIAL);
                             return_token(ENDMACRO);
-                        };
-<MACRO_BODY>.|\n        { };
- "%"{ident}             { BEGIN(MACROCALL_DECLLIST_B);  };
+                         };
+<MACRO_BODY>.|\n         { };
+ "%"{ident}              { BEGIN(MACROCALL_DECLLIST_B);  };
 <MACROCALL_DECLLIST_B>"("    {
                                parenthesis_level = 1;
                                BEGIN(MACROCALL_DECLLIST_C);
                              }
-<MACROCALL_DECLLIST_B>[ \t\r]* { };
+<MACROCALL_DECLLIST_B>[ \r]* { };
 <MACROCALL_DECLLIST_B>.      { yyerror("Expected '('"); };
-<MACROCALL_DECLLIST_B>"\n"   { yyerror("Expected '(', got NEWLINE"); };
+<MACROCALL_DECLLIST_B>{nl}   { yyerror("Expected '(', got NEWLINE"); };
 <MACROCALL_DECLLIST_C>"("    { parenthesis_level++; };
 <MACROCALL_DECLLIST_C>")"    {
                                parenthesis_level--;
@@ -448,7 +452,7 @@ nowhitespace [^ \"\t\r\n][^ \t\r\n]*
 "y"            { return_token(TOC_Y);    };
 "s"            { return_token(TOC_S);    };
 
-\n             { return_token(NEWLINE);  };
+{nl}           { return_token(NEWLINE);  };
 {ident}        {
                    yylval.val_ident = (string_t){
                        .data = yytext,

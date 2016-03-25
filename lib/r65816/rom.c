@@ -1,12 +1,24 @@
 #include "assert.h"
 #include "stdio.h"
-#include "stdlib.h"
-
 
 #include "rom.h"
 
 u8 r65816_guess_header(r65816_rom_t* rom);
 u8 r65816_score_header(r65816_rom_t* rom, u32 address);
+
+void r65816_rom_init(r65816_rom_t* rom, const u8* data, uint length) {
+    rom->banksize = 0x8000; //Currently only LOROM is supported
+    unsigned int headersize = length % rom->banksize;
+    rom->num_banks = (length - headersize) / rom->banksize;
+    rom->banks = malloc(rom->num_banks * sizeof(r65816_bank));
+    rom->data = data;
+    r65816_guess_header(rom);
+    for(int i = 0; i < rom->num_banks; i++) {
+        rom->banks[i] = rom->data + i * rom->banksize - 0x8000;
+    }
+
+}
+
 
 void r65816_rom_load(r65816_rom_t* rom, const char* path) {
     FILE* fp = fopen(path, "r");
