@@ -19,27 +19,21 @@ void build_mockup_imgui() {
     string_t build_dir;
     target_t libr65816;
     string_t libr65816_sources[] = {
-        "lib(r65816/build.cpp"
-        };
+        "lib/r65816/build.c"
+    };
     object_t libr65816_objects[array_length(libr65816_sources)];
-    string_t libr65816_include = "lib/r65816/include/r65816";
+    string_t libr65816_include = "lib/base";
     
     target_t libmockup;
     string_t libmockup_sources[] = {
-            "lib/mockup/decode.c",
-            "lib/mockup/gfx_store.c",
-            "lib/mockup/layer.c",
-            "lib/mockup/level.c",
-            "lib/mockup/level_objects.c",
-            "lib/mockup/palette.c",
-            "lib/mockup/pool.c",
-            "lib/mockup/smw.c",
-            "lib/mockup/tiles.c",
-            "lib/mockup/tileset.c"
-        };
+        "lib/mockup/build.c"
+    };
     object_t libmockup_objects[array_length(libmockup_sources)];
-    string_t libmockup_include = "lib/r65816/include";
-
+    string_t libmockup_includes[] = {
+        "lib/base",
+        "lib/r65816"
+    };
+    
     string_t imgui_sources[] = {
         "lib/imgui/imgui_impl_sdl_opengl.cpp",
         "lib/imgui/imgui.cpp",
@@ -72,9 +66,10 @@ void build_mockup_imgui() {
     string_t main_source = "app/mockup_imgui/main.cpp";
     string_t main_includes[] = {
         "/usr/include/SDL2",
+        "lib/base",
         "lib/imgui",
-        "lib/r65816/include/",
-        "lib/mockup/"        
+        "lib/r65816",
+        "lib/mockup"
     };
     object_t main_object;
 
@@ -127,7 +122,7 @@ void build_mockup_imgui() {
 
     { // libmockup
         compiler_options_t c_options2 = c_options;
-        compiler_options_add_include(&c_options2, libmockup_include);
+        compiler_options_add_includes(&c_options2, libmockup_includes, array_length(libmockup_includes));
         string_t build_obj_dir;
         strcpy(build_obj_dir, build_dir);
         strcat(build_obj_dir, "libmockup");

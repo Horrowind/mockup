@@ -24,7 +24,7 @@ typedef struct {
 
 
 typedef struct {
-    const char*  name;
+    char*  name;
     u32          banksize;
     unsigned int num_banks;
     r65816_bank* banks;
@@ -32,11 +32,11 @@ typedef struct {
     r65816_rom_header_t* header;
 } r65816_rom_t;
 
-void r65816_rom_init(r65816_rom_t* rom, const u8* data);
-void r65816_rom_load(r65816_rom_t* rom, const char* path);
+void r65816_rom_init(r65816_rom_t* rom, u8* data, uint length);
+void r65816_rom_load(r65816_rom_t* rom, char* path);
 void r65816_rom_free(r65816_rom_t* rom);
-void r65816_rom_save(r65816_rom_t* rom, const char* path);
-void r65816_rom_save_headered(r65816_rom_t* rom, const char* path, u8* header, int headersize);
+void r65816_rom_save(r65816_rom_t* rom, char* path);
+void r65816_rom_save_headered(r65816_rom_t* rom, char* path, u8* header, int headersize);
 u8 r65816_guess_header(r65816_rom_t* rom);
 u8 r65816_rom_expand(r65816_rom_t* rom, u8 size);
 u8 r65816_rom_expand_lorom(r65816_rom_t* rom, u8 size);

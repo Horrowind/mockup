@@ -6,7 +6,7 @@
 u8 r65816_guess_header(r65816_rom_t* rom);
 u8 r65816_score_header(r65816_rom_t* rom, u32 address);
 
-void r65816_rom_init(r65816_rom_t* rom, const u8* data, uint length) {
+void r65816_rom_init(r65816_rom_t* rom, u8* data, uint length) {
     rom->banksize = 0x8000; //Currently only LOROM is supported
     unsigned int headersize = length % rom->banksize;
     rom->num_banks = (length - headersize) / rom->banksize;
@@ -20,7 +20,7 @@ void r65816_rom_init(r65816_rom_t* rom, const u8* data, uint length) {
 }
 
 
-void r65816_rom_load(r65816_rom_t* rom, const char* path) {
+void r65816_rom_load(r65816_rom_t* rom, char* path) {
     FILE* fp = fopen(path, "r");
     assert(fp != 0);
     fseek(fp, 0, SEEK_END);
@@ -41,14 +41,14 @@ void r65816_rom_load(r65816_rom_t* rom, const char* path) {
 
 }
 
-void r65816_rom_save(r65816_rom_t* rom, const char* path) {
+void r65816_rom_save(r65816_rom_t* rom, char* path) {
     FILE* fp = fopen(path, "w");
     if(!fp) return;
     fwrite(rom->data, 1, rom->num_banks * rom->banksize, fp);
     fclose(fp);
 }
 
-void r65816_rom_save_headered(r65816_rom_t* rom, const char* path, u8* header, int headersize) {
+void r65816_rom_save_headered(r65816_rom_t* rom, char* path, u8* header, int headersize) {
     FILE* fp = fopen(path, "w");
     if(!fp) return;
     fwrite(header, 1, headersize, fp);

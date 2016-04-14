@@ -152,8 +152,10 @@ void init() {
 
     string_t source_file = "bogus.c";
     string_t exec_name = "bogus";
-    string_t exec_dir;
-    readlink("/proc/self/exe", exec_dir, sizeof(string_t));
+    string_t exec_temp_name = "bogus_tmp";
+    string_t exec_path, exec_dir;
+    readlink("/proc/self/exe", exec_path, sizeof(string_t));
+    memcpy(exec_dir, exec_path, sizeof(string_t));
     time_t object_time = get_file_time(exec_dir);
     char* last_occurence_of_slash = strrchr(exec_dir, '/');
     if(last_occurence_of_slash != NULL) {
@@ -169,12 +171,17 @@ void init() {
     //compiler_options_set_flags(&co, "-g");
 
     object_t main_o = compile(source_file, co, ".");
-    target_t bogus = target_init(exec_name, target_type_executable);
+    target_t bogus = target_init(exec_temp_name, target_type_executable);
     target_add_object(&bogus, main_o);
+    unlink(exec_temp_name);
     if(build(&bogus, ".")) {
-        /* char* argv[] = {"bogus", 0}; */
-        /* execvp("bogus", argv); */
-        printf("Run again\n");
+        if(access(exec_temp_name, F_OK) != -1) {
+            unlink(exec_name);
+            rename(exec_temp_name, exec_name);
+            char* argv[] = {"bogus", 0};
+            execvp("bogus", argv);
+            printf("Error: %s\n", strerror(errno));
+        }
         exit(0);
     }
 #else
@@ -194,12 +201,18 @@ void init() {
     }
     
     if(newest_source_time > object_time) {
-        printf(BUILD_CMD " -o bogus\n");
-        system2(BUILD_CMD " -o bogus");
-        char* argv[] = {"bogus", 0};
-        execvp("bogus", argv);
+        unlink("bogus_tmp");
+        printf(BUILD_CMD " -o bogus_tmp\n");
+        system2(BUILD_CMD " -o bogus_tmp");
+        if(access("bogus_tmp", F_OK) != -1) {
+            unlink("bogus");
+            rename("bogus_tmp", "bogus");
+            char* argv[] = {"bogus", 0};
+            execvp(exec_path, argv);
+            printf("Error: %s\n", strerror(errno));
+        }
+        exit(0);
     }
-
 #endif
 }
 target_t target_init(string_t name, target_type_t type) {
@@ -361,6 +374,7 @@ object_t compile(string_t source, compiler_options_t options, string_t build_dir
 
         time_t newest_source_time = get_file_time(source);
         time_t object_time = get_file_time(object.file);
+        //printf("%s\n", object.check_cmd);
         FILE* fp = popen(object.check_cmd, "r");
         while(fgetc(fp) != ':') { };
         while(!feof(fp)) {

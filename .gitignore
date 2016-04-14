@@ -1,14 +1,11 @@
-Mockup_old
-Mockup_old/*
-
 build
 build/*
 
-CMakeCache.txt
-CMakeFiles
-Makefile
-cmake_install.cmake
-install_manifest.txt
+html
+html/*
+
+bogus
+bogus_cred.h
 
 *~
 # Compiled Object files
