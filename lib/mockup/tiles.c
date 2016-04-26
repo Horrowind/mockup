@@ -158,7 +158,7 @@ void map8_init(map8_t* map8, tileset_t* tileset) {
         case 2:
             used_chr = tileset->bg1;
             break;
-        case 3:
+        default: //(... = 3), gcc cannot determine that we listed all posibilities here...
             used_chr = tileset->fg3;
             break;
         }
