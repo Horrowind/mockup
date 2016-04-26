@@ -109,7 +109,7 @@ void build_mockup_imgui() {
         target_set_flags(&mockup_light, " -s TOTAL_MEMORY=67108864 -s USE_CLOSURE_COMPILER=1 -s EMULATED_FUNCTION_POINTERS=1 -s OUTLINING_LIMIT=20000");
         target_set_flags(&mockup_imgui, " -s TOTAL_MEMORY=67108864 -s USE_CLOSURE_COMPILER=1 -s EMULATED_FUNCTION_POINTERS=1 -s OUTLINING_LIMIT=20000");
     }
-    compiler_options_set_flags(&c_options, "-g ");
+    compiler_options_set_flags(&c_options, "-g -Wall -Werror");
     { // libr65816
         compiler_options_t c_options2 = c_options; 
         compiler_options_add_include(&c_options2, libr65816_include);
