@@ -2,8 +2,6 @@
 #include "freespace.c"
 #include "gfx_store.c"
 #include "layer.c"
-#include "level.c"
-#include "level_objects.c"
 #include "palette.c"
 #include "pool.c"
 #include "smw.c"
