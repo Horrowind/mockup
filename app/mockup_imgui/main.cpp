@@ -138,7 +138,7 @@ void main_loop() {
 
     
     for(int i = 0; i < round(60.0/ImGui::GetIO().Framerate); i++) {
-        level_animate(&smw.levels[current_level], frame_num, &smw.gfx_pages);
+        smw_level_animate(&smw, current_level, frame_num);
         frame_num++;
     }
 
@@ -252,7 +252,7 @@ void main_loop() {
             ImVec2 actual_size = ImGui::GetContentRegionAvail();
             ImVec2 mouse_pos_in_canvas = ImVec2(ImGui::GetIO().MousePos.x - canvas_pos.x, ImGui::GetIO().MousePos.y - canvas_pos.y);
             ImGui::InvisibleButton("canvas", canvas_size);
-
+            
             hot_index = INT_MAX;
             for(int i = 0; i < smw.levels[current_level].layer1_objects.length; i++) {
                 object_pc_t* obj = &smw.levels[current_level].layer1_objects.objects[i];
@@ -335,13 +335,32 @@ void main_loop() {
                     if(current_level > 0) current_level--;
                     smw_level_load(&smw, current_level);
                 }
-            }
+                if(ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Delete)) && hot_index != INT_MAX) {
+                    smw_level_remove_layer1_object(&smw, current_level, hot_index);
+                    hot_index = INT_MAX;
+                }
 
-            if(ImGui::IsMouseDown(0)) {
-                //level_move_object(&smw.levels[current_level], hot_index, 0, 0, &smw.gfx_pages);
             }
-        
             ImGui::EndChild();
+            ImGui::End();
+        }
+
+        {
+            ImGui::Begin("Objects");
+            for(int i = 0; i < smw.levels[current_level].layer1_objects.length; i++) {
+                u8 num = smw.levels[current_level].layer1_objects.objects[i].num;
+                u8 settings = smw.levels[current_level].layer1_objects.objects[i].settings;
+                u16 x = smw.levels[current_level].layer1_objects.objects[i].x;
+                u16 y = smw.levels[current_level].layer1_objects.objects[i].y;
+                if(i == hot_index) ImGui::PushStyleColor(ImGuiCol_Text, ImColor(255,20,20));
+                if(num == 0) {
+                    if(settings != 0 && settings != 1)
+                        ImGui::Text("(%2i,%2i) Extended object: %2x\n", x, y, settings);
+                } else {
+                    ImGui::Text("(%2i,%2i) Normal object: %2x\n", x, y, num);
+                }
+                if(i == hot_index) ImGui::PopStyleColor();
+            }
             ImGui::End();
         }
     }
@@ -384,7 +403,7 @@ int main(int, char**) {
     ImGui_ImplSdl_Init(g_window);
 
 #if 1
-    r65816_rom_load(&rom, "smw.sfc");
+    r65816_rom_load(&rom, (char*)"smw.sfc");
 #else
 #include "smw_file.h"
     rom.banksize = 0x8000; //Currently only LOROM is supported
