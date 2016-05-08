@@ -6,13 +6,13 @@
 
 typedef struct {
     u8* data;
-    int length;
-    int fill;
+    uint length;
+    uint fill;
 } pool_t;
 
 
 void pool_init(pool_t* pool);
-u8* pool_alloc(pool_t* pool, int bytes);
+u8* pool_alloc(pool_t* pool, uint bytes);
 void pool_empty(pool_t* pool);
 void pool_deinit(pool_t* pool);
 
@@ -27,8 +27,8 @@ void pool_init(pool_t* pool) {
     pool->fill   = 0;
 }
 
-u8* pool_alloc(pool_t* pool, int bytes) {
-    int oldfill = pool->fill;
+u8* pool_alloc(pool_t* pool, uint bytes) {
+    uint oldfill = pool->fill;
     pool->fill += bytes;
     if(pool->fill > pool->length) {
         while(pool->fill > pool->length) {
