@@ -14,6 +14,13 @@
 typedef struct {
     u16 x;
     u16 y;
+    u16 tile;
+    u16 is_top;
+} object_tile_t;
+
+typedef struct {
+    u16 x;
+    u16 y;
     u8 num : 6;
     u8 settings;
 
