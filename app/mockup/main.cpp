@@ -39,8 +39,13 @@ uint32_t       map8_pixel_data[128*256];
 uint32_t       map16_fg_pixel_data[256*512];
 uint32_t       map16_bg_pixel_data[256*512];
 uint16_t*      level_object_data = NULL;
+uint16_t*      level_tile_flags = NULL;
+
+uint16_t selected_index_x;
+uint16_t selected_index_y;
 
 int hot_index = INT_MAX;
+int selected_index = INT_MAX;
 
 uint8_t frame_num = 0;
 int current_level = 0x100;
@@ -138,7 +143,7 @@ void main_loop() {
 
     
     for(int i = 0; i < round(60.0/ImGui::GetIO().Framerate); i++) {
-        smw_level_animate(&smw, current_level, frame_num);
+        smw_level_animate(&smw, current_level, frame_num & 0x1F);
         frame_num++;
     }
 
@@ -167,8 +172,10 @@ void main_loop() {
 
     // Level objects
     level_object_data = (uint16_t*)realloc(level_object_data, smw.levels[current_level].width * smw.levels[current_level].height * sizeof(uint16_t));
+    level_tile_flags = (uint16_t*)realloc(level_tile_flags, smw.levels[current_level].width * smw.levels[current_level].height * sizeof(uint16_t));
     for(int i = 0; i < smw.levels[current_level].width * smw.levels[current_level].height; i++) {
         level_object_data[i] = 0x25;
+        level_tile_flags[i] = 0;
     }
 
 
@@ -187,7 +194,10 @@ void main_loop() {
                     level_object_data[(j + obj->bb_ymin) * smw.levels[current_level].width + k + obj->bb_xmin]
                         = obj->tiles[j * obj_width + k];
                     if(hot_index == i) {
-                        level_object_data[(j + obj->bb_ymin) * smw.levels[current_level].width + k + obj->bb_xmin] |= 0x8000;
+                        level_tile_flags[(j + obj->bb_ymin) * smw.levels[current_level].width + k + obj->bb_xmin] |= 0x1;
+                    }
+                    if(selected_index == i) {
+                        level_tile_flags[(j + obj->bb_ymin) * smw.levels[current_level].width + k + obj->bb_xmin] |= 0x2;
                     }
                 }
             }
@@ -312,12 +322,16 @@ void main_loop() {
                         ImVec2 a = ImVec2(16.0f*i + canvas_pos.x, 16.0f*j + canvas_pos.y);
                         ImVec2 b = ImVec2(a.x + 16.0f, a.y + 16.0f);
                         uint16_t tile_data = level_object_data[j * width + i];
-                        uint16_t tile_num = tile_data & 0x8FFF;
-                        uint16_t do_tint = tile_data >> 15;
+                        uint16_t tile_flags = level_tile_flags[j * width + i];
+                        uint16_t tile_num = tile_data;
+                        bool do_tint = tile_flags & 1;
+                        bool do_tint2 = tile_flags & 2;
                         ImVec2 uv0 = ImVec2((float)((tile_num & 0x00F)) * 0.0625f, (float)((tile_num & 0xFF0) >> 4) * 0.03125);
                         ImVec2 uv1 = ImVec2(uv0.x + 0.0625f, uv0.y + 0.03125f);
-                        if(do_tint) {
+                        if(do_tint2) {
                             draw_list->PrimRectUV(a, b, uv0, uv1, 0xFFFF8080);
+                        } else if(do_tint) {
+                            draw_list->PrimRectUV(a, b, uv0, uv1, 0xFF80FF80);
                         } else {
                             draw_list->PrimRectUV(a, b, uv0, uv1, 0xFFFFFFFF);
                         }
@@ -326,20 +340,44 @@ void main_loop() {
                 draw_list->PopTextureID();
             }
 
-            if(ImGui::IsMouseHoveringWindow()) {
+            if(ImGui::IsWindowFocused()) {
                 if(ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_PageUp))) {
                     if(current_level < 0x1FF) current_level++;
-                    smw_level_load(&smw, current_level);
                 }
                 if(ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_PageDown))) {
                     if(current_level > 0) current_level--;
-                    smw_level_load(&smw, current_level);
                 }
-                if(ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Delete)) && hot_index != INT_MAX) {
-                    smw_level_remove_layer1_object(&smw, current_level, hot_index);
-                    hot_index = INT_MAX;
+                if(ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Delete))) {
+                    if(selected_index != INT_MAX) {
+                        smw_level_remove_layer1_object(&smw, current_level, selected_index);
+                        selected_index = INT_MAX;
+                    }
                 }
 
+
+                if(ImGui::IsMouseHoveringWindow() && ImGui::GetIO().MouseClicked[0]) {
+                    if(hot_index != INT_MAX) {
+                        selected_index = hot_index;
+                        selected_index_x = smw.levels[current_level].layer1_objects.objects[selected_index].x;
+                        selected_index_y = smw.levels[current_level].layer1_objects.objects[selected_index].y;
+                    } else {
+                        selected_index = INT_MAX;
+                        
+                    }
+                }
+                if(ImGui::IsMouseHoveringWindow() && ImGui::IsMouseDragging(0) && selected_index != INT_MAX) {
+                    ImVec2 delta = ImGui::GetMouseDragDelta();
+                    int delta_x = floor(delta.x / 16.0 + 0.5);
+                    int delta_y = floor(delta.y / 16.0 + 0.5);
+                    int new_x = selected_index_x + delta_x;
+                    int new_y = selected_index_y + delta_y;
+                    if(new_x >= 0 && new_x < smw.levels[current_level].width) {
+                        smw.levels[current_level].layer1_objects.objects[selected_index].x = selected_index_x + delta_x;
+                    }
+                    if(new_y >= 0 && new_y < smw.levels[current_level].height) {
+                        smw.levels[current_level].layer1_objects.objects[selected_index].y = selected_index_y + delta_y;
+                    }
+                }
             }
             ImGui::EndChild();
             ImGui::End();
@@ -347,24 +385,44 @@ void main_loop() {
 
         {
             ImGui::Begin("Objects");
-            for(int i = 0; i < smw.levels[current_level].layer1_objects.length; i++) {
-                u8 num = smw.levels[current_level].layer1_objects.objects[i].num;
-                u8 settings = smw.levels[current_level].layer1_objects.objects[i].settings;
-                u16 x = smw.levels[current_level].layer1_objects.objects[i].x;
-                u16 y = smw.levels[current_level].layer1_objects.objects[i].y;
-                if(i == hot_index) ImGui::PushStyleColor(ImGuiCol_Text, ImColor(255,20,20));
-                if(num == 0) {
-                    if(settings != 0 && settings != 1)
-                        ImGui::Text("(%2i,%2i) Extended object: %2x\n", x, y, settings);
-                } else {
-                    ImGui::Text("(%2i,%2i) Normal object: %2x\n", x, y, num);
+            if(ImGui::Button("New Object")) {
+                object_pc_t new_object;
+                new_object.x = 0;
+                new_object.y = 0;
+                new_object.num = 1;
+                new_object.settings = 0;
+                new_object.tiles = NULL;
+                smw_level_add_layer1_object(&smw, current_level, 0, new_object);
+                selected_index = 0;
+            }
+            if(selected_index != INT_MAX) {
+                u8* num_ptr      = &smw.levels[current_level].layer1_objects.objects[selected_index].num;
+                u8* settings_ptr = &smw.levels[current_level].layer1_objects.objects[selected_index].settings;
+                u16* x_ptr       = &smw.levels[current_level].layer1_objects.objects[selected_index].x;
+                u16* y_ptr       = &smw.levels[current_level].layer1_objects.objects[selected_index].y;
+                char text[256];
+                sprintf(text, "Object %i", selected_index);
+                if(*num_ptr != 0 || (*settings_ptr != 0 && *settings_ptr != 1)) {
+                    if(ImGui::TreeNode(text)) {
+                        ImGui::DragUShort("x", x_ptr, 1, 0, smw.levels[current_level].width);
+                        ImGui::DragUShort("y", y_ptr, 1, 0, smw.levels[current_level].height);
+                        ImGui::DragUChar("Number", num_ptr, 1, 0, 0x3F);
+                        ImGui::DragUChar("Type", settings_ptr, 1, 0, 255);
+                        ImGui::TreePop();
+                    }
                 }
-                if(i == hot_index) ImGui::PopStyleColor();
             }
             ImGui::End();
         }
+
+        {
+            // ImGui::Begin("Level Header");
+            
+
+            // ImGui::End();
+        }
     }
-    
+    smw_level_refresh(&smw, current_level);
     // Rendering
     glViewport(0, 0, (int)ImGui::GetIO().DisplaySize.x, (int)ImGui::GetIO().DisplaySize.y);
     glClearColor(g_clear_color.x, g_clear_color.y, g_clear_color.z, g_clear_color.w);
@@ -417,8 +475,8 @@ int main(int, char**) {
         rom.banks[i] = rom.data + i * rom.banksize - 0x8000;
     }
 #endif
-    smw_init(&smw, &rom);
-    smw_level_load(&smw, current_level);
+    smw_init_all(&smw, &rom);
+    //smw_level_load(&smw, current_level);
 
     gl_init_stuff();
 

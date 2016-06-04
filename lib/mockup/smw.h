@@ -26,6 +26,9 @@ void smw_level_load(smw_t* smw, u16 level_num);
 void smw_level_animate(smw_t* smw, u16 level_num, u8 frame);
 void smw_level_deinit(smw_t* smw, u16 level_num);
 
+void smw_level_refresh(smw_t* smw, u16 level_num);
+
 void smw_level_remove_layer1_object(smw_t* smw, u16 level_num, uint object_index);
+void smw_level_add_layer1_object(smw_t* smw, u16 level_num, uint object_index, object_pc_t object);
 
 #endif //MOCKUP_SMW_ROM_H

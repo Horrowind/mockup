@@ -30,11 +30,9 @@ void smw_deinit(smw_t* smw) {
 void smw_init_all(smw_t* smw, r65816_rom_t* rom) {
     smw_init(smw, rom);
     for(int i = 0; i < 512; i++) {
-        printf("load level %03x\n", i);
+        memset(&smw->levels[i].header, 0, 5);
         smw_level_load(smw, i);
-        if(smw->levels[i].layer1_objects.length > 0) {
-            smw_level_remove_layer1_object(smw, i, 0);
-        }
+        printf("Loaded level %i\n", i);
     }
 }
 
@@ -44,8 +42,6 @@ void smw_deinit_all(smw_t* smw) {
     }
     smw_deinit(smw);
 }
-
-
 
 
 void smw_level_load(smw_t* smw, u16 level_num) {
@@ -90,120 +86,135 @@ void smw_level_load(smw_t* smw, u16 level_num) {
 
     r65816_cpu_add_exec_bp(&cpu, level_load_routine_end_sfc);
     r65816_cpu_run_from(&cpu, level_load_routine_sfc);
-    // --- header init ------
-    {
-        memcpy(&(l->header), rom->data + level_layer1_data_addr_pc, 5);
-        l->is_vertical_level = cpu.ram[0x5B] & 0x01;
-        switch(l->header.level_mode) {
-        case 0x00:
-        case 0x0C:
-        case 0x0E:
-        case 0x11:
-        case 0x1E:
-        case 0x0A:
-        case 0x0D:
-            l->has_layer2_objects = 0;
-            l->has_layer2_bg = 1;
-            l->is_boss_level = 0;
-            break;
+
+    int needs_full_reload = memcmp(&(l->header), rom->data + level_layer1_data_addr_pc, 5);
+    if(needs_full_reload) {
+
+        // --- header init ------
+        {
+            memcpy(&(l->header), rom->data + level_layer1_data_addr_pc, 5);
+            l->is_vertical_level = cpu.ram[0x5B] & 0x01;
+            switch(l->header.level_mode) {
+            case 0x00:
+            case 0x0C:
+            case 0x0E:
+            case 0x11:
+            case 0x1E:
+            case 0x0A:
+            case 0x0D:
+                l->has_layer2_objects = 0;
+                l->has_layer2_bg = 1;
+                l->is_boss_level = 0;
+                break;
             
-        case 0x09: // > 
-        case 0x0B: // >Boss level
-        case 0x10: // >
-            l->has_layer2_objects = 0;
-            l->has_layer2_bg = 0;
-            l->is_boss_level = 1;
-            l->layer1_objects.length = 0;
+            case 0x09: // > 
+            case 0x0B: // >Boss level
+            case 0x10: // >
+                l->has_layer2_objects = 0;
+                l->has_layer2_bg = 0;
+                l->is_boss_level = 1;
+                l->layer1_objects.length = 0;
 #ifdef SPRITES
-            l->sprites.length = 0;
+                l->sprites.length = 0;
 #endif
-        default:
-            l->has_layer2_objects = 1;
-            l->has_layer2_bg = 0;
-            l->is_boss_level = 0;
-            break;
+            default:
+                l->has_layer2_objects = 1;
+                l->has_layer2_bg = 0;
+                l->is_boss_level = 0;
+                break;
+            }
+
+            int bg_color_addr = level_bg_area_color_data_table_pc + 2 * cpu.ram[level_header_bg_color_ram];
+            // TODO: Maybe implement as macro/function
+            u16 bg_color = rom->data[bg_color_addr] | (rom->data[bg_color_addr + 1] << 8);
+            int r = ((bg_color & 0x001F) << 3); r |= (r >> 5);
+            int g = ((bg_color & 0x03E0) >> 2); g |= (g >> 5);
+            int b = ((bg_color & 0x7C00) >> 7); b |= (b >> 5);
+            l->background_color = 0xFF000000 + (r) + (g << 8) + (b << 16);
         }
-
-
-        int bg_color_addr = level_bg_area_color_data_table_pc + 2 * cpu.ram[level_header_bg_color_ram];
-        // TODO: Maybe implement as macro/function
-        u16 bg_color = rom->data[bg_color_addr] | (rom->data[bg_color_addr + 1] << 8);
-        int r = ((bg_color & 0x001F) << 3); r |= (r >> 5);
-        int g = ((bg_color & 0x03E0) >> 2); g |= (g >> 5);
-        int b = ((bg_color & 0x7C00) >> 7); b |= (b >> 5);
-        l->background_color = 0xFF000000 + (r) + (g << 8) + (b << 16);
-    }
     
+        // --- tileset init -----
+        {
+            int num_tileset = cpu.ram[level_header_tileset_ram];
+            int tileset_addr = 0x292B + num_tileset * 4;
+            u8 fg1 = rom->data[tileset_addr];
+            u8 fg2 = rom->data[tileset_addr + 1];
+            u8 bg1 = rom->data[tileset_addr + 2];
+            u8 fg3 = rom->data[tileset_addr + 3];
+            if(fg1 >= gfx_pages.num_pages) return;
+            if(fg2 >= gfx_pages.num_pages) return;
+            if(bg1 >= gfx_pages.num_pages) return;
+            if(fg3 >= gfx_pages.num_pages) return;
+
+            l->tileset.fg1 = &gfx_pages.pages[fg1];
+            l->tileset.fg2 = &gfx_pages.pages[fg2];
+            l->tileset.bg1 = &gfx_pages.pages[bg1];
+            l->tileset.fg3 = &gfx_pages.pages[fg3];
     
-    // --- tileset init -----
-    {
-        int num_tileset = cpu.ram[level_header_tileset_ram];
-        int tileset_addr = 0x292B + num_tileset * 4;
-        u8 fg1 = rom->data[tileset_addr];
-        u8 fg2 = rom->data[tileset_addr + 1];
-        u8 bg1 = rom->data[tileset_addr + 2];
-        u8 fg3 = rom->data[tileset_addr + 3];
-        if(fg1 >= gfx_pages.num_pages) return;
-        if(fg2 >= gfx_pages.num_pages) return;
-        if(bg1 >= gfx_pages.num_pages) return;
-        if(fg3 >= gfx_pages.num_pages) return;
-
-        l->tileset.fg1 = &gfx_pages.pages[fg1];
-        l->tileset.fg2 = &gfx_pages.pages[fg2];
-        l->tileset.bg1 = &gfx_pages.pages[bg1];
-        l->tileset.fg3 = &gfx_pages.pages[fg3];
-    
-        l->map8.length = 512;
-        l->map8.tiles = malloc(512 * sizeof(tile8_t));
-        for(int tile = 0; tile < 128; tile++) {
-            l->map8.tiles[tile] = tile8_from_3bpp(l->tileset.fg1->data + 24 * (tile % 128));
-        }
-        for(int tile = 128; tile < 256; tile++) {
-            l->map8.tiles[tile] = tile8_from_3bpp(l->tileset.fg2->data + 24 * (tile % 128));
-        }
-        for(int tile = 256; tile < 384; tile++) {
-            l->map8.tiles[tile] = tile8_from_3bpp(l->tileset.bg1->data + 24 * (tile % 128));
-        }
-        for(int tile = 384; tile < 512; tile++) {
-            l->map8.tiles[tile] = tile8_from_3bpp(l->tileset.fg3->data + 24 * (tile % 128));
-        }
-    }
-
-    // --- map16 fg init ----
-    {
-        l->map16_fg.length = 512;
-        l->map16_fg.tiles = malloc(l->map16_fg.length * sizeof(tile16_t));
-        for(int i = 0; i < l->map16_fg.length; i++) {
-            int map16lookupSNES = map16_fg_tiles_zero_offset_sfc + cpu.ram[2 * i + 0x0FBF] * 256 + cpu.ram[2 * i + 0x0FBE];
-            int map16lookupPC   = ((map16lookupSNES & 0x7f0000) >> 1) + (map16lookupSNES & 0x7fff);
-
-            for(int j = 0; j < 4; j++) {
-                l->map16_fg.tiles[i].properties[j] = (tile_properties_t)rom->data[map16lookupPC + j * 2 + 1];
-                u16 num_tile =  rom->data[map16lookupPC + j * 2];
-                num_tile         |= (rom->data[map16lookupPC + j * 2 + 1] & 0x03) << 8;
-                if(num_tile == 0x3FF) num_tile = 0;
-                l->map16_fg.tiles[i].tile8s[j] = &(l->map8.tiles[num_tile]);
+            l->map8.length = 512;
+            l->map8.tiles = malloc(512 * sizeof(tile8_t));
+            for(int tile = 0; tile < 128; tile++) {
+                l->map8.tiles[tile] = tile8_from_3bpp(l->tileset.fg1->data + 24 * (tile % 128));
+            }
+            for(int tile = 128; tile < 256; tile++) {
+                l->map8.tiles[tile] = tile8_from_3bpp(l->tileset.fg2->data + 24 * (tile % 128));
+            }
+            for(int tile = 256; tile < 384; tile++) {
+                l->map8.tiles[tile] = tile8_from_3bpp(l->tileset.bg1->data + 24 * (tile % 128));
+            }
+            for(int tile = 384; tile < 512; tile++) {
+                l->map8.tiles[tile] = tile8_from_3bpp(l->tileset.fg3->data + 24 * (tile % 128));
             }
         }
-    }
-    
-    // --- map16 bg init ----
 
-    {
-        l->map16_bg.length = 512;
-        l->map16_bg.tiles = malloc(l->map16_bg.length * sizeof(tile16_t));
-        for(int i = 0; i < l->map16_bg.length; i++) {
-            int map16_addr_sfc = map16_bg_tiles_table_sfc + i*8;
-            int map16_addr_pc  = ((map16_addr_sfc & 0x7f0000) >> 1) | (map16_addr_sfc & 0x7fff);        
-            for(int j = 0; j < 4; j++) {
-                l->map16_bg.tiles[i].properties[j] = (tile_properties_t)(rom->data[map16_addr_pc + j * 2 + 1]);
-                u16 num_tile =  rom->data[map16_addr_pc + j * 2];
-                num_tile         |= (rom->data[map16_addr_pc + j * 2 + 1] & 0x03) << 8;
-                if(num_tile >= 0x200) num_tile = 0;
-                l->map16_bg.tiles[i].tile8s[j] = &(l->map8.tiles[num_tile]);
+        // --- map16 fg init ----
+        {
+            l->map16_fg.length = 512;
+            l->map16_fg.tiles = malloc(l->map16_fg.length * sizeof(tile16_t));
+            for(int i = 0; i < l->map16_fg.length; i++) {
+                int map16lookupSNES = map16_fg_tiles_zero_offset_sfc + cpu.ram[2 * i + 0x0FBF] * 256 + cpu.ram[2 * i + 0x0FBE];
+                int map16lookupPC   = ((map16lookupSNES & 0x7f0000) >> 1) + (map16lookupSNES & 0x7fff);
+
+                for(int j = 0; j < 4; j++) {
+                    l->map16_fg.tiles[i].properties[j] = (tile_properties_t)rom->data[map16lookupPC + j * 2 + 1];
+                    u16 num_tile =  rom->data[map16lookupPC + j * 2];
+                    num_tile         |= (rom->data[map16lookupPC + j * 2 + 1] & 0x03) << 8;
+                    if(num_tile == 0x3FF) num_tile = 0;
+                    l->map16_fg.tiles[i].tile8s[j] = &(l->map8.tiles[num_tile]);
+                }
             }
         }
+    
+        // --- map16 bg init ----
+
+        {
+            l->map16_bg.length = 512;
+            l->map16_bg.tiles = malloc(l->map16_bg.length * sizeof(tile16_t));
+            for(int i = 0; i < l->map16_bg.length; i++) {
+                int map16_addr_sfc = map16_bg_tiles_table_sfc + i*8;
+                int map16_addr_pc  = ((map16_addr_sfc & 0x7f0000) >> 1) | (map16_addr_sfc & 0x7fff);        
+                for(int j = 0; j < 4; j++) {
+                    l->map16_bg.tiles[i].properties[j] = (tile_properties_t)(rom->data[map16_addr_pc + j * 2 + 1]);
+                    u16 num_tile =  rom->data[map16_addr_pc + j * 2];
+                    num_tile         |= (rom->data[map16_addr_pc + j * 2 + 1] & 0x03) << 8;
+                    if(num_tile >= 0x200) num_tile = 0;
+                    l->map16_bg.tiles[i].tile8s[j] = &(l->map8.tiles[num_tile]);
+                }
+            }
+        }
+    } else {
+        if(l->is_boss_level) return;
+        for(int i = 0; i < l->layer1_objects.length; i++) {
+            if(l->layer1_objects.objects[i].tiles) free(l->layer1_objects.objects[i].tiles);
+        }
+#ifdef SPRITES
+        for(int i = 0; i < l->sprites.length; i++) {
+            if(l->sprites.data[i].tiles) free(l->sprites.data[i].tiles);
+        }
+        free(l->sprites.data);
+#endif
     }
+
 
     
     if(!l->is_boss_level) {
@@ -313,8 +324,8 @@ void smw_level_load(smw_t* smw, u16 level_num) {
                 object->bb_ymin = ymin;
                 object->bb_xmax = xmax;
                 object->bb_ymax = ymax;
-                if(object->x != object->bb_xmin) printf("Unequal x: %i %i\n", object->x, object->bb_xmin);
-                if(object->y != object->bb_ymin) printf("Unequal y: %i %i\n", object->y, object->bb_ymin);
+                /* if(object->x != object->bb_xmin) printf("Unequal x: %i %i\n", object->x, object->bb_xmin); */
+                /* if(object->y != object->bb_ymin) printf("Unequal y: %i %i\n", object->y, object->bb_ymin); */
                 //object->x = (cpu.ram[level_current_screen_ram] << 4) | (cpu.ram[0x57] & 0x0F);
                 //object->y = ((cpu.ram[0x57] & 0xF0) >> 4) | (cpu.ram[0x0A] << 4);
                 //TODO: set z_index
@@ -385,19 +396,19 @@ void smw_level_load(smw_t* smw, u16 level_num) {
 
         // --- Debug        -----
         {
-            for(int i = 0; i < smw->levels[level_num].layer1_objects.length; i++) {
-                u8 num = smw->levels[level_num].layer1_objects.objects[i].num;
-                u8 settings = smw->levels[level_num].layer1_objects.objects[i].settings;
-                u16 x = smw->levels[level_num].layer1_objects.objects[i].x;
-                u16 y = smw->levels[level_num].layer1_objects.objects[i].y;
-                if(num == 0) {
-                    if(settings != 0 && settings != 1)
-                        printf("(%2i,%2i) Extended object: %2x\n", x, y, settings);
-                } else {
-                    printf("(%2i,%2i) Normal object: %2x\n", x, y, num);
-                }
-            }
-            printf("\n");
+            /* for(int i = 0; i < smw->levels[level_num].layer1_objects.length; i++) { */
+            /*     u8 num = smw->levels[level_num].layer1_objects.objects[i].num; */
+            /*     u8 settings = smw->levels[level_num].layer1_objects.objects[i].settings; */
+            /*     u16 x = smw->levels[level_num].layer1_objects.objects[i].x; */
+            /*     u16 y = smw->levels[level_num].layer1_objects.objects[i].y; */
+            /*     if(num == 0) { */
+            /*         if(settings != 0 && settings != 1) */
+            /*             printf("(%2i,%2i) Extended object: %2x\n", x, y, settings); */
+            /*     } else { */
+            /*         printf("(%2i,%2i) Normal object: %2x\n", x, y, num); */
+            /*     } */
+            /* } */
+            /* printf("\n"); */
             /* u32 level_layer1_data_addr_sfc */
             /*     = (smw->rom->data[level_layer1_data_table_pc + 2 + 3 * level_num] << 16) */
             /*     | (smw->rom->data[level_layer1_data_table_pc + 1 + 3 * level_num] << 8) */
@@ -408,6 +419,7 @@ void smw_level_load(smw_t* smw, u16 level_num) {
             /* u8 output, output2, output3; */
             /* u8* data = smw->rom->data + level_layer1_data_addr_pc + 5; */
             /* uint screen = 0; */
+            /* printf("Huhu: Begin\n"); */
             /* while((output = *data++) != 0xFF) { */
             /*     output2 = *data++; */
             /*     output3 = *data++; */
@@ -415,42 +427,45 @@ void smw_level_load(smw_t* smw, u16 level_num) {
             /*         screen++; */
             /*     } */
             /*     u8 obj = ((output & 0x60) >> 1) | (output2 >> 4); */
-            /*     u8 x = (output2 & 0x0F) + 16 * screen; */
-            /*     u8 y = output & 0x1F; */
+            /*     //u8 x = (output2 & 0x0F) + 16 * screen; */
+            /*     //u8 y = output & 0x1F; */
             /*     if(obj == 0) { */
             /*         if(output3 != 0) { */
             /*             if(output3 == 1) { */
             /*                 screen = output; */
+            /*                 printf("Screen Jump (%x, %x, %x)\n", output, output2, output3); */
             /*             } else { */
-            /*                 printf("(%2i,%2i) Extended object: %2x\n", x, y, output3); */
+            /*                 /\* printf("(%2i,%2i) Extended object: %2x\n", x, y, output3); *\/ */
             /*             } */
             /*         } else { */
             /*             data++; */
-            /*             //printf("Screen Exit (%i)\n", output4); */
             /*         } */
             /*     } else { */
-            /*         printf("(%2i,%2i) Normal object: %2x\n", x, y, obj); */
+            /*         /\* printf("(%2i,%2i) Normal object: %2x\n", x, y, obj); *\/ */
             /*     } */
             /* } */
+            /* printf("Huhu: End\n"); */
 
             /* printf("\n"); */
         }
-        
-        // --- palette init -----
-        {
-            cpu.regs.p.b = 0x24;
-            r65816_cpu_add_exec_bp(&cpu, 0x00ACEC);
-            r65816_cpu_run_from(&cpu, 0x00ABED);
-            memcpy(l->palette.data, cpu.ram + 0x0703, 512);
 
-            for(int i = 0; i < 256; i += 16) {
-                l->palette.data[i] = 0;
+        if(needs_full_reload) {
+            // --- palette init -----
+            {
+                cpu.regs.p.b = 0x24;
+                r65816_cpu_add_exec_bp(&cpu, 0x00ACEC);
+                r65816_cpu_run_from(&cpu, 0x00ABED);
+                memcpy(l->palette.data, cpu.ram + 0x0703, 512);
+
+                for(int i = 0; i < 256; i += 16) {
+                    l->palette.data[i] = 0;
+                }
+
+                for(int i = 0; i < 8; i++) {
+                    smw_level_animate(smw, level_num, i);
+                }
+
             }
-
-            for(int i = 0; i < 8; i++) {
-                smw_level_animate(smw, level_num, i);
-            }
-
         }
 
 #ifdef SPRITES
@@ -479,6 +494,11 @@ void smw_level_load(smw_t* smw, u16 level_num) {
                 cpu.ram[0xD3] = cpu.ram[0x96] = 0x40; // player y position
                 cpu.ram[0xD4] = cpu.ram[0x97] = 0x01;
                 cpu.ram[0x15EA] = 0x30;
+
+                for(int i = 0x0; i < 0x12; i++) {
+                    cpu.ram[i + 0x9E] = 0;
+                    cpu.ram[0x1FE2 + i] = 0;
+                }
 
                 //Sets RAM 0x01 to the screen number of the sprite.
                 int screen = (rom->data[level_sprite_data_addr_pc + 3*number_sprites + 1] & 0x2) << 3;
@@ -695,42 +715,34 @@ int smw_level_serialize_fast(smw_t* smw, u16 level_num) {
 
     *(level_header_t*)pool_alloc(&pool, sizeof(level_header_t)) =
         smw->levels[level_num].header;
+    int prev_screen = 0;
     for(int i = 0; i < length; i++) {
         object_pc_t* object = &smw->levels[level_num].layer1_objects.objects[i];
 
         assert(!(object->y & (0xFFE0))); 
+        assert(!(object->num & (0xFFC0))); 
 
         u8* data;
-        int screen1 = object->x / 16;
-        int screen2 = 0;
-        if(i == 0 && screen1 != 0) {
-            data = pool_alloc(&pool, 3);
-            data[0] = screen1;
+        int screen = object->x / 16;
+        data = pool_alloc(&pool, 3);
+        if(prev_screen == screen) {
+            data[0] =  (object->num >> 4) << 5;
+        } else if(prev_screen + 1 == screen) {
+            data[0] = ((object->num >> 4) << 5) | 0x80;
+        } else { // We need to insert a screen jump
+            data[0] = screen;
             data[1] = 0; // We can savely set this to zero. 
             data[2] = 1;
-        }
-        if(i != length - 1) {
-            screen2 = smw->levels[level_num].layer1_objects.objects[i + 1].x / 16;
-        } else {
-            screen2 = screen1;
-        }
-
-        data = pool_alloc(&pool, 3);
-        if(screen1 + 1 == screen2) {
-            data[0] = ((object->num >> 4) << 5) | 0x80;
-        } else {
-            data[0] =  (object->num >> 4) << 5;
+            data = pool_alloc(&pool, 3);
+            data[0] = (object->num >> 4) << 5;
         }
         data[0] |= object->y;
+        assert(data[0] != 0xFF);
         data[1] = (object->num << 4);
         data[1] |= object->x & 0x0F;
         data[2] = object->settings;
-        if(!(screen1 == screen2 || screen1 + 1 == screen2)) {
-            data = pool_alloc(&pool, 3);
-            data[0] = screen2;
-            data[1] = 0; // We can savely set this to zero. 
-            data[2] = 1;
-        }
+
+        prev_screen = screen;
     }
     *pool_alloc(&pool, 1) = 0xFF;
 
@@ -763,9 +775,6 @@ int smw_level_serialize_fast(smw_t* smw, u16 level_num) {
     /* } */
     /* printf("\n"); */
 
-
-    
-
     u32 freespace_addr_pc = freespace_manager_request(&smw->freespace_manager, pool.fill);
     if(freespace_addr_pc) {
         u8* rom_data = smw->rom->data;
@@ -784,15 +793,26 @@ int smw_level_serialize_fast(smw_t* smw, u16 level_num) {
 
 void smw_level_remove_layer1_object(smw_t* smw, u16 level_num, uint object_index) {
     level_pc_t* l = &smw->levels[level_num];
-    if(object_index < l->layer1_objects.length) {
-        for(int i = object_index + 1; i < l->layer1_objects.length; i++) {
-            l->layer1_objects.objects[i - 1] = l->layer1_objects.objects[i];
-        }
-        l->layer1_objects.length--;
+    for(int i = object_index + 1; i < l->layer1_objects.length; i++) {
+        l->layer1_objects.objects[i - 1] = l->layer1_objects.objects[i];
+    }
+    l->layer1_objects.length--;
+}
 
-        if(smw_level_serialize_fast(smw, level_num)) {;
-            smw_level_deinit(smw, level_num);
-            smw_level_load(smw, level_num);
-        }
-    }    
+void smw_level_add_layer1_object(smw_t* smw, u16 level_num, uint object_index, object_pc_t object) {
+    object_pc_t* old_objects = smw->levels[level_num].layer1_objects.objects;
+    object_pc_t* new_objects = malloc(sizeof(object_pc_t) * (smw->levels[level_num].layer1_objects.length + 1));
+    memcpy(new_objects + object_index + 1, old_objects,
+           (smw->levels[level_num].layer1_objects.length - object_index) * sizeof(object_pc_t));
+    free(old_objects);
+    smw->levels[level_num].layer1_objects.objects = new_objects;
+    smw->levels[level_num].layer1_objects.objects[object_index] = object;
+    smw->levels[level_num].layer1_objects.length++;
+}
+
+void smw_level_refresh(smw_t* smw, u16 level_num) {
+    freespace_manager_empty(&smw->freespace_manager);
+    if(smw_level_serialize_fast(smw, level_num)) {
+        smw_level_load(smw, level_num);
+    }
 }
