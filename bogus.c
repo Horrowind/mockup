@@ -63,7 +63,7 @@ void build_mockup_imgui() {
         "/usr/lib/x86_64-linux-gnu",
     };
 
-    string_t main_source = "app/mockup_imgui/main.cpp";
+    string_t main_source = "app/mockup/main.cpp";
     string_t main_includes[] = {
         "/usr/include/SDL2",
         "lib/base",
@@ -160,7 +160,7 @@ void build_mockup_imgui() {
         string_t build_obj_dir;
         strcpy(build_obj_dir, build_dir);
         strcat(build_obj_dir, "mockup_imgui");
-        main_object = compile("app/mockup_imgui/main.cpp", cpp_options2, build_obj_dir);
+        main_object = compile("app/mockup/main.cpp", cpp_options2, build_obj_dir);
     }
 
 
@@ -184,6 +184,7 @@ int perform_upload() {
         { .source = "html/favicon.ico", .target = "/favicon.ico" },
         { .source = "build/web/imockup.js", .target = "/imockup.js" },
         { .source = "build/web/imockup.js.mem", .target = "/imockup.js.mem" },
+        { .source = "build/web/imockup.html.mem", .target = "/imockup.html.mem" },
     };
 
     CURL* handles[sizeof(items) / sizeof(struct item)];
