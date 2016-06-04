@@ -331,7 +331,7 @@ void r65816_op_pei_n(r65816_cpu_t* cpu) {
 void r65816_op_per_e(r65816_cpu_t* cpu) {
     cpu->aa.l = r65816_op_readpc(cpu);
     cpu->aa.h = r65816_op_readpc(cpu);
-    cpu->rd.w = cpu->regs.pc.d + (int16_t)cpu->aa.w;
+    cpu->rd.w = cpu->regs.pc.d + (i16)cpu->aa.w;
     r65816_op_writestackn(cpu, cpu->rd.h);
     r65816_op_writestackn(cpu, cpu->rd.l);
     cpu->regs.s.h = 0x01;
@@ -340,7 +340,7 @@ void r65816_op_per_e(r65816_cpu_t* cpu) {
 void r65816_op_per_n(r65816_cpu_t* cpu) {
     cpu->aa.l = r65816_op_readpc(cpu);
     cpu->aa.h = r65816_op_readpc(cpu);
-    cpu->rd.w = cpu->regs.pc.d + (int16_t)cpu->aa.w;
+    cpu->rd.w = cpu->regs.pc.d + (i16)cpu->aa.w;
     r65816_op_writestackn(cpu, cpu->rd.h);
     r65816_op_writestackn(cpu, cpu->rd.l);
 }

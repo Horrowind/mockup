@@ -95,11 +95,11 @@ u32 r65816_decode(r65816_cpu_t* cpu, u8 offset_type, u32 addr) {
       break;
     case OPTYPE_RELB:
       r  = (cpu->regs.pc.b << 16) + ((cpu->regs.pc.w + 2) & 0xffff);
-      r += (int8_t)(addr);
+      r += (i8)(addr);
       break;
     case OPTYPE_RELW:
       r  = (cpu->regs.pc.b << 16) + ((cpu->regs.pc.w + 3) & 0xffff);
-      r += (int16_t)(addr);
+      r += (i16)(addr);
       break;
   }
 

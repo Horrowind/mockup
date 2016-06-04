@@ -12,7 +12,7 @@
             cpu->rd.l = r65816_op_readpc(cpu);                      \
         } else {                                                    \
             cpu->rd.l = r65816_op_readpc(cpu);                      \
-            cpu->regs.pc.w = cpu->regs.pc.d + (int8_t)cpu->rd.l;    \
+            cpu->regs.pc.w = cpu->regs.pc.d + (i8)cpu->rd.l;    \
         }                                                           \
     }
 
@@ -31,7 +31,7 @@ inline void r65816_op_branch_bne(r65816_cpu_t* cpu) {               \
         cpu->rd.l = r65816_op_readpc(cpu);                          \
     } else {                                                        \
         cpu->rd.l = r65816_op_readpc(cpu);                          \
-        cpu->regs.pc.w = cpu->regs.pc.d + (int8_t)cpu->rd.l;        \
+        cpu->regs.pc.w = cpu->regs.pc.d + (i8)cpu->rd.l;        \
     }                                                               \
 }
 
@@ -40,14 +40,14 @@ inline void r65816_op_branch_bne(r65816_cpu_t* cpu) {               \
 /*         cpu->rd.l = r65816_op_readpc(cpu);                          \ */
 /*     } else {                                                        \ */
 /*         cpu->rd.l = r65816_op_readpc(cpu);                          \ */
-/*         cpu->regs.pc.w = cpu->regs.pc.d + (int8_t)cpu->rd.l;        \ */
+/*         cpu->regs.pc.w = cpu->regs.pc.d + (i8)cpu->rd.l;        \ */
 /*     }                                                               \ */
 /* } */
 
 __attribute__((always_inline))
 inline void r65816_op_bra(r65816_cpu_t* cpu) {
     cpu->rd.l = r65816_op_readpc(cpu);
-    cpu->aa.w = cpu->regs.pc.d + (int8_t)cpu->rd.l;
+    cpu->aa.w = cpu->regs.pc.d + (i8)cpu->rd.l;
     cpu->regs.pc.w = cpu->aa.w;
 }
 
@@ -55,7 +55,7 @@ __attribute__((always_inline))
 inline void r65816_op_brl(r65816_cpu_t* cpu) {
     cpu->rd.l = r65816_op_readpc(cpu);
     cpu->rd.h = r65816_op_readpc(cpu);
-    cpu->regs.pc.w = cpu->regs.pc.d + (int16_t)cpu->rd.w;
+    cpu->regs.pc.w = cpu->regs.pc.d + (i16)cpu->rd.w;
 }
 
 __attribute__((always_inline))

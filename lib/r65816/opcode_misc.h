@@ -1,5 +1,5 @@
 #ifndef R65816_OPCODE_MISC_H
-#define R65816__OPCODE_MISC_H
+#define R65816_OPCODE_MISC_H
 #include "cpu.h"
 
 void r65816_op_nop(r65816_cpu_t* cpu);
