@@ -6582,6 +6582,26 @@ bool ImGui::DragInt(const char* label, int* v, float v_speed, int v_min, int v_m
     return value_changed;
 }
 
+bool ImGui::DragUChar(const char* label, unsigned char* v, float v_speed, unsigned char v_min, unsigned char v_max, const char* display_format)
+{
+    if (!display_format)
+        display_format = "%.0f";
+    float v_f = (float)*v;
+    bool value_changed = ImGui::DragFloat(label, &v_f, v_speed, (float)v_min, (float)v_max, display_format);
+    *v = (unsigned char)v_f;
+    return value_changed;
+}
+
+bool ImGui::DragUShort(const char* label, unsigned short* v, float v_speed, unsigned short v_min, unsigned short v_max, const char* display_format)
+{
+    if (!display_format)
+        display_format = "%.0f";
+    float v_f = (float)*v;
+    bool value_changed = ImGui::DragFloat(label, &v_f, v_speed, (float)v_min, (float)v_max, display_format);
+    *v = (unsigned short)v_f;
+    return value_changed;
+}
+
 bool ImGui::DragIntN(const char* label, int* v, int components, float v_speed, int v_min, int v_max, const char* display_format)
 {
     ImGuiWindow* window = GetCurrentWindow();
