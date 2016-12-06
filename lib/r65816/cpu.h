@@ -15,8 +15,6 @@
 
 typedef struct cpu {
     r65816_rom_t* rom;
-    u8* ram;
-    u8* sreg;
 
     r65816_regs_t regs;
     r65816_reg24_t aa, rd;
@@ -31,6 +29,9 @@ typedef struct cpu {
     r65816_breakpoint_list_t breakpoints_exec;
     r65816_breakpoint_list_t breakpoints_read;
     r65816_breakpoint_list_t breakpoints_write;
+
+    u8 ram[0x20000];
+    u8 sreg[0x2500];
 } r65816_cpu_t;
 
 

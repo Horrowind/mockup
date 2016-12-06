@@ -7,9 +7,14 @@ u8 r65816_cpu_read(r65816_cpu_t* cpu, u32 addr) {
         cpu->breakpoint_address = addr;
         cpu->breakpoint_data = 0;
     }
-    
-    if(addr >= 0x7E0000) {// && addr < 0x800000) {
-        return cpu->ram[addr-0x7E0000];
+    if((addr&0xFE0000)==0x7E0000) {
+        //if(addr >= 0x7E0000) {
+	//if(addr >= 0x800000) {
+	//	fprintf(stderr, "Err: %06x Read: %06x\n", cpu->regs.pc.d, addr);
+        //	return 0;
+	//}
+    //if((addr&0xF00000)==0x700000 || (addr&0x408000)==0x000000) {
+        return cpu->ram[addr - 0x7E0000];
     } else if(addr & 0x008000) {
         return cpu->rom->data[((addr&0x7F0000)>>1|(addr&0x7FFF))];
     } else {

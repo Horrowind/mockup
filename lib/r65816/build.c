@@ -1,3 +1,5 @@
+//#define DEBUG_PRINT_CPU_STATE
+
 #include "algorithms.c"
 #include "breakpoint.c"
 #include "cpu.c"
@@ -10,5 +12,12 @@
 #include "opcode_rmw.c"
 #include "opcode_write.c"
 #include "rom.c"
+
+#if 1
 #include "run_table.c"
 #include "step.c"
+#else //need work
+#include "run.c"
+#include "run_jsl.c"
+#include "run_jsr.c"
+#endif

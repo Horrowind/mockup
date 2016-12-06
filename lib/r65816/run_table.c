@@ -3,13 +3,6 @@
 #include "disassembler.h"
 #include "memory.h"
 #include "table.h"
-#include "opcode_misc.h"
-#include "opcode_pc.h"
-#include "opcode_read.h"
-#include "opcode_rmw.h"
-#include "opcode_write.h"
-
-#define DEBUG_PRINT_CPU_STATE 0
 
 void (*op_table[5 * 256])(struct cpu*);
 
@@ -21,39 +14,26 @@ void r65816_cpu_run_from(r65816_cpu_t* cpu, u32 address) {
 void r65816_cpu_run(r65816_cpu_t* cpu) {
     cpu->stop_execution = 0;
     while(!cpu->stop_execution) {
-#if DEBUG_PRINT_CPU_STATE
-        char output[256];
-        r65816_cpu_disassemble_opcode(cpu, output, cpu->regs.pc.d);
-        printf("%s\n", output);
-#endif
         r65816_cpu_step(cpu);
         cpu->stop_execution |= r65816_breakpoint_list_is_hit(&cpu->breakpoints_exec, cpu->regs.pc.d);
     }
 }
 
 void r65816_cpu_run_jsr(r65816_cpu_t* cpu, u32 address) {
+    cpu->stop_execution = 0;
     cpu->regs.pc.d = address;
     cpu->regs.s.w = 0x1FF;
     while((cpu->regs.s.w != 0x1FF || r65816_cpu_read(cpu, cpu->regs.pc.d) != 0x60) && !cpu->stop_execution) {
-#if DEBUG_PRINT_CPU_STATE
-        char output[256];
-        r65816_cpu_disassemble_opcode(cpu, output, cpu->regs.pc.d);
-        printf("%s\n", output);
-#endif
         r65816_cpu_step(cpu);
         cpu->stop_execution |= r65816_breakpoint_list_is_hit(&cpu->breakpoints_exec, cpu->regs.pc.d);
     }
 }
 
 void r65816_cpu_run_jsl(r65816_cpu_t* cpu, u32 address) {
+    cpu->stop_execution = 0;
     cpu->regs.pc.d = address;
     cpu->regs.s.w = 0x1FF;
     while((cpu->regs.s.w != 0x1FF || r65816_cpu_read(cpu, cpu->regs.pc.d) != 0x6B) && !cpu->stop_execution) {
-#if DEBUG_PRINT_CPU_STATE
-        char output[256];
-        r65816_cpu_disassemble_opcode(cpu, output, cpu->regs.pc.d);
-        printf("%s\n", output);
-#endif
         r65816_cpu_step(cpu);
         cpu->stop_execution |= r65816_breakpoint_list_is_hit(&cpu->breakpoints_exec, cpu->regs.pc.d);
     }
