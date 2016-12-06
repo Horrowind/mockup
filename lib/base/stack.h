@@ -9,7 +9,7 @@
         u16 capacity;                                                   \
     } name##_t;                                                         \
     extern void name##_init(name##_t* s, int size);                     \
-    extern void name##_deinit(name##_t* s, int size);                   \
+    extern void name##_deinit(name##_t* s);                             \
     extern void name##_push(name##_t* s, type data);                    \
     extern void name##_reserve(name##_t* s);                            \
     extern void name##_pop(name##_t* s);                                \
@@ -23,7 +23,7 @@
         s->capacity = size;                                             \
     }                                                                   \
                                                                         \
-    inline void name##_deinit(name##_t* s, int size) {                  \
+    inline void name##_deinit(name##_t* s) {                            \
         free(s->data);                                                  \
     }                                                                   \
                                                                         \
@@ -52,6 +52,11 @@
                                                                         \
     inline void name##_pop(name##_t* s) {                               \
         s->fill--;                                                      \
+        return;                                                         \
+    }                                                                   \
+                                                                        \
+    inline void name##_do_empty(name##_t* s) {                          \
+        s->fill = 0;                                                    \
         return;                                                         \
     }                                                                   \
                                                                         \
