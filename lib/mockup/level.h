@@ -104,6 +104,8 @@ typedef struct {
     object_list_pc_t layer1_objects;
 #ifdef SPRITES
     sprite_list_pc_t sprites;
+    tileset_t sprite_tileset;
+    map8_t    sprite_map8;
 #endif
     union {
         object_list_pc_t layer2_objects;

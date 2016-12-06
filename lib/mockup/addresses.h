@@ -46,7 +46,7 @@
 #define level_current_screen_ram  sfc2ram(0x7E1928)
 #define level_header_bg_color_ram  sfc2ram(0x7E192F)
 #define level_header_tileset_ram  sfc2ram(0x7E1931)
-
+#define level_header_sprite_tileset_ram sfc2ram(0x7E192B)
 #define level_tiles_low_start_sfc  0x7EC800
 #define level_tiles_low_end_sfc  0x7EFFFF
 #define level_tiles_high_start_sfc  0x7FC800

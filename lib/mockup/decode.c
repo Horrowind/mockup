@@ -133,3 +133,63 @@ int decode_lz2_get_size(const u8* data) {
     }
     return size;
 }
+
+typedef enum {
+    LZ2_COMMAND_DIRECT_COPY,
+    LZ2_COMMAND_BYTE_FILL,
+    LZ2_COMMAND_WORD_FILL,
+    LZ2_COMMAND_INCREASING_FILL,
+    LZ2_COMMAND_REPEAT,
+    LZ2_COMMAND_UNUSED1,
+    LZ2_COMMAND_UNUSED2,
+    LZ2_COMMAND_LONG_CMD    
+} lz2_commands_t;
+
+void encode_lz2(u8* data_begin, u8* data_end, u8* output) {
+    for(u8* data_read = data_begin; data_read < data_end;) {
+//        lz2_commands_t best_cmd;
+        uint best_length = 0xFFFFFFFF;
+//        uint best_cost = 0xFFFFFFFF;
+
+        { // Byte fill
+            uint byte_fill_length = 1;
+            u8* next_bytes = data_read + 1;
+            while(*next_bytes == *data_read && next_bytes < data_end) {
+                next_bytes++;
+                byte_fill_length++;
+            }
+            if(best_length > byte_fill_length) {
+//                best_cmd = LZ2_COMMAND_BYTE_FILL;
+                best_length = byte_fill_length;
+            }
+        }
+
+/*         { // Byte fill */
+/*             uint byte_fill_length = 1; */
+/*             u8* next_bytes = data_read + 1; */
+/*             while(*next_bytes == *data_read && next_bytes < data_end) { */
+/*                 next_bytes++; */
+/*                 byte_fill_length++; */
+/*             } */
+/*             if(best_length > byte_fill_length) { */
+/*                 best_cmd = LZ2_COMMAND_DIRECT_FILL; */
+/*                 best_length = byte_fill_length; */
+/*             } */
+/*             uint byte_fill_cost = 2; */
+/*         } */
+
+/*         { // Word fill */
+/*             uint word_fill_length = 1; */
+/*             u8* next_bytes = data_read + 1; */
+/*             while(*next_bytes == *data_read && next_bytes < data_end) { */
+/*                 next_bytes++; */
+/*                 byte_fill_length++; */
+/*             } */
+/*             if(best_length > byte_fill_length) { */
+/*                 best_cmd = LZ2_COMMAND_DIRECT_FILL; */
+/*                 best_length = byte_fill_length; */
+/*             } */
+/*         } */
+    }
+}
+        

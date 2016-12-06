@@ -43,7 +43,6 @@ void smw_deinit_all(smw_t* smw) {
     smw_deinit(smw);
 }
 
-
 void smw_level_load(smw_t* smw, u16 level_num) {
     r65816_rom_t* rom = smw->rom;
     gfx_store_t gfx_pages = smw->gfx_pages;
@@ -166,6 +165,47 @@ void smw_level_load(smw_t* smw, u16 level_num) {
                 l->map8.tiles[tile] = tile8_from_3bpp(l->tileset.fg3->data + 24 * (tile % 128));
             }
         }
+
+#ifdef SPRITES
+
+        { // --- sprite map8
+            int num_tileset = cpu.ram[level_header_sprite_tileset_ram];
+            printf("num_tileset: %i\n", num_tileset);
+            int tileset_addr = 0x0028C3 + num_tileset * 4; //TODO: No magic numbers
+            u8 fg1 = rom->data[tileset_addr + 0];
+            u8 fg2 = rom->data[tileset_addr + 1];
+            u8 bg1 = rom->data[tileset_addr + 2];
+            u8 fg3 = rom->data[tileset_addr + 3];
+            printf("fg1: %i\n", fg1);
+            printf("fg2: %i\n", fg2);
+            printf("bg1: %i\n", bg1);
+            printf("fg3: %i\n", fg3);
+            if(fg1 >= gfx_pages.num_pages) return;
+            if(fg2 >= gfx_pages.num_pages) return;
+            if(bg1 >= gfx_pages.num_pages) return;
+            if(fg3 >= gfx_pages.num_pages) return;
+
+            l->sprite_tileset.fg1 = &gfx_pages.pages[fg1];
+            l->sprite_tileset.fg2 = &gfx_pages.pages[fg2];
+            l->sprite_tileset.bg1 = &gfx_pages.pages[bg1];
+            l->sprite_tileset.fg3 = &gfx_pages.pages[fg3];
+    
+            l->sprite_map8.length = 512;
+            l->sprite_map8.tiles = malloc(512 * sizeof(tile8_t));
+            for(int tile = 0; tile < 128; tile++) {
+                l->sprite_map8.tiles[tile] = tile8_from_3bpp(l->sprite_tileset.fg1->data + 24 * (tile % 128));
+            }
+            for(int tile = 128; tile < 256; tile++) {
+                l->sprite_map8.tiles[tile] = tile8_from_3bpp(l->sprite_tileset.fg2->data + 24 * (tile % 128));
+            }
+            for(int tile = 256; tile < 384; tile++) {
+                l->sprite_map8.tiles[tile] = tile8_from_3bpp(l->sprite_tileset.bg1->data + 24 * (tile % 128));
+            }
+            for(int tile = 384; tile < 512; tile++) {
+                l->sprite_map8.tiles[tile] = tile8_from_3bpp(l->sprite_tileset.fg3->data + 24 * (tile % 128));
+            }
+        }
+#endif
 
         // --- map16 fg init ----
         {
@@ -469,6 +509,8 @@ void smw_level_load(smw_t* smw, u16 level_num) {
         }
 
 #ifdef SPRITES
+
+        
         // --- sprites init -----
         {
             int number_sprites = 0;
@@ -495,9 +537,16 @@ void smw_level_load(smw_t* smw, u16 level_num) {
                 cpu.ram[0xD4] = cpu.ram[0x97] = 0x01;
                 cpu.ram[0x15EA] = 0x30;
 
-                for(int i = 0x0; i < 0x12; i++) {
-                    cpu.ram[i + 0x9E] = 0;
+                for(int i = 0x0; i < 12; i++) {
+                    cpu.ram[0x009E + i] = 0;
                     cpu.ram[0x1FE2 + i] = 0;
+                    cpu.ram[0x1656 + i] = 0;
+                    cpu.ram[0x1662 + i] = 0;
+                    cpu.ram[0x166E + i] = 0;
+                    cpu.ram[0x15F6 + i] = 0;
+                    cpu.ram[0x167A + i] = 0;
+                    cpu.ram[0x1686 + i] = 0;
+                    cpu.ram[0x190F + i] = 0;
                 }
 
                 //Sets RAM 0x01 to the screen number of the sprite.
@@ -522,8 +571,6 @@ void smw_level_load(smw_t* smw, u16 level_num) {
                 cpu.ram[0xCF] = 0x9c;
                 cpu.ram[0xD0] = 0x7f;
 
-
-
                 //Copy sprite to scratch ram
                 cpu.ram[0x19c7b] = rom->data[level_sprite_data_addr_pc];
                 cpu.ram[0x19c7c] = rom->data[level_sprite_data_addr_pc + 3*number_sprites + 1];
@@ -531,9 +578,10 @@ void smw_level_load(smw_t* smw, u16 level_num) {
                 cpu.ram[0x19c7e] = rom->data[level_sprite_data_addr_pc + 3*number_sprites + 3];
                 cpu.ram[0x19c7f] = 0xff;
 
-                r65816_cpu_run_jsr(&cpu, 0x2a751);
+                cpu.regs.p.b = 0x30;
+                r65816_cpu_run_jsl(&cpu, 0x2a751);
                 int spriteindex;                        
-                for(int i = 0x0; i < 0x12; i++) {
+                for(int i = 0x0; i < 12; i++) {
                     if(cpu.ram[i + 0x9E] != 0) cpu.regs.x.w = spriteindex = i;
                     //cpu.ram[0x163E + i] = 0x1;
                     cpu.ram[0x1FE2 + i] = 0;
@@ -547,6 +595,7 @@ void smw_level_load(smw_t* smw, u16 level_num) {
                 pool_init(&sprite_tile_pool);
                 int number_tiles = 0;
                 for(int i = 0; i < 0x200; i+=4) {
+                    
                     if((cpu.ram[i + 0x200] | cpu.ram[i + 0x202] | cpu.ram[i + 0x203]) && (cpu.ram[i + 0x201] != 0xf0)) {
                     
                         u8 extrabits = (cpu.ram[(i / 4) + 0x400] >> (i % 4)) & 0x03;
@@ -565,11 +614,11 @@ void smw_level_load(smw_t* smw, u16 level_num) {
                             u8 flipy = cpu.ram[i + 0x203] & 0x80;
 
                             for(int j = 0; j < 4; j++) {
-                                tiles[i].flip_x = (cpu.ram[i + 0x203] & 0x40) && 1;
-                                tiles[i].flip_y = (cpu.ram[i + 0x203] & 0x80) && 1;
-                                tiles[i].palette = 8 + ((cpu.ram[i + 0x203] >> 1) & 0x7);
-                                tiles[i].x = ((cpu.ram[0x1b] << 8) | cpu.ram[0x1a]) + cpu.ram[i + 0x200] - 9;
-                                tiles[i].y = ((cpu.ram[0x1d] << 8) | cpu.ram[0x1c]) + cpu.ram[i + 0x201];
+                                tiles[j].flip_x = (cpu.ram[i + 0x203] & 0x40) && 1;
+                                tiles[j].flip_y = (cpu.ram[i + 0x203] & 0x80) && 1;
+                                tiles[j].palette = 8 + ((cpu.ram[i + 0x203] >> 1) & 0x7);
+                                tiles[j].x = ((cpu.ram[0x1b] << 8) | cpu.ram[0x1a]) + cpu.ram[i + 0x200] - 9;
+                                tiles[j].y = ((cpu.ram[0x1d] << 8) | cpu.ram[0x1c]) + cpu.ram[i + 0x201];
                             }
                             tiles[1].x += 8;
                             tiles[2].y += 8;
@@ -608,6 +657,7 @@ void smw_level_load(smw_t* smw, u16 level_num) {
                     }
                 }
                 sprite->tiles = malloc(sizeof(sprite_tile_t) * number_tiles);
+                sprite->num_tiles = number_tiles;
                 memcpy(sprite->tiles, sprite_tile_pool.data, sizeof(sprite_tile_t) * number_tiles);
                 pool_deinit(&sprite_tile_pool);
 
@@ -706,6 +756,7 @@ void smw_level_deinit(smw_t* smw, u16 level_num) {
     free(l->map16_bg.tiles);
     free(l->map16_fg.tiles);
     free(l->map8.tiles);
+    free(l->sprite_map8.tiles);
 }
 
 int smw_level_serialize_fast(smw_t* smw, u16 level_num) {
