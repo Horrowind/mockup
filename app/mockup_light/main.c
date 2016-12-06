@@ -1,5 +1,4 @@
 #include "smw.h"
-#include "smw_file.h"
 
 int main(int argc, char** argv) {
     smw_t smw;
@@ -11,6 +10,8 @@ int main(int argc, char** argv) {
         r65816_rom_load(&rom, "smw.sfc"); 
     }
 #else
+
+#include "smw_file.h"
     rom.banksize = 0x8000; //Currently only LOROM is supported
     unsigned int filesize = sizeof(smw_sfc) / sizeof(smw_sfc[0]);
     rom.num_banks = filesize / rom.banksize;

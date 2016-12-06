@@ -2,6 +2,8 @@
 #include <math.h>
 #include <limits.h>
 
+#include <GL/glx.h>
+
 #include <SDL.h>
 #include <SDL_opengl.h>
 
@@ -36,6 +38,7 @@ palette_pc_t   palette;
 map16_pc_t     map16_fg, map16_bg;
 
 uint32_t       map8_pixel_data[128*256];
+uint32_t       sprite_map8_pixel_data[128*256];
 uint32_t       map16_fg_pixel_data[256*512];
 uint32_t       map16_bg_pixel_data[256*512];
 uint16_t*      level_object_data = NULL;
@@ -48,12 +51,14 @@ int hot_index = INT_MAX;
 int selected_index = INT_MAX;
 
 uint8_t frame_num = 0;
-int current_level = 0x100;
+int current_level = 0x105;
+
 GLuint palette_texture = 0;
 ImTextureID palette_tex_id;
 GLuint map8_texture = 0;
 ImTextureID map8_tex_id;
-
+GLuint sprite_map8_texture = 0;
+ImTextureID sprite_map8_tex_id;
 GLuint map16_fg_texture = 0;
 ImTextureID map16_fg_tex_id;
 GLuint map16_bg_texture = 0;
@@ -75,6 +80,12 @@ void gl_init_stuff() {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 128, 256, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
     map8_tex_id = (void *)(intptr_t)map8_texture;
 
+    glGenTextures(1, &sprite_map8_texture);
+    glBindTexture(GL_TEXTURE_2D, sprite_map8_texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 128, 256, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+    sprite_map8_tex_id = (void *)(intptr_t)sprite_map8_texture;
     
     glGenTextures(1, &map16_fg_texture);
     glBindTexture(GL_TEXTURE_2D, map16_fg_texture);
@@ -97,15 +108,12 @@ void gl_update_stuff() {
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 16, 16, GL_RGBA, GL_UNSIGNED_BYTE, &palette.data);
     glBindTexture(GL_TEXTURE_2D, map8_texture);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 128, 256, GL_RGBA, GL_UNSIGNED_BYTE, &map8_pixel_data);
+    glBindTexture(GL_TEXTURE_2D, sprite_map8_texture);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 128, 256, GL_RGBA, GL_UNSIGNED_BYTE, &sprite_map8_pixel_data);
     glBindTexture(GL_TEXTURE_2D, map16_fg_texture);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 256, 512, GL_RGBA, GL_UNSIGNED_BYTE, &map16_fg_pixel_data);
     glBindTexture(GL_TEXTURE_2D, map16_bg_texture);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 256, 512, GL_RGBA, GL_UNSIGNED_BYTE, &map16_bg_pixel_data);
-}
-
-void load_level() {
-
-    
 }
 
 void main_loop() {
@@ -147,8 +155,9 @@ void main_loop() {
         frame_num++;
     }
 
-    //Palette
     palette_to_pc(&smw.levels[current_level].palette, &palette);
+    
+    //Map8
     for(int i = 0; i < 512; i++) {
         for(int j = 0; j < 64; j++) {
             map8_pixel_data[(i % 16) * 8 + (j % 8) + ((i / 16) * 8 + (j / 8)) * 128]
@@ -156,6 +165,17 @@ void main_loop() {
         }
     }
 
+    
+    //Sprite Map8
+    for(int i = 0; i < 512; i++) {
+        for(int j = 0; j < 64; j++) {
+            sprite_map8_pixel_data[(i % 16) * 8 + (j % 8) + ((i / 16) * 8 + (j / 8)) * 128]
+                = palette.data[smw.levels[current_level].sprite_map8.tiles[i].pixels[j]];
+        }
+    }
+
+
+    
     //Map16
     map16_pc_init(&map16_fg, &smw.levels[current_level].map16_fg);
     map16_pc_init(&map16_bg, &smw.levels[current_level].map16_bg);
@@ -214,6 +234,14 @@ void main_loop() {
                      ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
 
         ImGui::Image(palette_tex_id, ImVec2(256, 256));
+        ImGui::End();
+    }
+
+    {
+        ImGui::Begin("Sprite Map8 Window", &show_map8_window,
+                     ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
+        
+        ImGui::Image(sprite_map8_tex_id, ImVec2(128, 256));
         ImGui::End();
     }
 
@@ -340,6 +368,41 @@ void main_loop() {
                 draw_list->PopTextureID();
             }
 
+            { // Sprites
+                draw_list->PushTextureID(sprite_map8_tex_id);
+                for(int i = 0; i < smw.levels[current_level].sprites.length; i++) {
+                    int num_tiles = smw.levels[current_level].sprites.data[i].num_tiles;
+                    draw_list->PrimReserve(num_tiles * 6, num_tiles * 4);
+                    for(int j = 0; j < num_tiles; j++) {
+                        sprite_tile_t* tile = &smw.levels[current_level].sprites.data[i].tiles[j];
+                        
+                        ImVec2 a = ImVec2(tile->x + canvas_pos.x, tile->y + canvas_pos.y);
+                        ImVec2 b = ImVec2(a.x + 8.0f, a.y + 8.0f);
+                        uint16_t tile_num = tile->tile_num;
+                        ImVec2 uv0, uv1;
+                        if(tile->flip_x) {
+                            if(tile->flip_y) {
+                                uv0 = ImVec2((float)((tile_num & 0x00F)) * 0.0625f, (float)((tile_num & 0xFF0) >> 4) * 0.03125);
+                                uv1 = ImVec2(uv0.x + 0.0625f, uv0.y + 0.03125f);
+                            } else {
+                                uv0 = ImVec2((float)((tile_num & 0x00F)) * 0.0625f, (float)((tile_num & 0xFF0) >> 4) * 0.03125);
+                                uv1 = ImVec2(uv0.x + 0.0625f, uv0.y + 0.03125f);
+                            }
+                        } else {
+                            if(tile->flip_y) {
+                                uv0 = ImVec2((float)((tile_num & 0x00F)) * 0.0625f, (float)((tile_num & 0xFF0) >> 4) * 0.03125);
+                                uv1 = ImVec2(uv0.x + 0.0625f, uv0.y + 0.03125f);
+                            } else {
+                                uv0 = ImVec2((float)((tile_num & 0x00F)) * 0.0625f, (float)((tile_num & 0xFF0) >> 4) * 0.03125);
+                                uv1 = ImVec2(uv0.x + 0.0625f, uv0.y + 0.03125f);
+                            }
+                        }                            
+                        draw_list->PrimRectUV(a, b, uv0, uv1, 0xFFFFFFFF);
+                    }
+                }
+                draw_list->PopTextureID();
+            }
+
             if(ImGui::IsWindowFocused()) {
                 if(ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_PageUp))) {
                     if(current_level < 0x1FF) current_level++;
@@ -354,7 +417,6 @@ void main_loop() {
                     }
                 }
 
-
                 if(ImGui::IsMouseHoveringWindow() && ImGui::GetIO().MouseClicked[0]) {
                     if(hot_index != INT_MAX) {
                         selected_index = hot_index;
@@ -362,9 +424,9 @@ void main_loop() {
                         selected_index_y = smw.levels[current_level].layer1_objects.objects[selected_index].y;
                     } else {
                         selected_index = INT_MAX;
-                        
                     }
                 }
+                
                 if(ImGui::IsMouseHoveringWindow() && ImGui::IsMouseDragging(0) && selected_index != INT_MAX) {
                     ImVec2 delta = ImGui::GetMouseDragDelta();
                     int delta_x = floor(delta.x / 16.0 + 0.5);
@@ -416,10 +478,10 @@ void main_loop() {
         }
 
         {
-            // ImGui::Begin("Level Header");
+            ImGui::Begin("Levels");
             
 
-            // ImGui::End();
+            ImGui::End();
         }
     }
     smw_level_refresh(&smw, current_level);
@@ -448,8 +510,8 @@ int main(int, char**) {
     SDL_GetCurrentDisplayMode(0, &current);
 
     int width = 1280;
-    int height = 720;
-    int is_fullscreen = 0;
+    int height = 1024;
+    int is_fullscreen = 1;
 #ifdef __EMSCRIPTEN__
     emscripten_get_canvas_size(&width, &height, &is_fullscreen);
 #endif
@@ -475,19 +537,16 @@ int main(int, char**) {
         rom.banks[i] = rom.data + i * rom.banksize - 0x8000;
     }
 #endif
-    smw_init_all(&smw, &rom);
-    //smw_level_load(&smw, current_level);
-
     gl_init_stuff();
 
     ImGuiStyle& style = ImGui::GetStyle();
     style.WindowRounding = 0.f;
     style.ChildWindowRounding = 0.f;
 
+    
+    smw_init(&smw, &rom);
+    smw_level_load(&smw, current_level);
 
-
-
-        
     // Main loop
 #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(main_loop, 0, 1);
