@@ -119,9 +119,9 @@ u32 SuperFastHash (string_t str);
     define_hashmap(name, type, fun, cmp)                                \
     implement_hashmap(name, type, fun, cmp)
 
-
-
+define_hashmap(string_map, string_t, SuperFastHash, string_equal);
 #ifdef BASE_HASH_IMPLEMENTATION
+implement_hashmap(string_map, string_t, SuperFastHash, string_equal);
 
 u32 SuperFastHash (string_t str) {
     u32 hash = str.length, tmp;
