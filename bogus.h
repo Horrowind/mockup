@@ -43,13 +43,13 @@ typedef struct {
 
 struct {
     string_t gcc_path;
-    string_t gpp_path;
+//    string_t gpp_path;
     string_t clang_path;
-    string_t clangpp_path;
+//    string_t clangpp_path;
     string_t emcc_path;
-    string_t empp_path;
+    /* string_t empp_path; */
     string_t mxe_gcc_path;
-    string_t mxe_gpp_path;
+//    string_t mxe_gpp_path;
     string_t ar_path;
     string_t mxe_ar_path;
 } tool_paths;
@@ -59,10 +59,10 @@ typedef enum {
         compiler_clang,
         compiler_mxe_gcc,
         compiler_emcc,
-        compiler_gpp,
-        compiler_clangpp,
-        compiler_mxe_gpp,
-        compiler_empp
+//        compiler_gpp,
+//        compiler_clangpp,
+//        compiler_mxe_gpp,
+        /* compiler_empp */
 } compiler_t;
 
 typedef struct {
@@ -140,13 +140,13 @@ time_t get_file_time(string_t path) {
 
 void init() {
     strncpy(tool_paths.gcc_path, "/usr/bin/gcc -Wl,-fuse-ld=gold", PATH_MAX);
-    strncpy(tool_paths.gpp_path, "/usr/bin/g++", PATH_MAX);
+//    strncpy(tool_paths.gpp_path, "/usr/bin/g++", PATH_MAX);
     strncpy(tool_paths.clang_path, "/usr/bin/clang", PATH_MAX);
-    strncpy(tool_paths.clangpp_path, "/usr/bin/clang++", PATH_MAX);
+//    strncpy(tool_paths.clangpp_path, "/usr/bin/clang++", PATH_MAX);
     strncpy(tool_paths.emcc_path, "/home/horrowind/Projects/emscripten/emscripten/master/emcc", PATH_MAX);
-    strncpy(tool_paths.empp_path, "/home/horrowind/Projects/emscripten/emscripten/master/em++", PATH_MAX);
+    /* strncpy(tool_paths.empp_path, "/home/horrowind/Projects/emscripten/emscripten/master/em++", PATH_MAX); */
     strncpy(tool_paths.mxe_gcc_path, "/home/horrowind/Projects/mxe/usr/bin/i686-w64-mingw32.static-gcc", PATH_MAX);
-    strncpy(tool_paths.mxe_gpp_path, "/home/horrowind/Projects/mxe/usr/bin/i686-w64-mingw32.static-g++", PATH_MAX);
+//    strncpy(tool_paths.mxe_gpp_path, "/home/horrowind/Projects/mxe/usr/bin/i686-w64-mingw32.static-g++", PATH_MAX);
     strncpy(tool_paths.ar_path, "/usr/bin/ar", PATH_MAX);
     strncpy(tool_paths.mxe_ar_path, "/home/horrowind/Projects/mxe/usr/bin/i686-w64-mingw32.static-ar", PATH_MAX);
 
@@ -342,15 +342,17 @@ object_t compile(string_t source, compiler_options_t options, string_t build_dir
             strcat(object.build_cmd, tool_paths.mxe_gcc_path);
         } else if (options.compiler == compiler_emcc){
             strcat(object.build_cmd, tool_paths.emcc_path);
-        } else if(options.compiler == compiler_gpp) {
-            strcat(object.build_cmd, tool_paths.gpp_path);
-        } else if(options.compiler == compiler_clangpp) {
-            strcat(object.build_cmd, tool_paths.clangpp_path);
-        } else if(options.compiler == compiler_mxe_gpp) {
-            strcat(object.build_cmd, tool_paths.mxe_gpp_path);
+        /* } else if(options.compiler == compiler_gpp) { */
+        /*     strcat(object.build_cmd, tool_paths.gpp_path); */
+        /* } else if(options.compiler == compiler_clangpp) { */
+        /*     strcat(object.build_cmd, tool_paths.clangpp_path); */
+        /* } else if(options.compiler == compiler_mxe_gpp) { */
+        /*     strcat(object.build_cmd, tool_paths.mxe_gpp_path); */
+        /* } else { */
+        /*     assert(options.compiler == compiler_empp); */
+        /*     strcat(object.build_cmd, tool_paths.empp_path); */
         } else {
-            assert(options.compiler == compiler_empp);
-            strcat(object.build_cmd, tool_paths.empp_path);
+            assert(0 && "Unspecified compiler");
         }
 
         assert(options.optimization_level >= 0 && options.optimization_level <= 3);
@@ -374,9 +376,15 @@ object_t compile(string_t source, compiler_options_t options, string_t build_dir
 
         time_t newest_source_time = get_file_time(source);
         time_t object_time = get_file_time(object.file);
-        //printf("%s\n", object.check_cmd);
+
+        //fprintf(stderr, "%s\n", object.check_cmd);
         FILE* fp = popen(object.check_cmd, "r");
-        while(fgetc(fp) != ':') { };
+        while(fgetc(fp) != ':') {
+            if(feof(fp)) {
+                fprintf(stderr, "Error while checking dependencies. Command \n%s\n could not be executed.\n", object.check_cmd);
+                exit(1);
+            }
+        };
         while(!feof(fp)) {
             string_t tmp;
             fscanf(fp, "%s", tmp);
@@ -425,13 +433,13 @@ int build(target_t* target, string_t build_dir) {
         } else {
             assert(target->type == target_type_executable);
             if(target->platform == platform_linux) {
-                strncat(build_cmd, tool_paths.gpp_path, PATH_MAX);
+                strncat(build_cmd, tool_paths.gcc_path, PATH_MAX);
             } else if(target->platform == platform_windows) {
-                strncat(build_cmd, tool_paths.mxe_gpp_path, PATH_MAX);
+                strncat(build_cmd, tool_paths.mxe_gcc_path, PATH_MAX);
             } else {
-                strncat(build_cmd, tool_paths.empp_path, PATH_MAX);
+                strncat(build_cmd, tool_paths.emcc_path, PATH_MAX);
                 strncat(build_cmd, " -O3", PATH_MAX);
-                strncat(build_cmd, " -g3 -s USE_SDL=2", PATH_MAX);
+                strncat(build_cmd, " -g3 -s USE_GLFW=3", PATH_MAX);
             }
             strcat(build_cmd, " -o ");
             if(target->platform == platform_web) {

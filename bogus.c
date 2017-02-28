@@ -10,11 +10,16 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-int target_platform;
+//int target_platform;
+enum {
+	TARGET_LINUX,
+	TARGET_WINDOWS,
+	TARGET_WEB,
+} target_platform;
 
-void build_mockup_imgui() {
-    compiler_options_t c_options, cpp_options;
-    target_t mockup_imgui = target_init("imockup", target_type_executable);
+void build_mockup() {
+    compiler_options_t c_options;
+    target_t mockup = target_init("imockup", target_type_executable);
     target_t mockup_light = target_init("lmockup", target_type_executable);
     string_t build_dir;
     target_t libr65816;
@@ -34,18 +39,6 @@ void build_mockup_imgui() {
         "lib/r65816"
     };
     
-    string_t imgui_sources[] = {
-        "lib/imgui/imgui_impl_sdl_opengl.cpp",
-        "lib/imgui/imgui.cpp",
-        "lib/imgui/imgui_demo.cpp",
-        "lib/imgui/imgui_draw.cpp"
-    };
-    string_t imgui_includes[] = {
-        "/usr/include/SDL2",
-        "lib/imgui"
-    };
-    object_t imgui_objects[array_length(imgui_sources)];
-
     string_t mockup_light_includes[] = {
         "lib/r65816/include/",
         "lib/mockup/"
@@ -56,63 +49,58 @@ void build_mockup_imgui() {
     string_t main_libraries[] = {
         "GLEW",
         "GL",
-        "SDL2"
+        "glfw"
     };
 
     string_t main_library_paths[] = {
         "/usr/lib/x86_64-linux-gnu",
     };
 
-    string_t main_source = "app/mockup/main.cpp";
+    string_t main_sources[] = {
+        "app/mockup/main.c",
+        "app/mockup/nuklear.c"
+    };
+    object_t main_objects[array_length(main_sources)];;
     string_t main_includes[] = {
-        "/usr/include/SDL2",
+        "",
         "lib/base",
-        "lib/imgui",
         "lib/r65816",
         "lib/mockup"
     };
-    object_t main_object;
 
-    int optimization_level = 3;
-    if(target_platform == 1) {
+    int optimization_level = 1;
+    if(target_platform == TARGET_LINUX) {
         c_options = compiler_options_init(compiler_gcc, optimization_level);
-        cpp_options = compiler_options_init(compiler_gpp, optimization_level);
         
-        mockup_imgui.platform = platform_linux;
+        mockup.platform = platform_linux;
         mockup_light.platform = platform_linux;
         strcpy(build_dir, "build/linux/");
-    } else if(target_platform == 2) {
-        string_t mxe_path = "/home/horrowind/Projects/mxe/usr/i686-w64-mingw32.static";
+    } else if(target_platform == TARGET_WINDOWS) {
+        string_t mxe_path = "/home/horrowind/Projects/mxe/usr/i686-w64-mingw32.static/include";
         c_options = compiler_options_init(compiler_mxe_gcc, optimization_level);
-        cpp_options = compiler_options_init(compiler_mxe_gpp, optimization_level);
-        mockup_imgui.platform = platform_windows;
+        mockup.platform = platform_windows;
         mockup_light.platform = platform_windows;
-        strcpy(imgui_includes[0], mxe_path);
-        strcat(imgui_includes[0], "/include/SDL2");
         strcpy(main_includes[0], mxe_path);
-        strcat(main_includes[0], "/include/SDL2");
-        strcpy(main_libraries[0], "glew32");
+        strcpy(main_libraries[0], "glew32 -lglfw3");
         strcpy(main_libraries[1], "opengl32 ");
-        strcpy(main_libraries[2], "SDL2 -lSDL2main");
-        strcpy(main_libraries[2], "mingw32 -lSDL2main -lSDL2 -mwindows -Wl,--no-undefined -lm -ldinput8 -ldxguid -ldxerr8 -luser32 -lgdi32 -lwinmm -limm32 -lole32 -loleaut32 -lshell32 -lversion -luuid -static-libgcc");
+        strcpy(main_libraries[2], "mingw32 -mwindows -Wl,--no-undefined -lm -ldinput8 -ldxguid -ldxerr8 -luser32 -lgdi32 -lwinmm -limm32 -lole32 -loleaut32 -lshell32 -lversion -luuid -static-libgcc");
         strcpy(main_library_paths[0], "/home/horrowind/Projects/mxe/usr/i686-w64-mingw32.static/lib");
-        compiler_options_set_flags(&cpp_options, "-Dmain=SDL_main");
         strcpy(build_dir, "build/windows/");
-    } else if(target_platform == 3) {
+    } else if(target_platform == TARGET_WEB) {
         c_options = compiler_options_init(compiler_emcc, optimization_level);
-        cpp_options = compiler_options_init(compiler_empp, optimization_level);
-        mockup_imgui.platform = platform_web;
+        mockup.platform = platform_web;
         mockup_light.platform = platform_web;
-        strcpy(imgui_sources[0], "lib/imgui/imgui_impl_sdl_opengles.cpp");
         strcpy(build_dir, "build/web/");
-        //target_set_flags(&mockup_imgui, " -s TOTAL_MEMORY=67108864 --preload-file build@/smw.sfc");
+        //target_set_flags(&mockup, " -s TOTAL_MEMORY=67108864 --preload-file build@/smw.sfc");
         target_set_flags(&mockup_light, " -s TOTAL_MEMORY=67108864 -s USE_CLOSURE_COMPILER=1 -s EMULATED_FUNCTION_POINTERS=1 -s OUTLINING_LIMIT=20000");
-        target_set_flags(&mockup_imgui, " -s TOTAL_MEMORY=67108864 -s USE_CLOSURE_COMPILER=1 -s EMULATED_FUNCTION_POINTERS=1 -s OUTLINING_LIMIT=20000");
+        target_set_flags(&mockup, " -s TOTAL_MEMORY=67108864 -s USE_CLOSURE_COMPILER=1 -s EMULATED_FUNCTION_POINTERS=1 -s OUTLINING_LIMIT=20000");
+    } else {
+	assert(0 && "Unsupported Platform");
     }
     compiler_options_set_flags(&c_options, "-g -Wall -Werror");
-    compiler_options_set_flags(&cpp_options, "-g -Werror");
     { // libr65816
-        compiler_options_t c_options2 = c_options; 
+        compiler_options_t c_options2 = c_options;
+        c_options2.optimization_level = 3;
         compiler_options_add_include(&c_options2, libr65816_include);
         string_t build_obj_dir;
         strcpy(build_obj_dir, build_dir);
@@ -145,33 +133,23 @@ void build_mockup_imgui() {
     target_add_objects(&mockup_light, libmockup_objects, array_length(libmockup_objects));
     build(&mockup_light, build_dir);
     
-    { // imgui
-        compiler_options_t cpp_options2 = cpp_options;
-        compiler_options_add_includes(&cpp_options2, imgui_includes, array_length(imgui_includes));
-        string_t build_obj_dir;
-        strcpy(build_obj_dir, build_dir);
-        strcat(build_obj_dir, "libimgui");
-        compile_many(imgui_objects, imgui_sources, array_length(imgui_sources), cpp_options2, build_obj_dir);
-    }
-   
     { // main
-        compiler_options_t cpp_options2 = cpp_options;
-        compiler_options_add_includes(&cpp_options2, main_includes, array_length(main_includes));
+        compiler_options_t c_options2 = c_options;
+        compiler_options_add_includes(&c_options2, main_includes, array_length(main_includes));
         string_t build_obj_dir;
         strcpy(build_obj_dir, build_dir);
-        strcat(build_obj_dir, "mockup_imgui");
-        main_object = compile("app/mockup/main.cpp", cpp_options2, build_obj_dir);
+        strcat(build_obj_dir, "mockup");
+        compile_many(main_objects, main_sources, array_length(main_sources), c_options2, build_obj_dir);
     }
 
 
     
-    target_add_object(&mockup_imgui, main_object);
-    target_add_objects(&mockup_imgui, libr65816_objects, array_length(libr65816_sources));
-    target_add_objects(&mockup_imgui, libmockup_objects, array_length(libmockup_sources));
-    target_add_objects(&mockup_imgui, imgui_objects, array_length(imgui_sources));
-    target_add_libraries(&mockup_imgui, main_libraries, array_length(main_libraries));
-    target_add_library_paths(&mockup_imgui, main_library_paths, array_length(main_library_paths));
-    build(&mockup_imgui, build_dir);
+    target_add_objects(&mockup, main_objects, array_length(main_objects));
+    target_add_objects(&mockup, libr65816_objects, array_length(libr65816_sources));
+    target_add_objects(&mockup, libmockup_objects, array_length(libmockup_sources));
+    target_add_library_paths(&mockup, main_library_paths, array_length(main_library_paths));
+    target_add_libraries(&mockup, main_libraries, array_length(main_libraries));
+    build(&mockup, build_dir);
 }
 
 int perform_upload() {
@@ -243,16 +221,16 @@ int main(int argc, char** argv) {
     if(tp == 0) tp = 1;
     
     if(tp & 1) {
-        target_platform = 1;
-        build_mockup_imgui();
+        target_platform = TARGET_LINUX;
+        build_mockup();
     }
     if(tp & 2) {
-        target_platform = 2;
-        build_mockup_imgui();
+        target_platform = TARGET_WINDOWS;
+        build_mockup();
     }
     if(tp & 4) {
-        target_platform = 3;
-        build_mockup_imgui();
+        target_platform = TARGET_WEB;
+        build_mockup();
     }
     if(tp & 8) {
         perform_upload();
