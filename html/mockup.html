@@ -19,8 +19,8 @@
       .fill {
         position: absolute;
         bottom: 0px;
-        top: 70px;
-        height: calc(100% - 70px);
+        top: 0px;
+        height: calc(100% - 0px);
         width: 100%;
         overflow:auto;
       }
@@ -62,16 +62,17 @@
     </style>
   </head>
   <body>
-    <span id='controls'>
       <span>
 	    <input type="file" id="files" style="display:none"/>
       </span>
+<!--
+    <span id='controls'>
       <span><input type="checkbox" id="resize">Resize canvas</span>
       <span><input type="checkbox" id="pointerLock" checked>Lock/hide mouse pointer &nbsp;&nbsp;&nbsp;</span>
       <span><input type="button" value="Fullscreen" onclick="Module.requestFullScreen(document.getElementById('pointerLock').checked, 
                                                                             document.getElementById('resize').checked)">
-      </span>
-    </span>
+      </span> 
+    </span>-->
 
     <div class="emscripten">
       <progress value="0" max="100" id="progress"></progress>
@@ -152,7 +153,7 @@
           var reader = new FileReader();
           reader.onload = (function(e) {
               smw_file = e.target.result;
-              (function() {
+              /*(function() {
                   var memoryInitializer = 'imockup.html.mem';
                   if (typeof Module['locateFile'] === 'function') {
                       memoryInitializer = Module['locateFile'](memoryInitializer);
@@ -163,7 +164,7 @@
                   xhr.open('GET', memoryInitializer, true);
                   xhr.responseType = 'arraybuffer';
                   xhr.send(null);
-              })();
+              })();*/
               
               var script = document.createElement('script');
               script.src = "imockup.js";
