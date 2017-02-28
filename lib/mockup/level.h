@@ -46,7 +46,7 @@ typedef struct {
     u8 y2         : 1;
     u8 x          : 4;
     u8 screen2    : 4;
-    u8 enemy;
+    u8 number;
 } sprite_t;
 
 typedef struct {
@@ -61,7 +61,7 @@ typedef struct {
 
 typedef struct {
     int x, y;
-    u8 enemy;
+    u8 number;
     u8 extra_bits;
     int num_tiles;
     sprite_tile_t* tiles;   

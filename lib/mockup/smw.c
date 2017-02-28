@@ -1,6 +1,9 @@
 #include <assert.h>
 #include "smw.h"
 #include "addresses.h"
+#include "misc.h"
+
+#include "dump.c"
 
 void smw_init(smw_t* smw, r65816_rom_t* rom) {
     smw->rom = rom;
@@ -513,6 +516,7 @@ void smw_level_load(smw_t* smw, u16 level_num) {
         
         // --- sprites init -----
         {
+            
             int number_sprites = 0;
             u8 low  = rom->data[0x02EC00 + 2 * level_num]; 
             u8 high = rom->data[0x02EC01 + 2 * level_num];
@@ -531,14 +535,19 @@ void smw_level_load(smw_t* smw, u16 level_num) {
                 cpu.ram[0x66] = rom->data[0x02E001 + 3 * level_num];
                 cpu.ram[0x67] = rom->data[0x02E002 + 3 * level_num];
 
-                cpu.ram[0xD1] = cpu.ram[0x94] = 0x00; // player x position
-                cpu.ram[0xD2] = cpu.ram[0x95] = 0x00;
-                cpu.ram[0xD3] = cpu.ram[0x96] = 0x40; // player y position
-                cpu.ram[0xD4] = cpu.ram[0x97] = 0x01;
-                cpu.ram[0x15EA] = 0x30;
-
+                int screen = (rom->data[level_sprite_data_addr_pc + 3*number_sprites + 1] & 0x2) << 3;
+                screen |= rom->data[level_sprite_data_addr_pc + 3*number_sprites + 2] & 0xF;
+                sprite->x = (screen << 4) | ((rom->data[level_sprite_data_addr_pc + 3*number_sprites + 2] & 0xF0) >> 4);
+                sprite->y = rom->data[level_sprite_data_addr_pc + 3*number_sprites + 1] & 0xF1;
+                sprite->y = ((sprite->y & 0xF0) >> 4) | ((sprite->y & 0x01) << 4);
+                sprite->number = rom->data[level_sprite_data_addr_pc + 3*number_sprites + 3];
+                sprite->extra_bits = (rom->data[level_sprite_data_addr_pc + 3*number_sprites + 1] & 0x0C) >> 2;
+                sprite->tiles = 0;
+                
+                // Clear sprite tables
                 for(int i = 0x0; i < 12; i++) {
                     cpu.ram[0x009E + i] = 0;
+                    cpu.ram[0x14C8 + i] = 0;
                     cpu.ram[0x1FE2 + i] = 0;
                     cpu.ram[0x1656 + i] = 0;
                     cpu.ram[0x1662 + i] = 0;
@@ -549,21 +558,25 @@ void smw_level_load(smw_t* smw, u16 level_num) {
                     cpu.ram[0x190F + i] = 0;
                 }
 
-                //Sets RAM 0x01 to the screen number of the sprite.
-                int screen = (rom->data[level_sprite_data_addr_pc + 3*number_sprites + 1] & 0x2) << 3;
-                screen |= rom->data[level_sprite_data_addr_pc + 3*number_sprites + 2] & 0xF;
-                sprite->x = (screen << 4) | ((rom->data[level_sprite_data_addr_pc + 3*number_sprites + 2] & 0xF0) >> 4);
-                sprite->y = rom->data[level_sprite_data_addr_pc + 3*number_sprites + 2] & 0xF1;
-                sprite->y = ((sprite->y & 0xF0) >> 4) | ((sprite->y & 0x01) << 4);
-                sprite->enemy = rom->data[level_sprite_data_addr_pc + 3*number_sprites + 3];
-                sprite->extra_bits = (rom->data[level_sprite_data_addr_pc + 3*number_sprites + 1] & 0x0C) >> 2;
-                sprite->tiles = 0;
-                cpu.ram[0x1a] = 0;//(sprite->x << 4) & 0xFF;
-                cpu.ram[0x1b] = 0;//((sprite->x) & 0xFF0) >> 4;
-                cpu.ram[0x1c] = 0xc0;
-                cpu.ram[0x1d] = 0x00;
+                // Camera
+                cpu.ram[0x1a] = ((sprite->x - 8) << 4) & 0xFF;
+                cpu.ram[0x1b] = ((sprite->x - 8) >> 4) & 0xFF;
+                cpu.ram[0x1c] = ((sprite->y - 4) << 4) & 0xFF;
+                cpu.ram[0x1d] = ((sprite->y - 4) >> 4) & 0xFF;
 
-                cpu.ram[0x14] = 0x01; // set frame counter to something fancy.
+                // Mario
+                cpu.ram[0xD1] = cpu.ram[0x94] = ((sprite->x - 4) << 4) & 0xFF; //0x00; // player x position
+                cpu.ram[0xD2] = cpu.ram[0x95] = ((sprite->x - 4) >> 4) & 0xFF; //0x00;
+                cpu.ram[0xD3] = cpu.ram[0x96] = ((sprite->y - 4) << 4) & 0xFF; //0x40; // player y position
+                cpu.ram[0xD4] = cpu.ram[0x97] = ((sprite->y - 4) >> 4) & 0xFF; //0x01;
+                /* cpu.ram[0xD1] = cpu.ram[0x94] = 0x00; // player x position */
+                /* cpu.ram[0xD2] = cpu.ram[0x95] = 0x00; */
+                /* cpu.ram[0xD3] = cpu.ram[0x96] = 0x40; // player y position */
+                /* cpu.ram[0xD4] = cpu.ram[0x97] = 0x01; */
+                cpu.ram[0x15EA] = 0x30;
+
+                // set frame counter to something fancy.
+                cpu.ram[0x14] = 0x01; 
                 cpu.ram[0x13] = 0x01;
             
                 //Create a new sprite list in scratch ram with one sprite in it.
@@ -571,44 +584,59 @@ void smw_level_load(smw_t* smw, u16 level_num) {
                 cpu.ram[0xCF] = 0x9c;
                 cpu.ram[0xD0] = 0x7f;
 
+                
                 //Copy sprite to scratch ram
                 cpu.ram[0x19c7b] = rom->data[level_sprite_data_addr_pc];
                 cpu.ram[0x19c7c] = rom->data[level_sprite_data_addr_pc + 3*number_sprites + 1];
-                cpu.ram[0x19c7d] = rom->data[level_sprite_data_addr_pc + 3*number_sprites + 2] & 0xF0;
+                cpu.ram[0x19c7d] = rom->data[level_sprite_data_addr_pc + 3*number_sprites + 2];
                 cpu.ram[0x19c7e] = rom->data[level_sprite_data_addr_pc + 3*number_sprites + 3];
                 cpu.ram[0x19c7f] = 0xff;
 
                 cpu.regs.p.b = 0x30;
-                r65816_cpu_run_jsl(&cpu, 0x2a751);
-                int spriteindex;                        
+                //r65816_cpu_run_jsl(&cpu, 0x2a751); //Todo: Test routine 0x2AC5C!
+                /* r65816_cpu_run_jsr(&cpu, 0x2A8DD); //Todo: Test routine 0x2AC5C! */
+                /* r65816_cpu_run_jsr(&cpu, 0x2AC5C); */
+                //r65816_cpu_run_jsr(&cpu, 0x18172);
+                //r65816_cpu_add_exec_bp(&cpu, 0x0185C3);
+                //memcpy(cpu.ram, mem_dump, 0x8000);
+                r65816_cpu_run_jsl(&cpu, 0x2A751); //Todo: Test routine 0x2AC5C!
+                /*                                    // kaizoman: for the record I found where the spawn region is */
+                /*                                    //           decided for level load, if that helps */
+                /*                                    // kaizoman: routine at $02AC5C; by default it's 6 tiles left/above */
+                /*                                    //           the screen and x20 tiles right/down from there */
+
+                int spriteindex = 0;                        
                 for(int i = 0x0; i < 12; i++) {
-                    if(cpu.ram[i + 0x9E] != 0) cpu.regs.x.w = spriteindex = i;
+                    if(cpu.ram[i + 0x9E] != 0) {
+                        //printf("Sprite index was %i is %i\n", spriteindex, i);
+                        cpu.regs.x.w = spriteindex = i;
+                    }
                     //cpu.ram[0x163E + i] = 0x1;
                     cpu.ram[0x1FE2 + i] = 0;
                 }
 
+                /* printf("Sprite: type: %30s, x: %i, y: %i\n", */
+                /*        sprite_names[cpu.ram[spriteindex + 0x9E]], */
+                /*        cpu.ram[spriteindex + 0xE4] | (cpu.ram[spriteindex + 0x14D4] << 8), */
+                /*        cpu.ram[spriteindex + 0xD8] | (cpu.ram[spriteindex + 0x14D4] << 8)); */
+
                 cpu.regs.db = 1;
+                //r65816_cpu_run_jsr(&cpu, 0x018172);
                 r65816_cpu_run_jsr(&cpu, 0x0185C3);
-                cpu.ram[0x1a] = (sprite->x << 4) & 0xFF;
-                cpu.ram[0x1b] = screen;
+                r65816_cpu_run_jsr(&cpu, 0x0185C3);
+                cpu.ram[0x1a] = ((sprite->x - 8) << 4) & 0xFF;
+                cpu.ram[0x1b] = ((sprite->x - 8) >> 4);
+                cpu.ram[0x1c] = ((sprite->y - 4) << 4) & 0xFF;
+                cpu.ram[0x1d] = ((sprite->y - 4) >> 4);
                 cpu.regs.db = 0;
                 pool_init(&sprite_tile_pool);
                 int number_tiles = 0;
-                for(int i = 0; i < 0x200; i+=4) {
-                    
+
+                for(int i = 0; i < 0x200; i += 4) {
                     if((cpu.ram[i + 0x200] | cpu.ram[i + 0x202] | cpu.ram[i + 0x203]) && (cpu.ram[i + 0x201] != 0xf0)) {
-                    
-                        u8 extrabits = (cpu.ram[(i / 4) + 0x400] >> (i % 4)) & 0x03;
-                        //Does not take $2101 into account
+                        u8 extrabits = cpu.ram[0x420 + i/4];
+                        //@NOTE: Does not take $2101 into account
                         if(extrabits & 0x02) {
-                            sprite_tile_t* tile = (sprite_tile_t*)pool_alloc(&sprite_tile_pool, sizeof(sprite_tile_t));
-                            tile->flip_x = (cpu.ram[i + 0x203] & 0x40) && 1;
-                            tile->flip_y = (cpu.ram[i + 0x203] & 0x80) && 1;
-                            tile->palette = 8 + ((cpu.ram[i + 0x203] >> 1) & 0x7);
-                            tile->tile_num = ((cpu.ram[i + 0x203] << 8) |  cpu.ram[i + 0x202]) & 0x1FF;
-                            tile->x = ((cpu.ram[0x1b] << 8) | cpu.ram[0x1a]) + cpu.ram[i + 0x200] - 9;
-                            tile->y = ((cpu.ram[0x1d] << 8) | cpu.ram[0x1c]) + cpu.ram[i + 0x201];
-                        } else {
                             sprite_tile_t* tiles = (sprite_tile_t*)pool_alloc(&sprite_tile_pool, 4 * sizeof(sprite_tile_t));
                             u8 flipx = cpu.ram[i + 0x203] & 0x40;
                             u8 flipy = cpu.ram[i + 0x203] & 0x80;
@@ -617,7 +645,7 @@ void smw_level_load(smw_t* smw, u16 level_num) {
                                 tiles[j].flip_x = (cpu.ram[i + 0x203] & 0x40) && 1;
                                 tiles[j].flip_y = (cpu.ram[i + 0x203] & 0x80) && 1;
                                 tiles[j].palette = 8 + ((cpu.ram[i + 0x203] >> 1) & 0x7);
-                                tiles[j].x = ((cpu.ram[0x1b] << 8) | cpu.ram[0x1a]) + cpu.ram[i + 0x200] - 9;
+                                tiles[j].x = ((cpu.ram[0x1b] << 8) | cpu.ram[0x1a]) + cpu.ram[i + 0x200];
                                 tiles[j].y = ((cpu.ram[0x1d] << 8) | cpu.ram[0x1c]) + cpu.ram[i + 0x201];
                             }
                             tiles[1].x += 8;
@@ -629,33 +657,60 @@ void smw_level_load(smw_t* smw, u16 level_num) {
 
                             if(flipx) {
                                 if(flipy) {
-                                    tiles[0].tile_num = number +17;
-                                    tiles[1].tile_num = number + 1;
-                                    tiles[2].tile_num = number +16;
-                                    tiles[3].tile_num = number + 0;
+                                    tiles[0].tile_num = (number + 17) & 0x1FF;
+                                    tiles[1].tile_num = (number + 16) & 0x1FF;
+                                    tiles[2].tile_num = (number +  1) & 0x1FF;
+                                    tiles[3].tile_num = (number +  0) & 0x1FF;
                                 } else {
-                                    tiles[0].tile_num = number + 1;
-                                    tiles[1].tile_num = number +17;
-                                    tiles[2].tile_num = number + 0;
-                                    tiles[3].tile_num = number +16;
+                                    tiles[0].tile_num = (number +  1) & 0x1FF;
+                                    tiles[1].tile_num = (number +  0) & 0x1FF;
+                                    tiles[2].tile_num = (number + 17) & 0x1FF;
+                                    tiles[3].tile_num = (number + 16) & 0x1FF;
                                 }
                             } else {
                                 if(flipy) {
-                                    tiles[0].tile_num = number +16;
-                                    tiles[1].tile_num = number + 0;
-                                    tiles[2].tile_num = number +17;
-                                    tiles[3].tile_num = number + 1;
+                                    tiles[0].tile_num = (number + 16) & 0x1FF;
+                                    tiles[1].tile_num = (number + 17) & 0x1FF;
+                                    tiles[2].tile_num = (number +  0) & 0x1FF;
+                                    tiles[3].tile_num = (number +  1) & 0x1FF;
                                 } else {
-                                    tiles[0].tile_num = number + 0;
-                                    tiles[1].tile_num = number +16;
-                                    tiles[2].tile_num = number + 1;
-                                    tiles[3].tile_num = number +17;
+                                    tiles[0].tile_num = (number +  0) & 0x1FF;
+                                    tiles[1].tile_num = (number +  1) & 0x1FF;
+                                    tiles[2].tile_num = (number + 16) & 0x1FF;
+                                    tiles[3].tile_num = (number + 17) & 0x1FF;
                                 }
                             }
+                            number_tiles += 4;
+                        } else {
+                            sprite_tile_t* tile = (sprite_tile_t*)pool_alloc(&sprite_tile_pool, sizeof(sprite_tile_t));
+                            tile->flip_x = (cpu.ram[i + 0x203] & 0x40) && 1;
+                            tile->flip_y = (cpu.ram[i + 0x203] & 0x80) && 1;
+                            tile->palette = 8 + ((cpu.ram[i + 0x203] >> 1) & 0x7);
+                            tile->tile_num = ((cpu.ram[i + 0x203] << 8) |  cpu.ram[i + 0x202]) & 0x1FF;
+                            tile->x = ((cpu.ram[0x1b] << 8) | cpu.ram[0x1a]) + cpu.ram[i + 0x200];
+                            tile->y = ((cpu.ram[0x1d] << 8) | cpu.ram[0x1c]) + cpu.ram[i + 0x201];
+                            number_tiles++;
                         }
-                        number_tiles++;
                     }
                 }
+
+                /* number_tiles += 2; */
+                /* sprite_tile_t* camera_tile = (sprite_tile_t*)pool_alloc(&sprite_tile_pool, sizeof(sprite_tile_t)); */
+                /* camera_tile->flip_x = camera_tile->flip_y = 0; */
+                /* camera_tile->palette = 6; */
+                /* camera_tile->tile_num = 0x2E; */
+                /* camera_tile->x = ((cpu.ram[0x1b] << 8) | cpu.ram[0x1a]); */
+                /* camera_tile->y = ((cpu.ram[0x1d] << 8) | cpu.ram[0x1c]); */
+
+                /* sprite_tile_t* sprite_tile = (sprite_tile_t*)pool_alloc(&sprite_tile_pool, sizeof(sprite_tile_t)); */
+                /* sprite_tile->flip_x = sprite_tile->flip_y = 0; */
+                /* sprite_tile->palette = 6; */
+                /* sprite_tile->tile_num = 0x3F; */
+                /* sprite_tile->x = sprite->x << 4; */
+                /* sprite_tile->y = sprite->y << 4; */
+                
+                
+                
                 sprite->tiles = malloc(sizeof(sprite_tile_t) * number_tiles);
                 sprite->num_tiles = number_tiles;
                 memcpy(sprite->tiles, sprite_tile_pool.data, sizeof(sprite_tile_t) * number_tiles);
