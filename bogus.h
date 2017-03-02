@@ -22,6 +22,7 @@ typedef struct {
     string_t file;
     string_t build_cmd;
     string_t check_cmd;
+    int result;
 } object_t;
 
 typedef struct {
@@ -310,7 +311,7 @@ void compiler_options_set_flags(compiler_options_t* options, string_t flags) {
 
 
 object_t compile(string_t source, compiler_options_t options, string_t build_dir) {
-    object_t object;
+    object_t object = { 0 };
     object.build_cmd[0] = '\0';
     object.check_cmd[0] = '\0';
     string_t filename = "";
@@ -394,7 +395,7 @@ object_t compile(string_t source, compiler_options_t options, string_t build_dir
         }
         if(newest_source_time > object_time) {
             printf("%s\n", object.build_cmd);
-            system2(object.build_cmd);
+            object.result = system2(object.build_cmd);
         }
     } else {
         printf("No such directory: %s\n", build_dir);
@@ -404,12 +405,11 @@ object_t compile(string_t source, compiler_options_t options, string_t build_dir
 
 
 int compile_many(object_t* objects, string_t* paths, int length, compiler_options_t options, string_t build_dir) {
-    int successful = 1;
     for(int i = 0; i < length; i++) {
         objects[i] = compile(paths[i], options, build_dir);
-        //if(objects[i].file[0] == '\0') successful = 0;
+        if(objects[i].result) return objects[i].result;
     }
-    return successful;
+    return 0;
 }
 
 int build(target_t* target, string_t build_dir) {
@@ -482,8 +482,9 @@ int build(target_t* target, string_t build_dir) {
                 strcat(build_cmd, target->file);
 
                 printf("%s\n", build_cmd);
-                return !system2(build_cmd);
+                return system2(build_cmd);
             }
+            return result;
         }
         return 0;
     }

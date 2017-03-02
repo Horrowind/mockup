@@ -1,4 +1,4 @@
-#define BUILD_CMD "gcc bogus.c -lcurl"
+#define BUILD_CMD "gcc bogus.c -g -lcurl"
 #define BOGUS_FILE_NAME __FILE__
 #define BOGUS_IMPLEMENTATION
 
@@ -17,7 +17,7 @@ enum {
 	TARGET_WEB,
 } target_platform;
 
-void build_mockup() {
+int build_mockup() {
     compiler_options_t c_options;
     target_t mockup = target_init("imockup", target_type_executable);
     target_t mockup_light = target_init("lmockup", target_type_executable);
@@ -106,7 +106,8 @@ void build_mockup() {
         strcpy(build_obj_dir, build_dir);
         strcat(build_obj_dir, "libr65816");
         
-        compile_many(libr65816_objects, libr65816_sources, array_length(libr65816_sources), c_options2, build_obj_dir);
+        int result = compile_many(libr65816_objects, libr65816_sources, array_length(libr65816_sources), c_options2, build_obj_dir);
+	if(result) return result;
     }
 
     { // libmockup
@@ -115,7 +116,8 @@ void build_mockup() {
         string_t build_obj_dir;
         strcpy(build_obj_dir, build_dir);
         strcat(build_obj_dir, "libmockup");
-        compile_many(libmockup_objects, libmockup_sources, array_length(libmockup_sources), c_options2, build_obj_dir);
+        int result = compile_many(libmockup_objects, libmockup_sources, array_length(libmockup_sources), c_options2, build_obj_dir);
+	if(result) return result;
     }
     
     { // mockup_light
@@ -126,20 +128,23 @@ void build_mockup() {
         strcpy(build_obj_dir, build_dir);
         strcat(build_obj_dir, "mockup_light");
         mockup_light_o = compile("app/mockup_light/main.c", c_options, build_obj_dir);
+	if(mockup_light_o.result) return mockup_light_o.result;
     }
 
     target_add_object(&mockup_light, mockup_light_o);
     target_add_objects(&mockup_light, libr65816_objects, array_length(libr65816_objects));
     target_add_objects(&mockup_light, libmockup_objects, array_length(libmockup_objects));
-    build(&mockup_light, build_dir);
-    
+    int result = build(&mockup_light, build_dir);
+    if(result) return result;
+
     { // main
         compiler_options_t c_options2 = c_options;
         compiler_options_add_includes(&c_options2, main_includes, array_length(main_includes));
         string_t build_obj_dir;
         strcpy(build_obj_dir, build_dir);
         strcat(build_obj_dir, "mockup");
-        compile_many(main_objects, main_sources, array_length(main_sources), c_options2, build_obj_dir);
+        int result = compile_many(main_objects, main_sources, array_length(main_sources), c_options2, build_obj_dir);
+	if(result) return result;
     }
 
 
@@ -149,7 +154,8 @@ void build_mockup() {
     target_add_objects(&mockup, libmockup_objects, array_length(libmockup_sources));
     target_add_library_paths(&mockup, main_library_paths, array_length(main_library_paths));
     target_add_libraries(&mockup, main_libraries, array_length(main_libraries));
-    build(&mockup, build_dir);
+    result = build(&mockup, build_dir);
+    return result;
 }
 
 int perform_upload() {
@@ -222,15 +228,18 @@ int main(int argc, char** argv) {
     
     if(tp & 1) {
         target_platform = TARGET_LINUX;
-        build_mockup();
+        int result = build_mockup();
+	if(result) return 1;
     }
     if(tp & 2) {
         target_platform = TARGET_WINDOWS;
-        build_mockup();
+        int result = build_mockup();
+	if(result) return 1;
     }
     if(tp & 4) {
         target_platform = TARGET_WEB;
-        build_mockup();
+        int result = build_mockup();
+	if(result) return 1;
     }
     if(tp & 8) {
         perform_upload();
