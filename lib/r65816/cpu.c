@@ -32,6 +32,9 @@ void r65816_cpu_init(r65816_cpu_t* cpu, r65816_rom_t* rom) {
     r65816_breakpoint_list_init(&cpu->breakpoints_write);
     r65816_cpu_clear(cpu);
     r65816_initialize_opcode_table();
+#ifdef DEBUG_PRINT_CPU_STATE
+    cpu->debug = 0;
+#endif
 }
 
 void r65816_cpu_free(r65816_cpu_t* cpu) {

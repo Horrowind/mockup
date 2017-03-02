@@ -1,4 +1,3 @@
-//#define DEBUG_PRINT_CPU_STATE
 
 #include "algorithms.c"
 #include "breakpoint.c"

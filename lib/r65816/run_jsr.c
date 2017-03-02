@@ -19,7 +19,7 @@
             goto *jump_table_mx[r65816_op_readpc(cpu)];     \
         }                                                   \
     }
-#ifdef DEBUG_65816
+#ifdef DEBUG_PRINT_CPU_STATE
 #define opcode(funname)                                                 \
     r65816_cpu_disassemble_opcode(cpu, output, cpu->regs.pc.d);         \
     printf("%s\n", output);                                             \

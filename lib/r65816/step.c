@@ -64,9 +64,11 @@
 
 void r65816_cpu_step(r65816_cpu_t* cpu) {
 #ifdef DEBUG_PRINT_CPU_STATE
-    char output[256];
-    r65816_cpu_disassemble_opcode(cpu, output, cpu->regs.pc.d);
-    printf("%s\n", output);
+    if(cpu->debug) {
+        char output[256];
+        r65816_cpu_disassemble_opcode(cpu, output, cpu->regs.pc.d);
+        printf("%s\n", output);
+    }
 #endif //DEBUG_PRINT_CPU_STATE
     
     static const void *jump_table_EM[] = {

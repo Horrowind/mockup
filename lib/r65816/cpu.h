@@ -1,6 +1,10 @@
 #ifndef R65816_CPU_H
 #define R65816_CPU_H
 
+#define DEBUG_PRINT_CPU_STATE
+
+
+
 #include <stdio.h>
 #include <string.h>
 
@@ -22,7 +26,9 @@ typedef struct cpu {
     u8 breakpoint_data;
     u8 stop_execution;
     u32 breakpoint_address;
-
+#ifdef DEBUG_PRINT_CPU_STATE
+    u32 debug;
+#endif
     void (**opcode_table)(struct cpu*);
     /* void (*op_table[5 * 256])(struct cpu*); */
     
