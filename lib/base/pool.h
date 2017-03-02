@@ -1,6 +1,7 @@
 #ifndef BASE_POOL_H
 #define BASE_POOL_H
 
+#include "assert.h"
 #include "stdlib.h"
 #include "datasizes.h"
 
@@ -23,6 +24,7 @@ void pool_deinit(pool_t* pool);
 #define BASE_POOL_IMPLEMENTATION_GUARD
 void pool_init(pool_t* pool) {
     pool->data   = malloc(512);
+    assert(pool->data);
     pool->length = 512;
     pool->fill   = 0;
 }
@@ -35,6 +37,7 @@ u8* pool_alloc(pool_t* pool, uint bytes) {
             pool->length <<= 2;
         }
         pool->data = realloc(pool->data, pool->length);
+        assert(pool->data);
     }
     
     return pool->data + oldfill;
