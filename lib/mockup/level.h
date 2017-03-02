@@ -60,11 +60,63 @@ typedef struct {
 } sprite_tile_t;
 
 typedef struct {
+    u8 entry_009E;
+    u8 entry_00AA;
+    u8 entry_00B6;
+    u8 entry_00C2;
+    u8 entry_00D8;
+    u8 entry_00E4;
+    u8 entry_14C8;
+    u8 entry_14D4;
+    u8 entry_14E0;
+    u8 entry_14EC;
+    u8 entry_14F8;
+    u8 entry_1504;
+    u8 entry_1510;
+    u8 entry_151C;
+    u8 entry_1528;
+    u8 entry_1534;
+    u8 entry_1540;
+    u8 entry_154C;
+    u8 entry_1558;
+    u8 entry_1564;
+    u8 entry_1570;
+    u8 entry_157C;
+    u8 entry_1588;
+    u8 entry_1594;
+    u8 entry_15A0;
+    u8 entry_15AC;
+    u8 entry_15B8;
+    u8 entry_15C4;
+    u8 entry_15D0;
+    u8 entry_15DC;
+    u8 entry_15EA;
+    u8 entry_15F6;
+    u8 entry_1602;
+    u8 entry_160E;
+    u8 entry_161A;
+    u8 entry_1626;
+    u8 entry_1632;
+    u8 entry_163E;
+    u8 entry_164A;
+    u8 entry_1656;
+    u8 entry_1662;
+    u8 entry_166E;
+    u8 entry_167A;
+    u8 entry_1686;
+    u8 entry_186C;
+    u8 entry_187B;
+    u8 entry_190F;
+    u8 entry_1FE2;
+} sprite_table_entries_t;
+
+typedef struct {
     int x, y;
     u8 number;
     u8 extra_bits;
     int num_tiles;
-    sprite_tile_t* tiles;   
+    sprite_tile_t* tiles;
+    sprite_table_entries_t table_entries;
 } sprite_pc_t;
 
 typedef struct {

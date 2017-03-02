@@ -3,8 +3,6 @@
 #include "addresses.h"
 #include "misc.h"
 
-#include "dump.c"
-
 void smw_init(smw_t* smw, r65816_rom_t* rom) {
     smw->rom = rom;
     gfx_store_init(&smw->gfx_pages, rom);
@@ -45,6 +43,113 @@ void smw_deinit_all(smw_t* smw) {
     }
     smw_deinit(smw);
 }
+
+
+sprite_table_entries_t smw_get_sprite_table_entries(u8* ram, int sprite_index) {
+    sprite_table_entries_t result;
+    result.entry_009E = ram[0x009E + sprite_index];
+    result.entry_00AA = ram[0x00AA + sprite_index];
+    result.entry_00B6 = ram[0x00B6 + sprite_index];
+    result.entry_00C2 = ram[0x00C2 + sprite_index];
+    result.entry_00D8 = ram[0x00D8 + sprite_index];
+    result.entry_00E4 = ram[0x00E4 + sprite_index];
+    result.entry_14C8 = ram[0x14C8 + sprite_index];
+    result.entry_14D4 = ram[0x14D4 + sprite_index];
+    result.entry_14E0 = ram[0x14E0 + sprite_index];
+    result.entry_14EC = ram[0x14EC + sprite_index];
+    result.entry_14F8 = ram[0x14F8 + sprite_index];
+    result.entry_1504 = ram[0x1504 + sprite_index];
+    result.entry_1510 = ram[0x1510 + sprite_index];
+    result.entry_151C = ram[0x151C + sprite_index];
+    result.entry_1528 = ram[0x1528 + sprite_index];
+    result.entry_1534 = ram[0x1534 + sprite_index];
+    result.entry_1540 = ram[0x1540 + sprite_index];
+    result.entry_154C = ram[0x154C + sprite_index];
+    result.entry_1558 = ram[0x1558 + sprite_index];
+    result.entry_1564 = ram[0x1564 + sprite_index];
+    result.entry_1570 = ram[0x1570 + sprite_index];
+    result.entry_157C = ram[0x157C + sprite_index];
+    result.entry_1588 = ram[0x1588 + sprite_index];
+    result.entry_1594 = ram[0x1594 + sprite_index];
+    result.entry_15A0 = ram[0x15A0 + sprite_index];
+    result.entry_15AC = ram[0x15AC + sprite_index];
+    result.entry_15B8 = ram[0x15B8 + sprite_index];
+    result.entry_15C4 = ram[0x15C4 + sprite_index];
+    result.entry_15D0 = ram[0x15D0 + sprite_index];
+    result.entry_15DC = ram[0x15DC + sprite_index];
+    result.entry_15EA = ram[0x15EA + sprite_index];
+    result.entry_15F6 = ram[0x15F6 + sprite_index];
+    result.entry_1602 = ram[0x1602 + sprite_index];
+    result.entry_160E = ram[0x160E + sprite_index];
+    result.entry_161A = ram[0x161A + sprite_index];
+    result.entry_1626 = ram[0x1626 + sprite_index];
+    result.entry_1632 = ram[0x1632 + sprite_index];
+    result.entry_163E = ram[0x163E + sprite_index];
+    result.entry_164A = ram[0x164A + sprite_index];
+    result.entry_1656 = ram[0x1656 + sprite_index];
+    result.entry_1662 = ram[0x1662 + sprite_index];
+    result.entry_166E = ram[0x166E + sprite_index];
+    result.entry_167A = ram[0x167A + sprite_index];
+    result.entry_1686 = ram[0x1686 + sprite_index];
+    result.entry_186C = ram[0x186C + sprite_index];
+    result.entry_187B = ram[0x187B + sprite_index];
+    result.entry_190F = ram[0x190F + sprite_index];
+    result.entry_1FE2 = ram[0x1FE2 + sprite_index];
+    return result;
+}
+
+void smw_set_sprite_table_entries(u8* ram, sprite_table_entries_t entries, int sprite_index) {
+    ram[0x009E + sprite_index] = entries.entry_009E;
+    ram[0x00AA + sprite_index] = entries.entry_00AA;
+    ram[0x00B6 + sprite_index] = entries.entry_00B6;
+    ram[0x00C2 + sprite_index] = entries.entry_00C2;
+    ram[0x00D8 + sprite_index] = entries.entry_00D8;
+    ram[0x00E4 + sprite_index] = entries.entry_00E4;
+    ram[0x14C8 + sprite_index] = entries.entry_14C8;
+    ram[0x14D4 + sprite_index] = entries.entry_14D4;
+    ram[0x14E0 + sprite_index] = entries.entry_14E0;
+    ram[0x14EC + sprite_index] = entries.entry_14EC;
+    ram[0x14F8 + sprite_index] = entries.entry_14F8;
+    ram[0x1504 + sprite_index] = entries.entry_1504;
+    ram[0x1510 + sprite_index] = entries.entry_1510;
+    ram[0x151C + sprite_index] = entries.entry_151C;
+    ram[0x1528 + sprite_index] = entries.entry_1528;
+    ram[0x1534 + sprite_index] = entries.entry_1534;
+    ram[0x1540 + sprite_index] = entries.entry_1540;
+    ram[0x154C + sprite_index] = entries.entry_154C;
+    ram[0x1558 + sprite_index] = entries.entry_1558;
+    ram[0x1564 + sprite_index] = entries.entry_1564;
+    ram[0x1570 + sprite_index] = entries.entry_1570;
+    ram[0x157C + sprite_index] = entries.entry_157C;
+    ram[0x1588 + sprite_index] = entries.entry_1588;
+    ram[0x1594 + sprite_index] = entries.entry_1594;
+    ram[0x15A0 + sprite_index] = entries.entry_15A0;
+    ram[0x15AC + sprite_index] = entries.entry_15AC;
+    ram[0x15B8 + sprite_index] = entries.entry_15B8;
+    ram[0x15C4 + sprite_index] = entries.entry_15C4;
+    ram[0x15D0 + sprite_index] = entries.entry_15D0;
+    ram[0x15DC + sprite_index] = entries.entry_15DC;
+    ram[0x15EA + sprite_index] = entries.entry_15EA;
+    ram[0x15F6 + sprite_index] = entries.entry_15F6;
+    ram[0x1602 + sprite_index] = entries.entry_1602;
+    ram[0x160E + sprite_index] = entries.entry_160E;
+    ram[0x161A + sprite_index] = entries.entry_161A;
+    ram[0x1626 + sprite_index] = entries.entry_1626;
+    ram[0x1632 + sprite_index] = entries.entry_1632;
+    ram[0x163E + sprite_index] = entries.entry_163E;
+    ram[0x164A + sprite_index] = entries.entry_164A;
+    ram[0x1656 + sprite_index] = entries.entry_1656;
+    ram[0x1662 + sprite_index] = entries.entry_1662;
+    ram[0x166E + sprite_index] = entries.entry_166E;
+    ram[0x167A + sprite_index] = entries.entry_167A;
+    ram[0x1686 + sprite_index] = entries.entry_1686;
+    ram[0x186C + sprite_index] = entries.entry_186C;
+    ram[0x187B + sprite_index] = entries.entry_187B;
+    ram[0x190F + sprite_index] = entries.entry_190F;
+    ram[0x1FE2 + sprite_index] = entries.entry_1FE2;
+}
+
+
 
 void smw_level_load(smw_t* smw, u16 level_num) {
     r65816_rom_t* rom = smw->rom;
@@ -173,16 +278,16 @@ void smw_level_load(smw_t* smw, u16 level_num) {
 
         { // --- sprite map8
             int num_tileset = cpu.ram[level_header_sprite_tileset_ram];
-            printf("num_tileset: %i\n", num_tileset);
+            /* printf("num_tileset: %i\n", num_tileset); */
             int tileset_addr = 0x0028C3 + num_tileset * 4; //TODO: No magic numbers
             u8 fg1 = rom->data[tileset_addr + 0];
             u8 fg2 = rom->data[tileset_addr + 1];
             u8 bg1 = rom->data[tileset_addr + 2];
             u8 fg3 = rom->data[tileset_addr + 3];
-            printf("fg1: %i\n", fg1);
-            printf("fg2: %i\n", fg2);
-            printf("bg1: %i\n", bg1);
-            printf("fg3: %i\n", fg3);
+            /* printf("fg1: %i\n", fg1); */
+            /* printf("fg2: %i\n", fg2); */
+            /* printf("bg1: %i\n", bg1); */
+            /* printf("fg3: %i\n", fg3); */
             if(fg1 >= gfx_pages.num_pages) return;
             if(fg2 >= gfx_pages.num_pages) return;
             if(bg1 >= gfx_pages.num_pages) return;
@@ -531,6 +636,17 @@ void smw_level_load(smw_t* smw, u16 level_num) {
             while(rom->data[level_sprite_data_addr_pc + 3*number_sprites + 1] != 0xFF) {
                 sprite_pc_t* sprite = (sprite_pc_t*)pool_alloc(&sprite_pool, sizeof(sprite_pc_t));
                 r65816_cpu_clear(&cpu);
+
+
+#if 0 //Test if a correct memory dump previous to running 0x2A751 helps (it does not)
+#include "mem_dump.h"
+                memcpy(cpu.ram, ram_dump, 0x2000);
+
+                // Clear OAM
+                for(int i = 0x200; i < 0x420; i++) {
+                    cpu.ram[i] = 0;
+                }
+#endif
                 cpu.ram[0x65] = rom->data[0x02E000 + 3 * level_num]; 
                 cpu.ram[0x66] = rom->data[0x02E001 + 3 * level_num];
                 cpu.ram[0x67] = rom->data[0x02E002 + 3 * level_num];
@@ -545,24 +661,18 @@ void smw_level_load(smw_t* smw, u16 level_num) {
                 sprite->tiles = 0;
                 
                 // Clear sprite tables
-                for(int i = 0x0; i < 12; i++) {
-                    cpu.ram[0x009E + i] = 0;
-                    cpu.ram[0x14C8 + i] = 0;
-                    cpu.ram[0x1FE2 + i] = 0;
-                    cpu.ram[0x1656 + i] = 0;
-                    cpu.ram[0x1662 + i] = 0;
-                    cpu.ram[0x166E + i] = 0;
-                    cpu.ram[0x15F6 + i] = 0;
-                    cpu.ram[0x167A + i] = 0;
-                    cpu.ram[0x1686 + i] = 0;
-                    cpu.ram[0x190F + i] = 0;
+                sprite_table_entries_t table_entries = { 0 };
+                for(int i = 0; i < 12; i++) {
+                    smw_set_sprite_table_entries(cpu.ram, table_entries, i);
                 }
-
                 // Camera
                 cpu.ram[0x1a] = ((sprite->x - 8) << 4) & 0xFF;
                 cpu.ram[0x1b] = ((sprite->x - 8) >> 4) & 0xFF;
                 cpu.ram[0x1c] = ((sprite->y - 4) << 4) & 0xFF;
                 cpu.ram[0x1d] = ((sprite->y - 4) >> 4) & 0xFF;
+
+                //printf("%02x %02x %02x %02x\n", cpu.ram[0x1A], cpu.ram[0x1B], cpu.ram[0x1C], cpu.ram[0x1D]);
+
 
                 // Mario
                 cpu.ram[0xD1] = cpu.ram[0x94] = ((sprite->x - 4) << 4) & 0xFF; //0x00; // player x position
@@ -576,9 +686,12 @@ void smw_level_load(smw_t* smw, u16 level_num) {
                 cpu.ram[0x15EA] = 0x30;
 
                 // set frame counter to something fancy.
-                cpu.ram[0x14] = 0x01; 
-                cpu.ram[0x13] = 0x01;
+                cpu.ram[0x14] = 0x00; 
+                cpu.ram[0x13] = 0x00;
             
+
+#if 1
+
                 //Create a new sprite list in scratch ram with one sprite in it.
                 cpu.ram[0xCE] = 0x7b;
                 cpu.ram[0xCF] = 0x9c;
@@ -598,36 +711,56 @@ void smw_level_load(smw_t* smw, u16 level_num) {
                 /* r65816_cpu_run_jsr(&cpu, 0x2AC5C); */
                 //r65816_cpu_run_jsr(&cpu, 0x18172);
                 //r65816_cpu_add_exec_bp(&cpu, 0x0185C3);
-                //memcpy(cpu.ram, mem_dump, 0x8000);
-                r65816_cpu_run_jsl(&cpu, 0x2A751); //Todo: Test routine 0x2AC5C!
+                //printf("%02x: %s\n", sprite->number, sprite_names[sprite->number]);
+                //cpu.debug = 1;
+                r65816_cpu_run_jsl(&cpu, 0x2A751);
+                //cpu.debug = 0;
                 /*                                    // kaizoman: for the record I found where the spawn region is */
                 /*                                    //           decided for level load, if that helps */
                 /*                                    // kaizoman: routine at $02AC5C; by default it's 6 tiles left/above */
                 /*                                    //           the screen and x20 tiles right/down from there */
 
-                int spriteindex = 0;                        
+                int sprite_index = 0;
                 for(int i = 0x0; i < 12; i++) {
                     if(cpu.ram[i + 0x9E] != 0) {
-                        //printf("Sprite index was %i is %i\n", spriteindex, i);
-                        cpu.regs.x.w = spriteindex = i;
+                        //printf("Sprite index was %i is %i\n", sprite_index, i);
+                        cpu.ram[0x15E9] = cpu.regs.x.w = sprite_index = i;
                     }
-                    //cpu.ram[0x163E + i] = 0x1;
-                    cpu.ram[0x1FE2 + i] = 0;
                 }
 
-                /* printf("Sprite: type: %30s, x: %i, y: %i\n", */
-                /*        sprite_names[cpu.ram[spriteindex + 0x9E]], */
-                /*        cpu.ram[spriteindex + 0xE4] | (cpu.ram[spriteindex + 0x14D4] << 8), */
-                /*        cpu.ram[spriteindex + 0xD8] | (cpu.ram[spriteindex + 0x14D4] << 8)); */
+                //printf("%02x: %s\n", sprite->number, sprite_names[sprite->number]);
+
+#else
+                int sprite_index = 9;
+                if(sprite->number < 0xC9) {
+                    cpu.ram[0x009E + sprite_index] = sprite->number;
+                    cpu.ram[0x00D8 + sprite_index] = (sprite->y << 4) & 0xFF;
+                    cpu.ram[0x00E4 + sprite_index] = (sprite->y << 4) & 0xFF;
+                    cpu.ram[0x14D4 + sprite_index] = (sprite->y >> 4) & 0xFF;
+                    cpu.ram[0x14E0 + sprite_index] = (sprite->x >> 4) & 0xFF;
+                    cpu.regs.p.b = 0x30;
+                    cpu.regs.x.w = sprite_index;
+                    //printf("%02x: %s\n", sprite->number, sprite_names[sprite->number]);
+                    cpu.debug = 1;
+                    r65816_cpu_run_jsr(&cpu, 0x018172);
+                    cpu.debug = 0;
+                }
+                
+#endif
+                
+                
+                cpu.ram[0x1FE2 + sprite_index] = 0;
+                //cpu.ram[0x009E + sprite_index] = 0xbd;
+                //cpu.ram[0x14C8 + sprite_index] = 0x9;
+                //cpu.ram[0x00B6 + sprite_index] = 0x1;
+                //cpu.ram[0x1602 + sprite_index] = 0x10;
+                sprite->table_entries = smw_get_sprite_table_entries(cpu.ram, sprite_index);
 
                 cpu.regs.db = 1;
-                //r65816_cpu_run_jsr(&cpu, 0x018172);
+                //cpu.debug = 1;
                 r65816_cpu_run_jsr(&cpu, 0x0185C3);
-                r65816_cpu_run_jsr(&cpu, 0x0185C3);
-                cpu.ram[0x1a] = ((sprite->x - 8) << 4) & 0xFF;
-                cpu.ram[0x1b] = ((sprite->x - 8) >> 4);
-                cpu.ram[0x1c] = ((sprite->y - 4) << 4) & 0xFF;
-                cpu.ram[0x1d] = ((sprite->y - 4) >> 4);
+                cpu.debug = 0;
+
                 cpu.regs.db = 0;
                 pool_init(&sprite_tile_pool);
                 int number_tiles = 0;
@@ -777,7 +910,7 @@ void smw_level_animate(smw_t* smw, u16 level_num, u8 frame) {
 	       
     for(int i = 0; i < 3; i++) {
         if(dest[i] == 0 || ((source[i] & 0xFF00) == 0xFF00)) continue;
-        if(dest[i] == 0x80) {                                              //See CODE_00A3DA
+        if(dest[i] == 0x800) {                                              //See CODE_00A3DA
             l->map8.tiles[dest[i]     ] = tile8_from_3bpp(gfx_pages.pages[0x33].data + 24 * (source[i] + 0));
             l->map8.tiles[dest[i] +  1] = tile8_from_3bpp(gfx_pages.pages[0x33].data + 24 * (source[i] + 1));
             l->map8.tiles[dest[i] + 16] = tile8_from_3bpp(gfx_pages.pages[0x33].data + 24 * (source[i] + 2));
