@@ -1,7 +1,7 @@
 #ifndef MOCKUP_GFX_STORE_H
 #define MOCKUP_GFX_STORE_H
 
-#include "r65816.h"
+#include "r65816/r65816.h"
 
 typedef struct {
     int length;

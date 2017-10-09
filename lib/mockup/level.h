@@ -1,7 +1,7 @@
 #ifndef MOCKUP_LEVEL_H
 #define MOCKUP_LEVEL_H
 
-#include "r65816.h"
+#include "r65816/r65816.h"
 #include "gfx_store.h"
 #include "layer.h"
 #include "overworld.h"

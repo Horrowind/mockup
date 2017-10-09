@@ -3,8 +3,6 @@
 #include "gfx_store.c"
 #include "layer.c"
 #include "palette.c"
-#include "pool.c"
 #include "smw.c"
 #include "tiles.c"
 #include "tileset.c"
-

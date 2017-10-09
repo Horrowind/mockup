@@ -1,7 +1,7 @@
 #ifndef MOCKUP_TILES_HPP
 #define MOCKUP_TILES_HPP
 
-#include "r65816.h"
+#include "r65816/r65816.h"
 #include "palette.h"
 #include "tileset.h"
 

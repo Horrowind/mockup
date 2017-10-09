@@ -1,7 +1,7 @@
 #ifndef MOCKUP_SMW_ROM_H
 #define MOCKUP_SMW_ROM_H
 
-#include "r65816.h"
+#include "r65816/r65816.h"
 
 #include "freespace.h"
 #include "gfx_store.h"
@@ -14,6 +14,7 @@ typedef struct {
     overworld_t   overworld;
     r65816_rom_t* rom;
     freespace_manager_t freespace_manager;
+    r65816_cpu_t  cpu;
 } smw_t;
 
 void smw_init(smw_t* smw, r65816_rom_t* rom);

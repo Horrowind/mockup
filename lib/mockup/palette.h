@@ -1,7 +1,7 @@
 #ifndef MOCKUP_PALETTE_H
 #define MOCKUP_PALETTE_H
 
-#include "r65816.h"
+#include "r65816/r65816.h"
 
 typedef struct {
     u16 data[256];

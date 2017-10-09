@@ -2,7 +2,7 @@
 #ifndef MOCKUP_TILESET_H
 #define MOCKUP_TILESET_H
 
-#include "r65816.h"
+#include "r65816/r65816.h"
 #include "gfx_store.h"
 
 typedef struct {

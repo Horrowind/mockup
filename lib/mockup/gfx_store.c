@@ -13,9 +13,12 @@ void gfx_store_init(gfx_store_t* gfx_store, r65816_rom_t* rom) {
     gfx_store->num_pages = 0x34;
 
     for(int i = 0; i < 0x32; i++) {
-        u8 bank = rom->banks[0][0xB9F6 + i];
-        u16 addr = (rom->banks[0][0xB9C4 + i] << 8) | rom->banks[0][0xB992 + i];
-        gfx_store->pages[i].length = decode_lz2_get_size(rom->banks[bank] + addr);
+        //u8 bank = rom->banks[0][0xB9F6 + i];
+        u8 bank = rom->read(0x00B9F6 + i);
+        //u16 addr = (rom->banks[0][0xB9C4 + i] << 8) | rom->banks[0][0xB992 + i];
+        u16 addr = (rom->read(0x00B9C4 + i) << 8) | rom->read(0x00B992 + i);
+        //gfx_store->pages[i].length = decode_lz2_get_size(rom->banks[bank] + addr);
+        gfx_store->pages[i].length = decode_lz2_get_size(rom->ptr((bank << 16)  + addr));
         sum_length += gfx_store->pages[i].length;
     }
 
