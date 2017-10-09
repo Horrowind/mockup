@@ -1,40 +1,69 @@
 #include <string.h>
 #include <stdlib.h>
 
-/* #include <llvm-c/Core.h> */
-/* #include <llvm-c/ExecutionEngine.h> */
-/* #include <llvm-c/Target.h> */
-/* #include <llvm-c/Analysis.h> */
-/* #include <llvm-c/BitWriter.h> */
-
-
-
-
 #include "cpu.h"
 #include "disassembler.h"
 #include "memory.h"
 #include "table.h"
 
-/* typedef struct { */
-/*     LLVMModuleRef mod; */
-/*     LLVMTypeRef param_types[1]; */
-/*     LLVMTypeRef return_type; */
-    
-/* } llvm_data_t; */
-
 void r65816_cpu_init(r65816_cpu_t* cpu, r65816_rom_t* rom) {
     cpu->regs.p.b = 0x24;
     cpu->rom = rom;
-//    cpu->rom_data = rom->data;
     cpu->regs.pc.d = 0x000000;
     r65816_breakpoint_list_init(&cpu->breakpoints_exec);
     r65816_breakpoint_list_init(&cpu->breakpoints_read);
     r65816_breakpoint_list_init(&cpu->breakpoints_write);
     r65816_cpu_clear(cpu);
-    r65816_initialize_opcode_table();
 #ifdef DEBUG_PRINT_CPU_STATE
     cpu->debug = 0;
 #endif
+    cpu->read_mapper  = rom->read_mapper;
+    cpu->write_mapper = rom->write_mapper;
+
+    r65816_mapper_entry_t ram_entry1 = {
+        .bank_low  =   0x00,
+        .bank_high =   0x3F,
+        .addr_low  = 0x0000,
+        .addr_high = 0x1FFF,
+        .size      = 0x2000,
+        .data      = cpu->ram,
+        .name      = L(".ram"),
+    };
+
+    r65816_mapper_entry_t ram_entry2 = {
+        .bank_low  =   0x80,
+        .bank_high =   0xBF,
+        .addr_low  = 0x0000,
+        .addr_high = 0x1FFF,
+        .size      = 0x2000,
+        .data      = cpu->ram,
+        .data_length= 0x2000,
+        .name      = L(".ram"),
+    };
+
+    r65816_mapper_entry_t ram_entry3 = {
+        .bank_low  =   0x7E,
+        .bank_high =   0x7F,
+        .addr_low  = 0x0000,
+        .addr_high = 0xFFFF,
+        .size      = 0x20000,
+        .data      = cpu->ram,
+        .data_length= 0x20000,
+        .name      = L(".ram"),
+    };
+
+    r65816_mapper_add(&cpu->read_mapper,  &ram_entry1);
+    r65816_mapper_add(&cpu->read_mapper,  &ram_entry2);
+    r65816_mapper_add(&cpu->read_mapper,  &ram_entry3);
+    r65816_mapper_add(&cpu->write_mapper, &ram_entry1);
+    r65816_mapper_add(&cpu->write_mapper, &ram_entry2);
+    r65816_mapper_add(&cpu->write_mapper, &ram_entry3);
+
+    r65816_mapper_function_triple_t function_triple =
+        r65816_mapper_create_function_triple(&cpu->read_mapper);
+    cpu->read  = function_triple.read;
+    cpu->write = function_triple.write;
+    cpu->ptr   = function_triple.ptr;
 }
 
 void r65816_cpu_free(r65816_cpu_t* cpu) {

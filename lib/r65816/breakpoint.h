@@ -2,7 +2,7 @@
 #define LIBR65816_BREAKPOINT_H
 
 #include <stdlib.h>
-#include "datasizes.h"
+#include "base/base.h"
 
 #define BP_MAX_LENGTH 5
 

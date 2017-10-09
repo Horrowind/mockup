@@ -3,22 +3,6 @@
 #include "memory.h"
 #include "table.h"
 
-#define jump_flags()                                        \
-    if(cpu->regs.e) {                                       \
-        goto *jump_table_EM[r65816_op_readpc(cpu)];         \
-    } else if(cpu->regs.p.m) {                              \
-        if(cpu->regs.p.x) {                                 \
-            goto *jump_table_MX[r65816_op_readpc(cpu)];     \
-        } else {                                            \
-            goto *jump_table_Mx[r65816_op_readpc(cpu)];     \
-        }                                                   \
-    } else {                                                \
-        if(cpu->regs.p.x) {                                 \
-            goto *jump_table_mX[r65816_op_readpc(cpu)];     \
-        } else {                                            \
-            goto *jump_table_mx[r65816_op_readpc(cpu)];     \
-        }                                                   \
-    }
 
 #define opA(id, name)                               \
     EM_##id: r65816_op_##name(cpu); return;         \
@@ -48,19 +32,9 @@
     mX_##id: r65816_op_##name##_b(cpu); return;     \
     mx_##id: r65816_op_##name##_w(cpu); return;
 
-#define opA_flags(id, name)                         \
-    EM_##id: r65816_op_##name(cpu); return;         \
-    MX_##id: r65816_op_##name(cpu); return;         \
-    Mx_##id: r65816_op_##name(cpu); return;         \
-    mX_##id: r65816_op_##name(cpu); return;         \
-    mx_##id: r65816_op_##name(cpu); return;
 
-#define opE_flags(id, name)                         \
-    EM_##id: r65816_op_##name##_e(cpu); return;     \
-    MX_##id: r65816_op_##name##_n(cpu); return;     \
-    Mx_##id: r65816_op_##name##_n(cpu); return;     \
-    mX_##id: r65816_op_##name##_n(cpu); return;     \
-    mx_##id: r65816_op_##name##_n(cpu); return;
+#define opA_flags(id, name) opA(id, name)
+#define opE_flags(id, name) opE(id, name)
 
 void r65816_cpu_step(r65816_cpu_t* cpu) {
 #ifdef DEBUG_PRINT_CPU_STATE
@@ -91,7 +65,21 @@ void r65816_cpu_step(r65816_cpu_t* cpu) {
     };
 
 
-    jump_flags();
+    if(cpu->regs.e) {
+        goto *jump_table_EM[r65816_op_readpc(cpu)];
+    } else if(cpu->regs.p.m) {
+        if(cpu->regs.p.x) {
+            goto *jump_table_MX[r65816_op_readpc(cpu)];
+        } else {
+            goto *jump_table_Mx[r65816_op_readpc(cpu)];
+        }
+    } else {
+        if(cpu->regs.p.x) {
+            goto *jump_table_mX[r65816_op_readpc(cpu)];
+        } else {
+            goto *jump_table_mx[r65816_op_readpc(cpu)];
+        }
+    }
 
     opE(0x00, interrupt_brk);
     opM(0x01, read_idpx_ora);

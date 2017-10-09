@@ -4,9 +4,9 @@
 
 inline u8 r65816_op_readpc(r65816_cpu_t* cpu) {
     //Hack: The following assumes, that we only execute from ROM. It gives significant speed boost though.
-    return cpu->rom->data[((cpu->regs.pc.b & 0x7F) << 15) | (cpu->regs.pc.w++ & 0x7FFF)];
+    //return cpu->rom->data[((cpu->regs.pc.b & 0x7F) << 15) | (cpu->regs.pc.w++ & 0x7FFF)];
     //This should be the right approach.
-    //return r65816_cpu_read(cpu, (cpu->regs.pc.b << 16) | cpu->regs.pc.w++);
+    return r65816_cpu_read(cpu, cpu->regs.pc.d++);
 }
 inline u8 r65816_op_readstack(r65816_cpu_t* cpu) {
     cpu->regs.e ? cpu->regs.s.l++ : cpu->regs.s.w++;

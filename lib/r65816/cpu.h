@@ -8,16 +8,13 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "datasizes.h"
-
+#include "base/base.h"
 
 #include "breakpoint.h"
 #include "registers.h"
 #include "rom.h"
 
-//#define DEBUG_65816
-
-typedef struct cpu {
+typedef struct r65816_cpu {
     r65816_rom_t* rom;
 
     r65816_regs_t regs;
@@ -29,19 +26,24 @@ typedef struct cpu {
 #ifdef DEBUG_PRINT_CPU_STATE
     u32 debug;
 #endif
-    void (**opcode_table)(struct cpu*);
-    /* void (*op_table[5 * 256])(struct cpu*); */
+    void (**opcode_table)(struct r65816_cpu*);
     
     r65816_breakpoint_list_t breakpoints_exec;
     r65816_breakpoint_list_t breakpoints_read;
     r65816_breakpoint_list_t breakpoints_write;
 
+    r65816_read_function_t  read;
+    r65816_write_function_t write;
+    r65816_ptr_function_t   ptr;
+
+    r65816_mapper_t read_mapper;
+    r65816_mapper_t write_mapper;
     u8 ram[0x20000];
     u8 sreg[0x2500];
 } r65816_cpu_t;
 
-
 void r65816_cpu_init(r65816_cpu_t* cpu, r65816_rom_t* rom);
+void r65816_cpu_init2(r65816_cpu_t* cpu, buffer_t manifest);
 void r65816_cpu_load(r65816_cpu_t* cpu, const char* path);
 void r65816_cpu_clear(r65816_cpu_t* cpu);
 void r65816_cpu_free(r65816_cpu_t* cpu);

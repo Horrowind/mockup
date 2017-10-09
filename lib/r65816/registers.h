@@ -27,15 +27,15 @@ struct r65816_regs {
             r65816_reg16_t a, x, y, z, s, d;
         };
     };
+    u8 db;
+    
+    u8 mdr;      //memory data register
+    //u16 vector;  //interrupt vector address
+    u8 e : 1;
     union {
         struct { u8 c:1, z:1, i:1, d:1, x:1, m:1, v:1, n:1; };
         u8 b;
     } p;
-    u8 db;
-    u8 e : 1;
-    
-    u8 mdr;      //memory data register
-    //u16 vector;  //interrupt vector address
 };
 typedef struct r65816_regs r65816_regs_t;
 
