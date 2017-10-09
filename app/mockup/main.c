@@ -1,13 +1,24 @@
+
+#include <errno.h>
+#include <math.h>
+#include <limits.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdarg.h>
 #include <string.h>
-#include <math.h>
 #include <assert.h>
-#include <math.h>
-#include <limits.h>
 #include <time.h>
+
+#include <dirent.h>
+#include <fcntl.h>
+#include <linux/limits.h>
+#include <libgen.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
 
 #define NK_INCLUDE_FIXED_TYPES
 #define NK_INCLUDE_STANDARD_IO
@@ -17,8 +28,8 @@
 #define NK_INCLUDE_DEFAULT_FONT
 #define NK_INCLUDE_STANDARD_VARARGS
 #define NK_VSNPRINTF(s,n,f,a) nk_vsnprintf(s,n,f,a)
-#include "nuklear.h"
-#include "nuklear_glfw_gl3.h"
+#include "nuklear/nuklear.h"
+#include "nuklear/nuklear_glfw_gl3.h"
 
 #define GLFW_INCLUDE_ES2
 #include <GLFW/glfw3.h>
@@ -31,7 +42,7 @@
 #define MAX(a,b) ((a) < (b) ? (b) : (a))
 #define LEN(a) (sizeof(a)/sizeof(a)[0])
 
-#include "smw.h"
+#include "mockup/smw.h"
 
 extern char* sprite_names[256];
 GLFWwindow* win;
@@ -705,7 +716,7 @@ void error_callback(int error, const char* description)
 
 
 
-int main()
+int main(int argc, char** argv)
 {
     /* Setup win */
     glfwSetErrorCallback(error_callback);
@@ -748,7 +759,46 @@ int main()
     background = nk_rgb(190,205,255);
 
 
-    r65816_rom_load(&rom, (char*)"smw.sfc");
+    char* path = (argc > 1) ? argv[1] : "smw.sfc";
+
+    int  dd = open(path, O_RDONLY | O_DIRECTORY | __O_PATH);
+    DIR* dp = opendir(path);
+    if(!dp) {
+        fprintf(stderr, "Error: Failed to open input directory \"%s\"\n", strerror(errno));
+        exit(1);
+    }
+
+    vfs_t vfs;
+    vfs_init(&vfs, 4);
+    
+    struct dirent* de;
+    while((de = readdir(dp))) {
+        if (!strcmp (de->d_name, "."))
+            continue;
+        if (!strcmp (de->d_name, ".."))
+            continue;
+        vfs_entry_t entry = { 0 };
+        int fd = openat(dd, de->d_name, O_RDONLY);
+        FILE* fp = fdopen(fd, "r");
+        if(!fp) {
+            fprintf(stderr, "Error: could not open file \"%s\"\n", de->d_name);
+            exit(1);
+        }
+        entry.name = string_from_c_string(basename(de->d_name));
+        fseek(fp, 0, SEEK_END);
+        long int file_size = ftell(fp);
+        u8* data = malloc(file_size + 1);
+        rewind(fp);
+        fread(data, file_size, 1, fp);
+        fclose(fp);
+        data[file_size] = 0;
+        entry.buffer = (buffer_t){ .begin = data, .end = data + file_size};
+        vfs_insert(&vfs, entry);
+    }
+    
+    r65816_rom_t rom;
+    r65816_rom_init(&rom, &vfs);
+
     smw_init(&smw, &rom);
     smw_level_load(&smw, current_level);
 
