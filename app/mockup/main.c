@@ -58,7 +58,7 @@ void error_callback(int error, const char* description);
 int g_done = 0;
 
 int show_palette_window = 1,
-    show_level_window = 1,
+    show_window = 1,
     show_map16fg_window = 1,
     show_map16bg_window = 1,
     show_map8_window = 1,
@@ -68,7 +68,7 @@ int next_level;
 int prev_level;
 
 smw_t          smw;
-r65816_rom_t   rom;
+wdc65816_rom_t   rom;
 palette_pc_t   palette;
 map16_pc_t     map16_fg, map16_bg;
 
@@ -175,7 +175,8 @@ void render() {
             }
         }
     }
-    
+
+    #ifdef SPRITES
     // Sprite Map8
     for(int p = 0; p < 16; p++) {
         for(int i = 0; i < 512; i++) {
@@ -185,7 +186,7 @@ void render() {
             }
         }
     }
-
+    #endif
     
     // Map16
     map16_pc_init(&map16_fg, &smw.levels[current_level].map16_fg);
@@ -213,7 +214,7 @@ void render() {
     }
     
     for(int i = 0; i < smw.levels[current_level].layer1_objects.length; i++) {
-        object_pc_t* obj = &smw.levels[current_level].layer1_objects.objects[i];
+        object_pc_t* obj = smw.levels[current_level].layer1_objects.objects + i;
         if(!obj->tiles) continue;
         int obj_width = obj->bb_xmax - obj->bb_xmin + 1;
         int obj_height = obj->bb_ymax - obj->bb_ymin + 1;
@@ -283,6 +284,7 @@ void render() {
         }
         nk_end(ctx);
 
+#ifdef SPRITES
         if(nk_begin(ctx, "Sprite Map8", nk_rect(620, 620, 172, 310),
                     NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|NK_WINDOW_BORDER|
                     NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE)) {
@@ -299,7 +301,7 @@ void render() {
             nk_image(ctx, sprite_map8_img[sprite_map8_palette].nk_image_handle);
         }
         nk_end(ctx);
-        
+#endif        
         if(nk_begin(ctx, "Palette", nk_rect(0, 620, 300, 310),
                     NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|NK_WINDOW_BORDER|
                     NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE)) {
@@ -356,14 +358,15 @@ void render() {
                 static int show_layer1 = 1;
                 static int show_layer2 = 1;
                 static int show_layer3 = 1;
-                static int show_sprites = 1;
 
                 nk_layout_row_static(ctx, 30, 70, 4);
                 nk_checkbox_label(ctx, "Layer 1", &show_layer1);
                 nk_checkbox_label(ctx, "Layer 2", &show_layer2);
                 nk_checkbox_label(ctx, "Layer 3", &show_layer3);
+#ifdef SPRITES
+                static int show_sprites = 1;
                 nk_checkbox_label(ctx, "Sprites", &show_sprites);
-
+#endif
                 nk_layout_row_static(ctx, 30, 120, 3);
 
                 int current_level_old = current_level;
@@ -376,7 +379,7 @@ void render() {
                     current_level++;
                 }
                 if(current_level_old != current_level)
-                smw_level_load(&smw, current_level);
+                    smw_level_load(&smw, current_level);
                                 
                 int width = smw.levels[current_level].width;
                 int height = smw.levels[current_level].height;
@@ -442,7 +445,7 @@ void render() {
                             }
                         }
                     }
-
+#ifdef SPRITES
                     if(show_sprites) {
                         for(int i = 0; i < smw.levels[current_level].sprites.length; i++) {
                             int num_tiles = smw.levels[current_level].sprites.data[i].num_tiles;
@@ -490,11 +493,13 @@ void render() {
 
                         }
                     }
+#endif
                 }                
             }
             nk_end(ctx);
 
 
+#ifdef SPRITES
             if(nk_begin(ctx, "Sprites", nk_rect(0, 0, 1200, 00),
                         NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|NK_WINDOW_BORDER|
                         NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE)) {
@@ -669,13 +674,13 @@ void render() {
                 }
             }                
             nk_end(ctx);
-
+            
             static int do_once = 1;
             if(do_once) {
                 nk_window_collapse(ctx, "Sprites", NK_MINIMIZED);
                 do_once = 0;
             }
-
+#endif
 
                 
             /* if(nk_begin(ctx, "Main", nk_rect(0, 0, 200, 400), */
@@ -690,11 +695,12 @@ void render() {
     }
 
     
-    smw_level_refresh(&smw, current_level);
+    //smw_level_refresh(&smw, current_level);
 
    
     /* Draw */
-    {float bg[4];
+    {
+        float bg[4];
         nk_color_fv(bg, background);
 
         glViewport(0, 0, fb_width, fb_height);
@@ -706,7 +712,8 @@ void render() {
          * Make sure to either a.) save and restore or b.) reset your own state after
          * rendering the UI. */
         nk_glfw3_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
-        glfwSwapBuffers(win);}
+        glfwSwapBuffers(win);
+    }
 }
 
 void error_callback(int error, const char* description)
@@ -796,10 +803,11 @@ int main(int argc, char** argv)
         vfs_insert(&vfs, entry);
     }
     
-    r65816_rom_t rom;
-    r65816_rom_init(&rom, &vfs);
+    wdc65816_rom_t rom;
+    arena_t arena = arena_create(MB(128));
+    wdc65816_rom_init(&rom, &vfs, &arena);
 
-    smw_init(&smw, &rom);
+    smw_init(&smw, &rom, &arena);
     smw_level_load(&smw, current_level);
 
     gl_init_textures();

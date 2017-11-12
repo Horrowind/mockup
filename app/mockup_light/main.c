@@ -1,15 +1,8 @@
 #include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 #include <dirent.h>
 #include <fcntl.h>
-#include <linux/limits.h>
 #include <libgen.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
 
 #include "mockup/smw.h"
 
@@ -62,12 +55,13 @@ int main(int argc, char** argv) {
         vfs_insert(&vfs, entry);
     }
     
-    r65816_rom_t rom;
-    r65816_rom_init(&rom, &vfs);
+    wdc65816_rom_t rom;
+    arena_t arena = arena_create(MB(128));
+    wdc65816_rom_init(&rom, &vfs, &arena);
 
     smw_t smw;
-    smw_init_all(&smw, &rom);
-    smw_deinit_all(&smw);
-    r65816_rom_free(&rom);
+    smw_init_all(&smw, &rom, &arena);
+    smw_deinit(&smw);
+    wdc65816_rom_free(&rom);
     return 0;
 }
