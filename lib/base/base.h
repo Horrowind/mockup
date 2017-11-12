@@ -1,9 +1,5 @@
-#include <assert.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-
 #ifdef BASE_IMPLEMENTATION
+#define BASE_ARENA_IMPLEMENTATION
 #define BASE_HASH_IMPLEMENTATION
 #define BASE_POOL_IMPLEMENTATION
 #define BASE_VARIABLE_STRING_IMPLEMENTATION
@@ -13,20 +9,35 @@
 #ifndef BASE_GUARD
 #define BASE_GUARD
 
-typedef char i8;
-typedef unsigned char u8;
-typedef short i16;
-typedef unsigned short u16;
-typedef int b32;
-typedef int i32;
-typedef unsigned int u32;
-typedef long i64;
-typedef unsigned long u64;
+#include <assert.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdalign.h>
+#include <stdio.h>
+#include <stdint.h>
+
+#include <sys/mman.h>
+
+typedef int8_t i8;
+typedef uint8_t u8;
+typedef int16_t i16;
+typedef uint16_t u16;
+typedef uint32_t b32;
+typedef int32_t i32;
+typedef uint32_t u32;
+typedef int64_t i64;
+typedef uint64_t u64;
 typedef float f32;
 typedef double f64;
 
 typedef unsigned int uint;
 typedef unsigned short ushort;
+
+typedef uintptr_t uintptr;
+
+#define KB(x) (x * 1024ull)
+#define MB(x) (x * 1024ull * 1024ull)
+#define GB(x) (x * 1024ull * 1024ull * 1024ull)
 
 #define array_length(array) (sizeof(array)/sizeof(array[0]))
 #undef max
@@ -34,26 +45,42 @@ typedef unsigned short ushort;
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
+#define PAGE_SIZE 4096
+
+typedef struct page_list {
+    struct page_list* next;
+    struct page_list* prev;
+    int num_pages;
+} page_list_t;
+
 typedef struct {
-    void* data;
-    void* current;
+    void* begin;
     void* end;
-} arena_t;
-
-/* typedef struct { */
-    
-/* } temp_arena_t; */
-
-void arena_create(arena_t* arena, ulong size);
-
-typedef struct {
-    u8* begin;
-    u8* end;
 } buffer_t;
 
-typedef enum {
-    STRING_PARAMETER_ZERO_TERMINATED = 1 << 0,
-} string_params_t;
+typedef struct {
+    buffer_t buffer;
+    void*    current;
+} arena_t;
+
+typedef struct {
+    arena_t* arena;
+    void*    old_current;
+} temp_t;
+
+void page_list_init(page_list_t* list);
+void page_list_deinit(page_list_t* list);
+
+arena_t arena_create(ulong size);
+arena_t arena_create_buffer(buffer_t buffer);
+void    arena_clear(arena_t* a);
+arena_t arena_subarena(arena_t* a, ulong size);
+void*   arena_alloc(arena_t* a, ulong size, ulong align);
+#define arena_alloc_type(a,type) ((type*)arena_alloc((a), sizeof(type), alignof(type)))
+#define arena_alloc_array(a,n,type) (type*)arena_alloc((a), (n)*sizeof(type), alignof(type))
+
+temp_t temp_begin(arena_t* a);
+void temp_end(temp_t tmp);
 
 typedef struct {
     char* data;
@@ -76,15 +103,18 @@ u64 string_to_u64_base(string_t s, int base);
 
 
 typedef struct {
-    u8* data;
-    uint length;
-    uint fill;
+    page_list_t* free_list;
+    void* data;
+    ulong length;
+    ulong fill;
 } pool_t;
 
-void pool_init(pool_t* pool);
-u8*  pool_alloc(pool_t* pool, uint bytes);
-void pool_empty(pool_t* pool);
-void pool_deinit(pool_t* pool);
+/* void  pool_init(pool_t* pool, page_list_t* free_list); */
+/* void* pool_alloc(pool_t* pool,ulong bytes, ulong align); */
+/* void  pool_empty(pool_t* pool); */
+/* void  pool_deinit(pool_t* pool); */
+/* #define pool_alloc_type(a,type) ((type*)pool_alloc(a, (int)sizeof(type), alignof(type))) */
+/* #define pool_alloc_array(a,n,type) (type*)pool_alloc(a, (n)*sizeof(type), alignof(type)) */
 
 typedef struct {
     string_t file_name;
@@ -93,6 +123,16 @@ typedef struct {
     char*    line_start;
 } text_pos_t;
 
+
+
+#ifdef NDEBUG
+#define error_at_pos(text_pos) error_at_pos2(text_pos)
+void error_at_pos2(text_pos_t text_pos);
+#else
+#define error_at_pos(text_pos) error_at_pos2(text_pos, __LINE__)
+void error_at_pos2(text_pos_t text_pos, int line_num);
+#endif
+
 typedef struct bml_node {
     string_t name;
     string_t value;
@@ -100,7 +140,7 @@ typedef struct bml_node {
     struct bml_node* next;
 } bml_node_t;
 
-bml_node_t* bml_parse(buffer_t buffer, pool_t* pool);
+bml_node_t* bml_parse(buffer_t buffer, arena_t* arena);
 void bml_print_node(bml_node_t* node, int indent);
 
 #define fixed_string_t(size)                                            \
@@ -244,8 +284,8 @@ void bml_print_node(bml_node_t* node, int indent);
 
 
 
-#define get16bits(d) (*((const u16 *) (d)))
-#define get32bits(d) (*((const u32 *) (d)))
+#define get16bits(d) (*((const u16*) (d)))
+#define get32bits(d) (*((const u32*) (d)))
 #define MAX_FILL_NOMINATOR 9
 #define MAX_FILL_DENOMINATOR 10
 
@@ -380,6 +420,156 @@ define_hashmap(vfs, vfs_entry_t, vfs_entry_hash, vfs_entry_equal);
 
 #endif //BASE_GUARD
 
+#ifdef BASE_ARENA_IMPLEMENTATION
+#ifndef BASE_ARENA_IMPLEMENTATION_GUARD
+#define BASE_ARENA_IMPLEMENTATION_GUARD
+
+void* page_alloc(uint num_pages) {
+    return mmap(NULL, PAGE_SIZE * num_pages, PROT_READ | PROT_WRITE,
+                MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+}
+
+void page_free(void* page, uint num_pages) {
+    munmap(page, num_pages * PAGE_SIZE);
+}
+
+void page_list_init(page_list_t* l) {
+    l->next = l;
+    l->prev = l;
+    l->num_pages = 0;
+}
+
+void page_list_add(page_list_t* l, void* page, int num_pages) {
+    page_list_t* page_list = (page_list_t*)page;
+    page_list->num_pages = num_pages;
+    page_list->prev = l;
+    page_list->next = l->next;
+    l->next->prev = page_list;
+    l->next = page_list;
+}
+
+void page_list_add_list(page_list_t* l1, page_list_t* l2) {
+    l1->prev->next = l2->next;
+    l2->next->prev = l1->prev;
+    l1->prev       = l2->prev;
+    l2->prev->next = l1;
+}
+
+void* page_list_alloc(page_list_t* sentinel, int num_pages) {
+    void* result = NULL;
+    page_list_t* l = sentinel->next;
+    while(l != sentinel && l->num_pages > num_pages) {
+        l = l->next;
+    }
+    if(l != sentinel) {
+        result = l;
+        if(l->num_pages == num_pages) {
+            l->prev->next = l->next;
+            l->next->prev = l->prev;
+        } else {
+            int new_num_pages = l->num_pages - num_pages;
+            page_list_t* new_page = (page_list_t*)(((void*)l) + num_pages * PAGE_SIZE);
+            new_page->num_pages = new_num_pages;
+            new_page->next = l->next;
+            new_page->prev = l->prev;
+            l->prev->next = l->next;
+            l->next->prev = l->prev;
+        }
+    } else {
+        result = page_alloc(num_pages);
+    }
+    return result;
+}
+
+void page_list_deinit(page_list_t* l) {
+    assert(l);
+    while(l) {
+        page_list_t* next = l->next;
+        page_free(l, l->num_pages);
+        l = next;
+    }
+}
+
+arena_t arena_create(ulong size) {
+    buffer_t buffer;
+    buffer.begin = page_alloc((size + PAGE_SIZE - 1) / PAGE_SIZE);
+    buffer.end   = buffer.begin + size;
+    return (arena_t){
+        .buffer = buffer,
+        .current = buffer.begin
+    };
+}
+
+arena_t arena_create_buffer(buffer_t buffer) {
+    return (arena_t){
+        .buffer = buffer,
+        .current = buffer.begin
+    };
+}
+
+void arena_clear(arena_t* a) {
+    a->current = a->buffer.begin;
+}
+
+void* arena_alloc(arena_t* a, ulong size, ulong align) {
+    assert(a && a->current >= a->buffer.begin && a->current <= a->buffer.end);
+    if (!a) return 0;
+    align = align == 0 ? 0 : align - 1;
+    void* result = ((void*)(((intptr_t)(a->current + align)&~align)));
+    assert(result + size < a->buffer.end);
+    if(result + size >= a->buffer.end) return NULL;
+    /* { */
+    /*     long num_pages = (sizeof(page_list_t) + size + align + PAGE_SIZE - 1) / PAGE_SIZE; */
+    /*     void* page = (page_list_t*)page_list_alloc(a->free_list, num_pages); */
+    /*     page_list_add(&a->used_list_sentinel, page, num_pages); */
+    /*     result = page + sizeof(page_list_t); */
+    /*     a->buffer.end = result + num_pages * PAGE_SIZE; */
+    /* } */
+    a->current = result + size;
+    return result;
+}
+
+arena_t arena_subarena(arena_t* a, ulong size) {
+    void* data = arena_alloc(a, size, alignof(void*));
+    arena_t result = {
+        .buffer.begin = data,
+        .buffer.end   = data + size,
+        .current      = data
+    };
+    return result;
+}
+
+temp_t temp_begin(arena_t* a) {
+    return (temp_t) {
+        .arena = a,
+        .old_current = a->current
+    };
+}
+
+void temp_end(temp_t temp) {
+    temp.arena->current = temp.old_current;
+}
+
+
+
+/* temp_memory_t temp_memory_begin(arena_t* a) */
+/* { */
+/*     temp_memory_t res; */
+/*     res.used = a->blk ? a->blk->used: 0; */
+/*     res.blk = a->blk; */
+/*     res.arena = a; */
+/*     return res; */
+/* } */
+/* void temp_memory_end(temp_memory_t tmp) */
+/* { */
+/*    arena_t* a = tmp.arena; */
+/*     while (a->blk != tmp.blk) */
+/*         arena_free_last_blk(a); */
+/*     if (a->blk) a->blk->used = tmp.used; */
+/* } */
+
+#endif //BASE_ARENA_IMPLEMENTATION_GUARD
+#endif //BASE_ARENA_IMPLEMENTATION
 
 
 #ifdef BASE_VARIABLE_STRING_IMPLEMENTATION
@@ -518,25 +708,38 @@ implement_hashmap(vfs, vfs_entry_t, vfs_entry_hash, vfs_entry_equal);
 #ifdef BASE_POOL_IMPLEMENTATION
 #ifndef BASE_POOL_IMPLEMENTATION_GUARD
 #define BASE_POOL_IMPLEMENTATION_GUARD
-void pool_init(pool_t* pool) {
-    pool->data   = malloc(512);
+
+void pool_init(pool_t* pool, page_list_t* free_list) {
+    pool->free_list = free_list;
+    pool->data      = page_alloc(1);
     assert(pool->data);
-    pool->length = 512;
-    pool->fill   = 0;
+    pool->length    = PAGE_SIZE;
+    pool->fill      = 0;
 }
 
-u8* pool_alloc(pool_t* pool, uint bytes) {
-    uint oldfill = pool->fill;
-    pool->fill += bytes;
+void* pool_alloc(pool_t* pool, ulong bytes, ulong align) {
+    ulong old_fill = pool->fill;
+    void* result = NULL;
     if(pool->fill > pool->length) {
+        long old_num_pages = pool->length / PAGE_SIZE;
         while(pool->fill > pool->length) {
             pool->length <<= 2;
         }
-        pool->data = realloc(pool->data, pool->length);
-        assert(pool->data);
+        long new_num_pages = pool->length / PAGE_SIZE;
+        void* new_data = page_list_alloc(pool->free_list, new_num_pages);
+        assert(new_data);
+        memcpy(new_data, pool->data, old_fill);
+        page_list_add(pool->free_list, pool->data, old_num_pages);
+
+        result = ((void*)(((intptr_t)(new_data + pool->fill + (align-1))&~(align-1))));
+        pool->fill = result + bytes - new_data;
+        pool->data = new_data;
+    } else {
+        result = ((void*)(((intptr_t)(pool->data + pool->fill + (align-1))&~(align-1))));
+        pool->fill = result + bytes - pool->data;
     }
     
-    return pool->data + oldfill;
+    return result;
 }
 
 void pool_empty(pool_t* pool) {
@@ -544,7 +747,7 @@ void pool_empty(pool_t* pool) {
 }
 
 void pool_deinit(pool_t* pool) {
-    free(pool->data);
+    page_list_add(pool->free_list, pool->data, pool->length / PAGE_SIZE);
 }
 
 #endif //BASE_POOL_IMPLEMENTATION_GUARD
@@ -554,8 +757,11 @@ void pool_deinit(pool_t* pool) {
 #ifndef BASE_BML_IMPLEMENTATION_GUARD
 #define BASE_BML_IMPLEMENTATION_GUARD
 
+
+
+
 #ifdef NDEBUG
-void error_at_pos(text_pos_t text_pos) {
+void error_at_pos2(text_pos_t text_pos) {
     fprintf(stderr, "%.*s:%i:%i: error\n", text_pos.file_name.length, text_pos.file_name.data,
         text_pos.line_number, text_pos.line_pos);
     char* line_end = text_pos.line_start;
@@ -574,7 +780,6 @@ void error_at_pos(text_pos_t text_pos) {
     fprintf(stderr, "^\n");
 }
 #else
-#define error_at_pos(text_pos) error_at_pos2(text_pos, __LINE__)
 
 void error_at_pos2(text_pos_t text_pos, int line_num) {
     fprintf(stderr, "%.*s:%i:%i: error from line %i\n", text_pos.file_name.length, text_pos.file_name.data,
@@ -601,7 +806,7 @@ typedef struct {
     buffer_t   buffer;
     char*      pos;
     text_pos_t text_pos;
-    pool_t*    pool;
+    arena_t*   arena;
     int        had_new_line;
 } bml_parser_state_t;
 
@@ -733,7 +938,7 @@ void bml_parse_attributes(bml_node_t* node, bml_parser_state_t* parser) {
             break;
         }
 
-        bml_node_t* new_node = (bml_node_t*)pool_alloc(parser->pool, sizeof(bml_node_t));
+        bml_node_t* new_node = (bml_node_t*)arena_alloc_type(parser->arena, bml_node_t);
         *new_node = (bml_node_t){ 0 };
         char* begin = parser->pos;
         while(bml_is_valid_char(parser->pos[0])) bml_parser_advance(parser);
@@ -771,7 +976,7 @@ bml_node_t* bml_parse_node(bml_parser_state_t* parser, int* indent) {
             *indent = bml_parse_indent(parser);
         }
     }
-    bml_node_t* node = (bml_node_t*)pool_alloc(parser->pool, sizeof(bml_node_t));
+    bml_node_t* node = arena_alloc_type(parser->arena, bml_node_t);
     *node = (bml_node_t) { 0 };
     bml_parse_name(node, parser);
     bml_parse_data(node, parser);
@@ -799,7 +1004,7 @@ bml_node_t* bml_parse_node(bml_parser_state_t* parser, int* indent) {
             break;
         }
 
-        bml_node_t* new_node = (bml_node_t*)pool_alloc(parser->pool, sizeof(bml_node_t));
+        bml_node_t* new_node = arena_alloc_type(parser->arena, bml_node_t);
         *new_node = (bml_node_t){ 0 };
         char* begin = parser->pos;
         while(bml_is_valid_char(parser->pos[0])) bml_parser_advance(parser);
@@ -852,14 +1057,12 @@ bml_node_t* bml_parse_node(bml_parser_state_t* parser, int* indent) {
     }
 }
 
-
-
-bml_node_t* bml_parse(buffer_t buffer, pool_t* pool) {
+bml_node_t* bml_parse(buffer_t buffer, arena_t* arena) {
     bml_parser_state_t parser = { 0 };
     parser.buffer = buffer;
     parser.pos    = (char*)buffer.begin;
     parser.text_pos.line_number = 1;
-    parser.pool = pool;
+    parser.arena = arena;
     int indent = 0;
     bml_node_t* root;
     bml_node_t** next_node_ptr = &root;
