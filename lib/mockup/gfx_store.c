@@ -6,7 +6,7 @@
 
 
 //TODO: Remove magic numbers.
-void gfx_store_init(gfx_store_t* gfx_store, r65816_rom_t* rom) {
+void gfx_store_init(gfx_store_t* gfx_store, wdc65816_rom_t* rom) {
 
     int sum_length = 0;
     gfx_store->pages = malloc(0x34 * sizeof(gfx_page_t));
@@ -26,11 +26,11 @@ void gfx_store_init(gfx_store_t* gfx_store, r65816_rom_t* rom) {
     sum_length = 0;
     
     for(int i = 0; i < 0x32; i++) {
-        u8 bank = rom->banks[0][0xB9F6 + i];
-        u16 addr = (rom->banks[0][0xB9C4 + i] << 8) | rom->banks[0][0xB992 + i];
+        u8 bank = rom->read(0x00B9F6 + i);
+        u16 addr = (rom->read(0x00B9C4 + i) << 8) | rom->read(0x00B992 + i);
         gfx_store->pages[i].data = gfx_store->pages[0].data + sum_length;
         sum_length += gfx_store->pages[i].length;
-        decode_lz2(rom->banks[bank] + addr, gfx_store->pages[i].data);
+        decode_lz2(rom->ptr(bank * 0x10000 + addr), gfx_store->pages[i].data);
     }
    
     gfx_store->pages[0x32].length = 23808;
@@ -39,10 +39,10 @@ void gfx_store_init(gfx_store_t* gfx_store, r65816_rom_t* rom) {
     gfx_store->pages[0x33].data = gfx_store->pages[0].data + sum_length + 23808;
 
     
-    const int addr_gfx32_pc = 0x40000;
-    decode_lz2(rom->data + addr_gfx32_pc, gfx_store->pages[0x32].data);
-    const int addr_gfx33_pc = 0x43FC0;
-    decode_lz2(rom->data + addr_gfx33_pc, gfx_store->pages[0x33].data);
+    const int addr_gfx32_sfc = 0x088000;
+    decode_lz2(rom->ptr(addr_gfx32_sfc), gfx_store->pages[0x32].data);
+    const int addr_gfx33_sfc = 0x08BFC0;
+    decode_lz2(rom->ptr(addr_gfx33_sfc), gfx_store->pages[0x33].data);
 }
 
 void gfx_store_deinit(gfx_store_t* gfx_store) {

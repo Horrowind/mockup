@@ -84,42 +84,40 @@ tile16_t tile16_from_tile8(tile8_t* t[4], tile_properties_t properties[4]) {
 }
 
 
-void map16_init_fg(map16_t* map16, r65816_rom_t* rom, int num_level, map8_t* map8) {
-    r65816_cpu_t cpu;
-    r65816_cpu_init(&cpu, rom);
+void map16_init_fg(map16_t* map16, wdc65816_rom_t* rom, int num_level, map8_t* map8) {
+    wdc65816_cpu_t cpu;
+    wdc65816_cpu_init(&cpu, rom);
 
-    cpu.ram[0x65] = cpu.rom->banks[5][0xE000 + 3 * num_level]; 
-    cpu.ram[0x66] = cpu.rom->banks[5][0xE001 + 3 * num_level];
-    cpu.ram[0x67] = cpu.rom->banks[5][0xE002 + 3 * num_level];
+    cpu.ram[0x65] = cpu.read(0x05E000 + 3 * num_level); 
+    cpu.ram[0x66] = cpu.read(0x05E001 + 3 * num_level);
+    cpu.ram[0x67] = cpu.read(0x05E002 + 3 * num_level);
 
-    r65816_cpu_add_exec_bp(&cpu, 0x0583B8);
-    r65816_cpu_run_from(&cpu, 0x0583AC);
+    wdc65816_cpu_add_exec_bp(&cpu, 0x0583B8);
+    wdc65816_cpu_run_from(&cpu, 0x0583AC);
     map16->length = 512;
     map16->tiles = malloc(512 * sizeof(tile16_t));
     for(int i = 0; i < map16->length; i++) {
-        int map16lookupSNES = 0x0D0000 + cpu.ram[2 * i + 0x0FBF] * 256 + cpu.ram[2 * i + 0x0FBE];
-        int map16lookupPC   = ((map16lookupSNES & 0x7f0000) >> 1) + (map16lookupSNES & 0x7fff);
-
+        int map16_lookup_sfc = 0x0D0000 + cpu.ram[2 * i + 0x0FBF] * 256 + cpu.ram[2 * i + 0x0FBE];
         for(int j = 0; j < 4; j++) {
-            map16->tiles[i].properties[j] = (tile_properties_t)rom->data[map16lookupPC + j * 2 + 1];
-            u16 num_tile             = rom->data[map16lookupPC + j * 2] | ((rom->data[map16lookupPC + j * 2 + 1] & 0x03) << 8);
+            map16->tiles[i].properties[j] = (tile_properties_t)cpu.read(map16_lookup_sfc + j * 2 + 1);
+            u16 num_tile                  = cpu.read(map16_lookup_sfc + j * 2) | ((cpu.read(map16_lookup_sfc + j * 2 + 1) & 0x03) << 8);
             map16->tiles[i].tile8s[j]     = &map8->tiles[num_tile];
         }
     }
 
-    r65816_cpu_free(&cpu);
+    wdc65816_cpu_free(&cpu);
 }
 
-void map16_init_bg(map16_t* map16, r65816_rom_t* rom, int num_level, map8_t* map8) {
-    r65816_cpu_t cpu;
-    r65816_cpu_init(&cpu, rom);
+void map16_init_bg(map16_t* map16, wdc65816_rom_t* rom, int num_level, map8_t* map8) {
+    wdc65816_cpu_t cpu;
+    wdc65816_cpu_init(&cpu, rom);
 
-    cpu.ram[0x65] = cpu.rom->banks[5][0xE000 + 3 * num_level]; 
-    cpu.ram[0x66] = cpu.rom->banks[5][0xE001 + 3 * num_level];
-    cpu.ram[0x67] = cpu.rom->banks[5][0xE002 + 3 * num_level];
+    cpu.ram[0x65] = cpu.read(0x05E000 + 3 * num_level); 
+    cpu.ram[0x66] = cpu.read(0x05E001 + 3 * num_level);
+    cpu.ram[0x67] = cpu.read(0x05E002 + 3 * num_level);
 
-    r65816_cpu_add_exec_bp(&cpu, 0x0583B8);
-    r65816_cpu_run_from(&cpu, 0x0583AC);
+    wdc65816_cpu_add_exec_bp(&cpu, 0x0583B8);
+    wdc65816_cpu_run_from(&cpu, 0x0583AC);
 
     map16->length = 512;
     map16->tiles = malloc(512 * sizeof(tile16_t));
@@ -128,14 +126,14 @@ void map16_init_bg(map16_t* map16, r65816_rom_t* rom, int num_level, map8_t* map
         /* int map16lookupPC   = ((map16lookupSNES & 0x7f0000) >> 1) + (map16lookupSNES & 0x7fff); */
 
         for(int j = 0; j < 4; j++) {
-            map16->tiles[i].properties[j] = (tile_properties_t)rom->banks[0xD][9100 + i * 8 + j * 2 + 1];
-            u16 num_tile             = rom->banks[0xD][9100 + i * 8 + j * 2];
-            num_tile                     |= (rom->banks[0xD][9100 + i * 8 + j * 2 + 1] & 0b00000011) << 8;
+            map16->tiles[i].properties[j] = (tile_properties_t)rom->read(0x0D9100 + i * 8 + j * 2 + 1);
+            u16 num_tile                  = rom->read(0x0D9100 + i * 8 + j * 2);
+            num_tile                     |= (rom->read(0x0D9100 + i * 8 + j * 2 + 1) & 0b00000011) << 8;
             map16->tiles[i].tile8s[j]     = &map8->tiles[num_tile];
         }
     }
 
-    r65816_cpu_free(&cpu);
+    wdc65816_cpu_free(&cpu);
 }
 
 void map16_deinit(map16_t* map16) {

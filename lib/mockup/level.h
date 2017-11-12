@@ -1,15 +1,16 @@
 #ifndef MOCKUP_LEVEL_H
 #define MOCKUP_LEVEL_H
 
-#include "r65816/r65816.h"
+#define SPRITES
+
+#include "wdc65816/wdc65816.h"
 #include "gfx_store.h"
 #include "layer.h"
+#include "level.h"
 #include "overworld.h"
 #include "palette.h"
 #include "tiles.h"
 #include "tileset.h"
-
-#define SPRITES
 
 typedef struct {
     u16 x;
@@ -29,7 +30,13 @@ typedef struct {
     u16  bb_xmax;
     u16  bb_ymax;
     u16  zindex;
-    u16* tiles;
+    union {
+        u16* tiles;
+        struct {
+            object_tile_t* object_tiles;
+            int            object_tiles_length;
+        };
+    };
 } object_pc_t;
 
 typedef struct {
@@ -180,13 +187,13 @@ typedef struct {
     int       width;
 
 
-    r65816_rom_t* rom;
+    wdc65816_rom_t* rom;
 
 } level_pc_t;
 
 
-void level_init(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gfx_store);
-void level_init_by_address(level_pc_t* l, r65816_rom_t* rom, int num_level, gfx_store_t* gfx_store,
+void level_init(level_pc_t* l, wdc65816_rom_t* rom, int num_level, gfx_store_t* gfx_store);
+void level_init_by_address(level_pc_t* l, wdc65816_rom_t* rom, int num_level, gfx_store_t* gfx_store,
                            u32 level_layer1_data_addr_sfc,
                            u32 level_layer2_data_addr_sfc,
                            u32 level_sprite_data_addr_sfc);

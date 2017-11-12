@@ -1,7 +1,7 @@
 #ifndef MOCKUP_GFX_STORE_H
 #define MOCKUP_GFX_STORE_H
 
-#include "r65816/r65816.h"
+#include "wdc65816/wdc65816.h"
 
 typedef struct {
     int length;
@@ -13,7 +13,7 @@ typedef struct {
     gfx_page_t* pages;
 } gfx_store_t;
 
-void gfx_store_init(gfx_store_t* gfx_store, r65816_rom_t* rom);
+void gfx_store_init(gfx_store_t* gfx_store, wdc65816_rom_t* rom);
 void gfx_store_deinit(gfx_store_t* gfx_store);
 
 

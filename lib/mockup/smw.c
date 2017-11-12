@@ -3,10 +3,12 @@
 #include "addresses.h"
 #include "misc.h"
 
-void smw_init(smw_t* smw, r65816_rom_t* rom) {
+void smw_init(smw_t* smw, wdc65816_rom_t* rom, arena_t* arena) {
+    smw->arena = arena_subarena(arena, MB(60));
+    smw->temp_arena = arena_subarena(arena, MB(16));
     smw->rom = rom;
-    smw->cpu = (r65816_cpu_t){.regs.p.b = 0x24, .debug = 1};
-    r65816_cpu_init(&smw->cpu, rom);
+    smw->cpu = (wdc65816_cpu_t){.regs.p.b = 0x24, .debug = 1};
+    wdc65816_cpu_init(&smw->cpu, rom);
     gfx_store_init(&smw->gfx_pages, rom);
     freespace_manager_init(&smw->freespace_manager);
 
@@ -24,16 +26,15 @@ void smw_init(smw_t* smw, r65816_rom_t* rom) {
             ((freespace_addr_array[i] & 0x7f0000) >> 1) | (freespace_addr_array[i] & 0x7fff),
             freespace_sizes_array[i]);
     }
-
-
 }
+
 void smw_deinit(smw_t* smw) {
     gfx_store_deinit(&smw->gfx_pages);
     freespace_manager_deinit(&smw->freespace_manager);
 }
 
-void smw_init_all(smw_t* smw, r65816_rom_t* rom) {
-    smw_init(smw, rom);
+void smw_init_all(smw_t* smw, wdc65816_rom_t* rom, arena_t* arena) {
+    smw_init(smw, rom, arena);
     for(int i = 0; i < 512; i++) {
         memset(&smw->levels[i].header, 0, 5);
         smw_level_load(smw, i);
@@ -41,14 +42,15 @@ void smw_init_all(smw_t* smw, r65816_rom_t* rom) {
     }
 }
 
+void smw_clear(smw_t* smw) {
+    arena_clear(&smw->arena);
+}
+
 void smw_deinit_all(smw_t* smw) {
-    for(int i = 0; i < 512; i++) {
-        smw_level_deinit(smw, i);
-    }
     smw_deinit(smw);
 }
 
-
+#ifdef SPRITES
 sprite_table_entries_t smw_get_sprite_table_entries(u8* ram, int sprite_index) {
     sprite_table_entries_t result;
     result.entry_009E = ram[0x009E + sprite_index];
@@ -152,34 +154,37 @@ void smw_set_sprite_table_entries(u8* ram, sprite_table_entries_t entries, int s
     ram[0x190F + sprite_index] = entries.entry_190F;
     ram[0x1FE2 + sprite_index] = entries.entry_1FE2;
 }
-
+#endif
 
 
 void smw_level_load(smw_t* smw, u16 level_num) {
-    r65816_rom_t* rom = smw->rom;
+    wdc65816_rom_t* rom = smw->rom;
     gfx_store_t gfx_pages = smw->gfx_pages;
     level_pc_t* l = &smw->levels[level_num];
+    arena_t*    arena = &smw->arena; 
+    arena_t*    temp_arena = &smw->temp_arena; 
+
+    wdc65816_cpu_t* cpu = &smw->cpu;
+    wdc65816_cpu_clear(cpu);
 
     u32 level_layer1_data_addr_sfc
-        = (rom->data[level_layer1_data_table_pc + 2 + 3 * level_num] << 16)
-        | (rom->data[level_layer1_data_table_pc + 1 + 3 * level_num] << 8)
-        | (rom->data[level_layer1_data_table_pc + 0 + 3 * level_num] << 0);
+        = (cpu->read(level_layer1_data_table_sfc + 2 + 3 * level_num) << 16)
+        | (cpu->read(level_layer1_data_table_sfc + 1 + 3 * level_num) << 8)
+        | (cpu->read(level_layer1_data_table_sfc + 0 + 3 * level_num) << 0);
 
     u32 level_layer2_data_addr_sfc
-        = (rom->data[level_layer2_data_table_pc + 2 + 3 * level_num] << 16)
-        | (rom->data[level_layer2_data_table_pc + 1 + 3 * level_num] << 8)
-        | (rom->data[level_layer2_data_table_pc + 0 + 3 * level_num] << 0);
+        = (cpu->read(level_layer2_data_table_sfc + 2 + 3 * level_num) << 16)
+        | (cpu->read(level_layer2_data_table_sfc + 1 + 3 * level_num) << 8)
+        | (cpu->read(level_layer2_data_table_sfc + 0 + 3 * level_num) << 0);
 
-    /* u32 level_sprites_data_addr_sfc */
-    /*     = 0x070000 */
-    /*     | (rom->data[level_layer2_data_table_pc + 0 + 2 * level_num] << 8) */
-    /*     | (rom->data[level_layer2_data_table_pc + 1 + 2 * level_num] << 0); */
+    u32 level_sprite_data_addr_sfc
+        = 0x070000
+        | (cpu->read(level_sprite_data_table_sfc + 1 + 2 * level_num) << 8)
+        | (cpu->read(level_sprite_data_table_sfc + 0 + 2 * level_num) << 0);
 
 
-    u32 level_layer1_data_addr_pc = ((level_layer1_data_addr_sfc & 0x7f0000) >> 1) | (level_layer1_data_addr_sfc & 0x7fff);
+    //u32 level_layer1_data_addr_pc = ((level_layer1_data_addr_sfc & 0x7f0000) >> 1) | (level_layer1_data_addr_sfc & 0x7fff);
 
-    r65816_cpu_t* cpu = &smw->cpu;
-    r65816_cpu_clear(cpu);
     
     cpu->ram[0x10c] = level_num / 256;
     cpu->ram[0x10b] = level_num & 0xFF;
@@ -195,15 +200,15 @@ void smw_level_load(smw_t* smw, u16 level_num) {
     memset(cpu->ram + level_map16_low_ram, 0x25, 0x3800);
     memset(cpu->ram + level_map16_high_ram, 0x00, 0x3800);
 
-    r65816_cpu_add_exec_bp(cpu, level_load_routine_end_sfc);
-    r65816_cpu_run_from(cpu, level_load_routine_sfc);
+    wdc65816_cpu_add_exec_bp(cpu, level_load_routine_end_sfc);
+    wdc65816_cpu_run_from(cpu, level_load_routine_sfc);
 
-    int needs_full_reload = memcmp(&(l->header), rom->data + level_layer1_data_addr_pc, 5);
+    int needs_full_reload = memcmp(&(l->header), rom->ptr(level_layer1_data_addr_sfc), 5);
     if(needs_full_reload) {
 
         // --- header init ------
         {
-            memcpy(&(l->header), rom->data + level_layer1_data_addr_pc, 5);
+            memcpy(&(l->header), rom->ptr(level_layer1_data_addr_sfc), 5);
             l->is_vertical_level = cpu->ram[0x5B] & 0x01;
             switch(l->header.level_mode) {
             case 0x00:
@@ -235,9 +240,9 @@ void smw_level_load(smw_t* smw, u16 level_num) {
                 break;
             }
 
-            int bg_color_addr = level_bg_area_color_data_table_pc + 2 * cpu->ram[level_header_bg_color_ram];
+            int bg_color_addr = level_bg_area_color_data_table_sfc + 2 * cpu->ram[level_header_bg_color_ram];
             // TODO: Maybe implement as macro/function
-            u16 bg_color = rom->data[bg_color_addr] | (rom->data[bg_color_addr + 1] << 8);
+            u16 bg_color = cpu->read(bg_color_addr) | (cpu->read(bg_color_addr + 1) << 8);
             int r = ((bg_color & 0x001F) << 3); r |= (r >> 5);
             int g = ((bg_color & 0x03E0) >> 2); g |= (g >> 5);
             int b = ((bg_color & 0x7C00) >> 7); b |= (b >> 5);
@@ -247,11 +252,11 @@ void smw_level_load(smw_t* smw, u16 level_num) {
         // --- tileset init -----
         {
             int num_tileset = cpu->ram[level_header_tileset_ram];
-            int tileset_addr = 0x292B + num_tileset * 4;
-            u8 fg1 = rom->data[tileset_addr];
-            u8 fg2 = rom->data[tileset_addr + 1];
-            u8 bg1 = rom->data[tileset_addr + 2];
-            u8 fg3 = rom->data[tileset_addr + 3];
+            int tileset_addr = 0xA92B + num_tileset * 4;
+            u8 fg1 = cpu->read(tileset_addr + 0);
+            u8 fg2 = cpu->read(tileset_addr + 1);
+            u8 bg1 = cpu->read(tileset_addr + 2);
+            u8 fg3 = cpu->read(tileset_addr + 3);
             if(fg1 >= gfx_pages.num_pages) return;
             if(fg2 >= gfx_pages.num_pages) return;
             if(bg1 >= gfx_pages.num_pages) return;
@@ -263,7 +268,7 @@ void smw_level_load(smw_t* smw, u16 level_num) {
             l->tileset.fg3 = &gfx_pages.pages[fg3];
     
             l->map8.length = 512;
-            l->map8.tiles = malloc(512 * sizeof(tile8_t));
+            l->map8.tiles = arena_alloc_array(arena, 512, tile8_t);
             for(int tile = 0; tile < 128; tile++) {
                 l->map8.tiles[tile] = tile8_from_3bpp(l->tileset.fg1->data + 24 * (tile % 128));
             }
@@ -283,15 +288,12 @@ void smw_level_load(smw_t* smw, u16 level_num) {
         { // --- sprite map8
             int num_tileset = cpu->ram[level_header_sprite_tileset_ram];
             /* printf("num_tileset: %i\n", num_tileset); */
-            int tileset_addr = 0x0028C3 + num_tileset * 4; //TODO: No magic numbers
-            u8 fg1 = rom->data[tileset_addr + 0];
-            u8 fg2 = rom->data[tileset_addr + 1];
-            u8 bg1 = rom->data[tileset_addr + 2];
-            u8 fg3 = rom->data[tileset_addr + 3];
-            /* printf("fg1: %i\n", fg1); */
-            /* printf("fg2: %i\n", fg2); */
-            /* printf("bg1: %i\n", bg1); */
-            /* printf("fg3: %i\n", fg3); */
+            int tileset_addr = 0x00A8C3 + num_tileset * 4; //TODO: No magic numbers
+            u8 fg1 = cpu->read(tileset_addr + 0);
+            u8 fg2 = cpu->read(tileset_addr + 1);
+            u8 bg1 = cpu->read(tileset_addr + 2);
+            u8 fg3 = cpu->read(tileset_addr + 3);
+
             if(fg1 >= gfx_pages.num_pages) return;
             if(fg2 >= gfx_pages.num_pages) return;
             if(bg1 >= gfx_pages.num_pages) return;
@@ -303,7 +305,7 @@ void smw_level_load(smw_t* smw, u16 level_num) {
             l->sprite_tileset.fg3 = &gfx_pages.pages[fg3];
     
             l->sprite_map8.length = 512;
-            l->sprite_map8.tiles = malloc(512 * sizeof(tile8_t));
+            l->sprite_map8.tiles = arena_alloc_array(arena, 512, tile8_t);
             for(int tile = 0; tile < 128; tile++) {
                 l->sprite_map8.tiles[tile] = tile8_from_3bpp(l->sprite_tileset.fg1->data + 24 * (tile % 128));
             }
@@ -322,15 +324,14 @@ void smw_level_load(smw_t* smw, u16 level_num) {
         // --- map16 fg init ----
         {
             l->map16_fg.length = 512;
-            l->map16_fg.tiles = malloc(l->map16_fg.length * sizeof(tile16_t));
+            l->map16_fg.tiles = arena_alloc_array(arena, l->map16_fg.length, tile16_t);
             for(int i = 0; i < l->map16_fg.length; i++) {
-                int map16lookupSNES = map16_fg_tiles_zero_offset_sfc + cpu->ram[2 * i + 0x0FBF] * 256 + cpu->ram[2 * i + 0x0FBE];
-                int map16lookupPC   = ((map16lookupSNES & 0x7f0000) >> 1) + (map16lookupSNES & 0x7fff);
+                int map16_lookup_sfc = map16_fg_tiles_zero_offset_sfc + cpu->ram[2 * i + 0x0FBF] * 256 + cpu->ram[2 * i + 0x0FBE];
 
                 for(int j = 0; j < 4; j++) {
-                    l->map16_fg.tiles[i].properties[j] = (tile_properties_t)rom->data[map16lookupPC + j * 2 + 1];
-                    u16 num_tile =  rom->data[map16lookupPC + j * 2];
-                    num_tile         |= (rom->data[map16lookupPC + j * 2 + 1] & 0x03) << 8;
+                    l->map16_fg.tiles[i].properties[j] = (tile_properties_t)cpu->read(map16_lookup_sfc + j * 2 + 1);
+                    u16 num_tile =  cpu->read(map16_lookup_sfc + j * 2);
+                    num_tile    |= (cpu->read(map16_lookup_sfc + j * 2 + 1) & 0x03) << 8;
                     if(num_tile == 0x3FF) num_tile = 0;
                     l->map16_fg.tiles[i].tile8s[j] = &(l->map8.tiles[num_tile]);
                 }
@@ -341,30 +342,18 @@ void smw_level_load(smw_t* smw, u16 level_num) {
 
         {
             l->map16_bg.length = 512;
-            l->map16_bg.tiles = malloc(l->map16_bg.length * sizeof(tile16_t));
+            l->map16_bg.tiles = arena_alloc_array(arena, l->map16_bg.length, tile16_t);
             for(int i = 0; i < l->map16_bg.length; i++) {
                 int map16_addr_sfc = map16_bg_tiles_table_sfc + i*8;
-                int map16_addr_pc  = ((map16_addr_sfc & 0x7f0000) >> 1) | (map16_addr_sfc & 0x7fff);        
                 for(int j = 0; j < 4; j++) {
-                    l->map16_bg.tiles[i].properties[j] = (tile_properties_t)(rom->data[map16_addr_pc + j * 2 + 1]);
-                    u16 num_tile =  rom->data[map16_addr_pc + j * 2];
-                    num_tile         |= (rom->data[map16_addr_pc + j * 2 + 1] & 0x03) << 8;
+                    l->map16_bg.tiles[i].properties[j] = (tile_properties_t)(cpu->read(map16_addr_sfc + j * 2 + 1));
+                    u16 num_tile =  cpu->read(map16_addr_sfc + j * 2);
+                    num_tile         |= (cpu->read(map16_addr_sfc + j * 2 + 1) & 0x03) << 8;
                     if(num_tile >= 0x200) num_tile = 0;
                     l->map16_bg.tiles[i].tile8s[j] = &(l->map8.tiles[num_tile]);
                 }
             }
         }
-    } else {
-        if(l->is_boss_level) return;
-        for(int i = 0; i < l->layer1_objects.length; i++) {
-            if(l->layer1_objects.objects[i].tiles) free(l->layer1_objects.objects[i].tiles);
-        }
-#ifdef SPRITES
-        for(int i = 0; i < l->sprites.length; i++) {
-            if(l->sprites.data[i].tiles) free(l->sprites.data[i].tiles);
-        }
-        free(l->sprites.data);
-#endif
     }
 
 
@@ -382,119 +371,123 @@ void smw_level_load(smw_t* smw, u16 level_num) {
         // --- object init ------
 
         {
-            r65816_cpu_add_exec_bp(cpu, level_load_tiles_routine_end_sfc);
-            r65816_cpu_add_exec_bp(cpu, level_load_tiles_routine_end2_sfc);
-            r65816_cpu_add_exec_bp(cpu, level_load_tiles_routine_new_object_sfc);
-            r65816_cpu_add_write_bp_range(cpu, level_tiles_low_start_sfc, level_tiles_low_end_sfc);
-            r65816_cpu_add_write_bp_range(cpu, level_tiles_high_start_sfc, level_tiles_high_end_sfc);
-
-            pool_t object_pool;
-            pool_t tiles_pool;
-            pool_init(&object_pool);
-            pool_init(&tiles_pool);
+            wdc65816_cpu_add_exec_bp(cpu, level_load_tiles_routine_end_sfc);
+            wdc65816_cpu_add_exec_bp(cpu, level_load_tiles_routine_end2_sfc);
+            wdc65816_cpu_add_exec_bp(cpu, level_load_tiles_routine_new_object_sfc);
+            wdc65816_cpu_add_write_bp_range(cpu, level_tiles_low_start_sfc, level_tiles_low_end_sfc);
+            wdc65816_cpu_add_write_bp_range(cpu, level_tiles_high_start_sfc, level_tiles_high_end_sfc);
     
             int xmax = 0, ymax = 0, xmin = 65535, ymin = 65535;
-            int tile_count = 0;
-            int obj_count = 0;
-            object_pc_t* object = NULL;
+            l->layer1_objects.objects = arena_alloc_array(arena, 0, object_pc_t);
+            int objects_length = 0;
+            temp_t temp = temp_begin(temp_arena);
+            int tiles_length = 0;
+            object_tile_t* tiles  = arena_alloc_array(temp_arena, 0, object_tile_t);
             
-            r65816_cpu_run(cpu); // start level loading routine
+            object_pc_t*   object = NULL;
+            object_tile_t* tile   = NULL;
+            
+            wdc65816_cpu_run(cpu); // start level loading routine
             while((cpu->regs.pc.d != level_load_tiles_routine_end_sfc) &&
                   (cpu->regs.pc.d != level_load_tiles_routine_end2_sfc)) {
                 if(cpu->regs.pc.d == level_load_tiles_routine_new_object_sfc) {
-                    if(tile_count > 0) {
+                    // Old object
+                    if(objects_length > 0 && tiles_length > 0) {
                         object->bb_xmin = xmin;
                         object->bb_ymin = ymin;
                         object->bb_xmax = xmax;
                         object->bb_ymax = ymax;
-                        /* if(object->x != object->bb_xmin) printf("Unequal x: %i %i\n", object->x, object->bb_xmin); */
-                        /* if(object->y != object->bb_ymin) printf("Unequal y: %i %i\n", object->y, object->bb_ymin); */
-
-                        int width  = xmax - xmin + 1;
-                        int height = ymax - ymin + 1;
-                        object->tiles = malloc(sizeof(u16) * width * height);
-                        for(int i = 0; i < width * height; i++) object->tiles[i] = 0xFFFF;
-                        for(int i = 0; i < tile_count; i++) {
-                            u16 x = ((object_tile_t*)tiles_pool.data)[i].x - xmin;
-                            u16 y = ((object_tile_t*)tiles_pool.data)[i].y - ymin;
-                            u16 tilenum = ((object_tile_t*)tiles_pool.data)[i].tile;
-                            u16 is_top = ((object_tile_t*)tiles_pool.data)[i].is_top;
-                            int index = y * width + x;
-                            if(object->tiles[index] == 0xFFFF) object->tiles[index] = 0x0025;
-                            if(is_top) {
-                                object->tiles[index] = (object->tiles[index] & 0x00FF) | tilenum;
-                            } else {
-                                object->tiles[index] = (object->tiles[index] & 0xFF00) | tilenum;
-                            }
-                        }
-                        pool_empty(&tiles_pool);
-                        tile_count = 0;
+#if 0
+                        if(object->x != object->bb_xmin)
+                            printf("Unequal x: %i %i\n", object->x, object->bb_xmin);
+                        if(object->y != object->bb_ymin)
+                            printf("Unequal y: %i %i\n", object->y, object->bb_ymin);
+#endif
+                        object->object_tiles        = tiles;
+                        object->object_tiles_length = tiles_length;
+                                                
+                        tiles = arena_alloc_array(temp_arena, 0, object_tile_t);
+                        tiles_length = 0;
                     }
+
+                    // New object
                     u8 num = cpu->ram[0x5A];
                     u8 settings = cpu->ram[0x59];
                     if(num != 0 || (settings != 0 && settings != 1)) {
-                        object = (object_pc_t*)pool_alloc(&object_pool, sizeof(object_pc_t));
-                        memset(object, 0, sizeof(object_pc_t));
+                        object = arena_alloc_type(arena, object_pc_t);
+                        *object = (object_pc_t){ 0 };
+                        // TODO: which one is correct?
+                        //object->x = (cpu->ram[level_current_screen_ram] << 4) | (cpu->ram[0x57] & 0x0F);
+                        //object->y = ((cpu->ram[0x57] & 0xF0) >> 4) | (cpu->ram[0x0A] << 4);
                         object->x = (cpu->ram[0x0B] & 0x0F)  | (cpu->ram[0x1928] << 4);
                         object->y = cpu->ram[0x0A] & 0x1F;
-
                         object->num = num;
                         object->settings = settings;
                         object->tiles = NULL;
 
                         xmax = 0; ymax = 0; xmin = 65535; ymin = 65535;
                     
-                        obj_count++;
+                        objects_length++;
                     }
                 } else { // a new tile was written to the level data RAM location
                     //record access to this ram location
-                    object_tile_t* object_tile = (object_tile_t*)pool_alloc(&tiles_pool, sizeof(object_tile_t));
-                    tile_count++;
+                    tile = arena_alloc_type(temp.arena, object_tile_t);
+                    tiles_length++;
                     int pure_addr = (cpu->breakpoint_address & 0xFFFF) - 0xC800;
                     if(l->is_vertical_level) {
                         int x = pure_addr & 0x0F; int y = (pure_addr & 0xF0) >> 4;
-                        int screen = pure_addr >> 4;  int left = screen & 0x10; int h = (screen & 0x3E0) >> 1;
-                        object_tile->x = left + x;
-                        object_tile->y = h + y;
+                        int screen = pure_addr >> 4;  int left = screen & 0x10;
+                        int h = (screen & 0x3E0) >> 1;
+                        tile->x = left + x;
+                        tile->y = h + y;
                     } else {
                         int screen_addr = pure_addr % 432;
                         int screen = pure_addr / 432;
-                        object_tile->x = (screen_addr & 0x0F) | (screen * 16);
-                        object_tile->y = (screen_addr & 0xFF0) >> 4;
+                        tile->x = (screen_addr & 0x0F) | (screen * 16);
+                        tile->y = (screen_addr & 0xFF0) >> 4;
                     }
-                    if(object_tile->x < xmin) xmin = object_tile->x;
-                    if(object_tile->x > xmax) xmax = object_tile->x;
-                    if(object_tile->y < ymin) ymin = object_tile->y;
-                    if(object_tile->y > ymax) ymax = object_tile->y;
-                    object_tile->is_top = cpu->breakpoint_address >= level_tiles_high_start_sfc;
-                    object_tile->tile = object_tile->is_top ? (cpu->breakpoint_data << 8) : cpu->breakpoint_data;
+                    if(tile->x < xmin) xmin = tile->x;
+                    if(tile->x > xmax) xmax = tile->x;
+                    if(tile->y < ymin) ymin = tile->y;
+                    if(tile->y > ymax) ymax = tile->y;
+                    tile->is_top = cpu->breakpoint_address >= level_tiles_high_start_sfc;
+                    tile->tile = tile->is_top
+                        ? (cpu->breakpoint_data << 8)
+                        : cpu->breakpoint_data;
                 }
-                r65816_cpu_run(cpu);
+                wdc65816_cpu_run(cpu);
             }
-            if(tile_count > 0 && obj_count > 0) {
+            // Finalize the last object
+            if(tiles_length > 0 && objects_length > 0) {
                 object->bb_xmin = xmin;
                 object->bb_ymin = ymin;
                 object->bb_xmax = xmax;
                 object->bb_ymax = ymax;
-                /* if(object->x != object->bb_xmin) printf("Unequal x: %i %i\n", object->x, object->bb_xmin); */
-                /* if(object->y != object->bb_ymin) printf("Unequal y: %i %i\n", object->y, object->bb_ymin); */
-                //object->x = (cpu->ram[level_current_screen_ram] << 4) | (cpu->ram[0x57] & 0x0F);
-                //object->y = ((cpu->ram[0x57] & 0xF0) >> 4) | (cpu->ram[0x0A] << 4);
-                //TODO: set z_index
-                object->num = cpu->ram[0x5A];
-                object->settings = cpu->ram[0x59];
-                int width  = xmax - xmin + 1;
-                int height = ymax - ymin + 1;
-                object->tiles = malloc(sizeof(u16) * width * height);
-                // Mark each tile as unset (= 0xFFFF)
-                for(int i = 0; i < width * height; i++) object->tiles[i] = 0xFFFF;
-                for(int i = 0; i < tile_count; i++) {
-                    u16 x = ((object_tile_t*)tiles_pool.data)[i].x - xmin;
-                    u16 y = ((object_tile_t*)tiles_pool.data)[i].y - ymin;
-                    u16 tilenum = ((object_tile_t*)tiles_pool.data)[i].tile;
-                    u16 is_top = ((object_tile_t*)tiles_pool.data)[i].is_top;
+#if 0
+                if(object->x != object->bb_xmin) printf("Unequal x: %i %i\n", object->x, object->bb_xmin);
+                if(object->y != object->bb_ymin) printf("Unequal y: %i %i\n", object->y, object->bb_ymin);
+#endif
+                object->object_tiles        = tiles;
+                object->object_tiles_length = tiles_length;
+            }
+
+            l->layer1_objects.length  = objects_length;
+            
+            for(int i = 0; i < objects_length; i++) {
+                object_pc_t* object = l->layer1_objects.objects + i;
+                int width  = object->bb_xmax - object->bb_xmin + 1;
+                int height = object->bb_ymax - object->bb_ymin + 1;
+                object_tile_t* object_tiles = object->object_tiles;
+                int object_tiles_length = object->object_tiles_length;
+                object->tiles = arena_alloc_array(arena, width * height, u16);
+                for(int j = 0; j < width * height; j++) object->tiles[j] = 0xFFFF;
+                for(int j = 0; j < object_tiles_length; j++) {
+                    object_tile_t* object_tile = object_tiles + j;
+                    u16 x = object_tile->x - object->bb_xmin;
+                    u16 y = object_tile->y - object->bb_ymin;
+                    u16 tilenum = object_tile->tile;
+                    u16 is_top = object_tile->is_top;
                     int index = y * width + x;
-                    // if tile is unset, initialize it to its default value.
                     if(object->tiles[index] == 0xFFFF) object->tiles[index] = 0x0025;
                     if(is_top) {
                         object->tiles[index] = (object->tiles[index] & 0x00FF) | tilenum;
@@ -502,32 +495,29 @@ void smw_level_load(smw_t* smw, u16 level_num) {
                         object->tiles[index] = (object->tiles[index] & 0xFF00) | tilenum;
                     }
                 }
-                pool_empty(&tiles_pool);
-                tile_count = 0;
-            }
 
-            pool_deinit(&tiles_pool);
-    
-            l->layer1_objects.length  = obj_count;
-            l->layer1_objects.objects = (object_pc_t*)object_pool.data;
+            }
+            
+            temp_end(temp);
+            
 	    
         }
 
         // --- bg init ----------
 
         if(l->has_layer2_bg) {
-            l->layer2_background.data = malloc(432 * 2 * sizeof(u16) + 300);
+            l->layer2_background.data = arena_alloc_array(arena, 432 * 2, u16);
             int offset = 0;
-            int addr = rom->data[level_layer2_data_table_pc + 2 + 3 * level_num];
+            int addr = cpu->read(level_layer2_data_table_sfc + 2 + 3 * level_num);
             if(addr == 0xFF) addr = 0x0C;
-            addr = (addr << 8) | rom->data[level_layer2_data_table_pc + 1 + 3 * level_num];
-            addr = (addr << 8) | rom->data[level_layer2_data_table_pc + 0 + 3 * level_num];
+            addr = (addr << 8) | cpu->read(level_layer2_data_table_sfc + 1 + 3 * level_num);
+            addr = (addr << 8) | cpu->read(level_layer2_data_table_sfc + 0 + 3 * level_num);
             if((addr & 0xFFFF) >= 0xE8FE) offset = 0x100; //See CODE_058046
             int pos = 0;
             u8 cmd, byte;
             while(pos < 432 * 2) {
-                cmd  = r65816_cpu_read(cpu, addr);
-                byte = r65816_cpu_read(cpu, addr + 1);
+                cmd  = wdc65816_cpu_read(cpu, addr);
+                byte = wdc65816_cpu_read(cpu, addr + 1);
                 if(cmd == 0xFF && byte == 0xFF) break;
                 u8 length = cmd & 0b01111111;
                 if(cmd & 0x80) {
@@ -538,7 +528,7 @@ void smw_level_load(smw_t* smw, u16 level_num) {
                     addr += 2;
                 } else {
                     for(int i = 0; i <= length; i++) {
-                        l->layer2_background.data[pos + i] = offset + r65816_cpu_read(cpu, addr + i + 1);
+                        l->layer2_background.data[pos + i] = offset + wdc65816_cpu_read(cpu, addr + i + 1);
                     }
                     pos += length + 1;
                     addr += length + 2;
@@ -605,8 +595,8 @@ void smw_level_load(smw_t* smw, u16 level_num) {
             // --- palette init -----
             {
                 cpu->regs.p.b = 0x24;
-                r65816_cpu_add_exec_bp(cpu, 0x00ACEC);
-                r65816_cpu_run_from(cpu, 0x00ABED);
+                wdc65816_cpu_add_exec_bp(cpu, 0x00ACEC);
+                wdc65816_cpu_run_from(cpu, 0x00ABED);
                 memcpy(l->palette.data, cpu->ram + 0x0703, 512);
 
                 for(int i = 0; i < 256; i += 16) {
@@ -626,20 +616,13 @@ void smw_level_load(smw_t* smw, u16 level_num) {
         // --- sprites init -----
         {
             
-            int number_sprites = 0;
-            u8 low  = rom->data[0x02EC00 + 2 * level_num]; 
-            u8 high = rom->data[0x02EC01 + 2 * level_num];
-            u8 bank = 0x07;
-            int level_sprite_data_addr_sfc  = (bank << 16) | (high << 8) | low;
-            int level_sprite_data_addr_pc = ((level_sprite_data_addr_sfc & 0x7f0000) >> 1) + (level_sprite_data_addr_sfc & 0x7fff);
-
-            pool_t sprite_pool;
-            pool_t sprite_tile_pool;
-            pool_init(&sprite_pool);
-        
-            while(rom->data[level_sprite_data_addr_pc + 3*number_sprites + 1] != 0xFF) {
-                sprite_pc_t* sprite = (sprite_pc_t*)pool_alloc(&sprite_pool, sizeof(sprite_pc_t));
-                r65816_cpu_clear(cpu);
+            temp_t temp = temp_begin(temp_arena);
+            l->sprites.data = arena_alloc_array(arena, 0, sprite_pc_t);
+            int sprites_length = 0;
+            
+            while(cpu->read(level_sprite_data_addr_sfc + 3*sprites_length + 1) != 0xFF) {
+                sprite_pc_t* sprite = arena_alloc_type(arena, sprite_pc_t);
+                wdc65816_cpu_clear(cpu);
 
 
 #if 0 //Test if a correct memory dump previous to running 0x2A751 helps (it does not)
@@ -651,18 +634,19 @@ void smw_level_load(smw_t* smw, u16 level_num) {
                     cpu->ram[i] = 0;
                 }
 #endif
-                cpu->ram[0x65] = rom->data[0x02E000 + 3 * level_num]; 
-                cpu->ram[0x66] = rom->data[0x02E001 + 3 * level_num];
-                cpu->ram[0x67] = rom->data[0x02E002 + 3 * level_num];
+                cpu->ram[0x65] = cpu->read(level_layer1_data_table_sfc + 3 * level_num + 0); 
+                cpu->ram[0x66] = cpu->read(level_layer1_data_table_sfc + 3 * level_num + 1);
+                cpu->ram[0x67] = cpu->read(level_layer1_data_table_sfc + 3 * level_num + 2);
 
-                int screen = (rom->data[level_sprite_data_addr_pc + 3*number_sprites + 1] & 0x2) << 3;
-                screen |= rom->data[level_sprite_data_addr_pc + 3*number_sprites + 2] & 0xF;
-                sprite->x = (screen << 4) | ((rom->data[level_sprite_data_addr_pc + 3*number_sprites + 2] & 0xF0) >> 4);
-                sprite->y = rom->data[level_sprite_data_addr_pc + 3*number_sprites + 1] & 0xF1;
+                u8* sprite_data_addr = cpu->ptr(level_sprite_data_addr_sfc + 3*sprites_length + 1);
+                int screen = (sprite_data_addr[0] & 0x2) << 3;
+                screen |= sprite_data_addr[1] & 0xF;
+                sprite->x = (screen << 4) | ((sprite_data_addr[1] & 0xF0) >> 4);
+                sprite->y = sprite_data_addr[0] & 0xF1;
                 sprite->y = ((sprite->y & 0xF0) >> 4) | ((sprite->y & 0x01) << 4);
-                sprite->number = rom->data[level_sprite_data_addr_pc + 3*number_sprites + 3];
-                sprite->extra_bits = (rom->data[level_sprite_data_addr_pc + 3*number_sprites + 1] & 0x0C) >> 2;
-                sprite->tiles = 0;
+                sprite->number = sprite_data_addr[2];
+                sprite->extra_bits = (sprite_data_addr[0] & 0x0C) >> 2;
+                sprite->tiles = arena_alloc_array(temp_arena, 0, sprite_tile_t);
                 
                 // Clear sprite tables
                 sprite_table_entries_t table_entries = { 0 };
@@ -703,10 +687,10 @@ void smw_level_load(smw_t* smw, u16 level_num) {
 
                 
                 //Copy sprite to scratch ram
-                cpu->ram[0x19c7b] = rom->data[level_sprite_data_addr_pc];
-                cpu->ram[0x19c7c] = rom->data[level_sprite_data_addr_pc + 3*number_sprites + 1];
-                cpu->ram[0x19c7d] = rom->data[level_sprite_data_addr_pc + 3*number_sprites + 2];
-                cpu->ram[0x19c7e] = rom->data[level_sprite_data_addr_pc + 3*number_sprites + 3];
+                cpu->ram[0x19c7b] = cpu->read(level_sprite_data_addr_sfc);
+                cpu->ram[0x19c7c] = sprite_data_addr[0];
+                cpu->ram[0x19c7d] = sprite_data_addr[1];
+                cpu->ram[0x19c7e] = sprite_data_addr[2];
                 cpu->ram[0x19c7f] = 0xff;
 
                 cpu->regs.p.b = 0x30;
@@ -714,7 +698,7 @@ void smw_level_load(smw_t* smw, u16 level_num) {
                 int sprite_index = 0;
 
 #if 1
-                r65816_cpu_run_jsl(cpu, 0x2A751);
+                wdc65816_cpu_run_jsl(cpu, 0x2A751);
                 for(int i = 0x0; i < 12; i++) {
                     if(cpu->ram[i + 0x9E] != 0) {
                         //printf("Sprite index was %i is %i\n", sprite_index, i);
@@ -723,11 +707,11 @@ void smw_level_load(smw_t* smw, u16 level_num) {
                 }
 #endif
 
-                //r65816_cpu_run_jsl(&cpu, 0x2a751); //Todo: Test routine 0x2AC5C!
-                /* r65816_cpu_run_jsr(&cpu, 0x2A8DD); //Todo: Test routine 0x2AC5C! */
-                /* r65816_cpu_run_jsr(&cpu, 0x2AC5C); */
-                //r65816_cpu_run_jsr(&cpu, 0x18172);
-                //r65816_cpu_add_exec_bp(&cpu, 0x0185C3);
+                //wdc65816_cpu_run_jsl(&cpu, 0x2a751); //Todo: Test routine 0x2AC5C!
+                /* wdc65816_cpu_run_jsr(&cpu, 0x2A8DD); //Todo: Test routine 0x2AC5C! */
+                /* wdc65816_cpu_run_jsr(&cpu, 0x2AC5C); */
+                //wdc65816_cpu_run_jsr(&cpu, 0x18172);
+                //wdc65816_cpu_add_exec_bp(&cpu, 0x0185C3);
                 //printf("%02x: %s\n", sprite->number, sprite_names[sprite->number]);
                 //cpu->debug = 1;
 
@@ -753,7 +737,7 @@ void smw_level_load(smw_t* smw, u16 level_num) {
                     cpu->regs.x.w = sprite_index;
                     //printf("%02x: %s\n", sprite->number, sprite_names[sprite->number]);
                     cpu->debug = 1;
-                    r65816_cpu_run_jsr(&cpu, 0x018172);
+                    wdc65816_cpu_run_jsr(&cpu, 0x018172);
                     cpu->debug = 0;
                 }
                 
@@ -769,19 +753,18 @@ void smw_level_load(smw_t* smw, u16 level_num) {
 
                 cpu->regs.db = 1;
                 //cpu->debug = 1;
-                r65816_cpu_run_jsr(cpu, 0x0185C3);
+                wdc65816_cpu_run_jsr(cpu, 0x0185C3);
                 cpu->debug = 0;
 
                 cpu->regs.db = 0;
-                pool_init(&sprite_tile_pool);
                 int number_tiles = 0;
 
                 for(int i = 0; i < 0x200; i += 4) {
                     if((cpu->ram[i + 0x200] | cpu->ram[i + 0x202] | cpu->ram[i + 0x203]) && (cpu->ram[i + 0x201] != 0xf0)) {
                         u8 extrabits = cpu->ram[0x420 + i/4];
-                        //@NOTE: Does not take $2101 into account
+                        //NOTE: Does not take $2101 into account
                         if(extrabits & 0x02) {
-                            sprite_tile_t* tiles = (sprite_tile_t*)pool_alloc(&sprite_tile_pool, 4 * sizeof(sprite_tile_t));
+                            sprite_tile_t* tiles = arena_alloc_array(temp_arena, 4, sprite_tile_t);
                             u8 flipx = cpu->ram[i + 0x203] & 0x40;
                             u8 flipy = cpu->ram[i + 0x203] & 0x80;
 
@@ -826,7 +809,7 @@ void smw_level_load(smw_t* smw, u16 level_num) {
                             }
                             number_tiles += 4;
                         } else {
-                            sprite_tile_t* tile = (sprite_tile_t*)pool_alloc(&sprite_tile_pool, sizeof(sprite_tile_t));
+                            sprite_tile_t* tile = arena_alloc_array(temp_arena, 1, sprite_tile_t);
                             tile->flip_x = (cpu->ram[i + 0x203] & 0x40) && 1;
                             tile->flip_y = (cpu->ram[i + 0x203] & 0x80) && 1;
                             tile->palette = 8 + ((cpu->ram[i + 0x203] >> 1) & 0x7);
@@ -852,51 +835,54 @@ void smw_level_load(smw_t* smw, u16 level_num) {
                 /* sprite_tile->tile_num = 0x3F; */
                 /* sprite_tile->x = sprite->x << 4; */
                 /* sprite_tile->y = sprite->y << 4; */
-                
-                
-                
-                sprite->tiles = malloc(sizeof(sprite_tile_t) * number_tiles);
                 sprite->num_tiles = number_tiles;
-                memcpy(sprite->tiles, sprite_tile_pool.data, sizeof(sprite_tile_t) * number_tiles);
-                pool_deinit(&sprite_tile_pool);
-
-                number_sprites++;
+                sprites_length++;
             }
-            l->sprites.length = number_sprites;
-            l->sprites.data = (sprite_pc_t*)sprite_pool.data;
+            for(int i = 0; i < sprites_length; i++) {
+                // Move memory from temp_arena to arena
+                sprite_pc_t* sprite = l->sprites.data + i;
+                sprite_tile_t* temp_tiles = sprite->tiles;
+                sprite->tiles = arena_alloc_array(arena, sprite->num_tiles, sprite_tile_t);
+                //assert(sprite->tiles);
+                memcpy(sprite->tiles, temp_tiles, sizeof(sprite_tile_t) * sprite->num_tiles);
+
+            }
+            
+            temp_end(temp);
+            l->sprites.length = sprites_length;
         }
 #endif    
     }
-    r65816_cpu_free(cpu);
+    wdc65816_cpu_free(cpu);
 
 }
 
 void smw_level_animate(smw_t* smw, u16 level_num, u8 frame) {
 
-    r65816_rom_t* rom = smw->rom;
+    wdc65816_rom_t* rom = smw->rom;
     gfx_store_t gfx_pages = smw->gfx_pages;
     level_pc_t* l = &smw->levels[level_num];
 
     if(l->is_boss_level) return;
     
-    r65816_cpu_t* cpu = &smw->cpu;
-    r65816_cpu_clear(cpu);
+    wdc65816_cpu_t* cpu = &smw->cpu;
+    wdc65816_cpu_clear(cpu);
 
     cpu->ram[0x14] = frame;
-    r65816_cpu_add_exec_bp(cpu, 0x00A42F);
-    r65816_cpu_run_from(cpu, 0x00A418);
+    wdc65816_cpu_add_exec_bp(cpu, 0x00A42F);
+    wdc65816_cpu_run_from(cpu, 0x00A418);
     int pos = cpu->sreg[0x0121];
     u32 tmp_color = cpu->sreg[0x0122];
-    r65816_cpu_step(cpu);
-    r65816_cpu_step(cpu);
+    wdc65816_cpu_step(cpu);
+    wdc65816_cpu_step(cpu);
     l->palette.data[pos] = tmp_color | (cpu->sreg[0x0122] << 8);
 
-    r65816_cpu_clear(cpu);
-    cpu->ram[0x65] = rom->banks[5][0xE000 + 3 * level_num];
-    cpu->ram[0x66] = rom->banks[5][0xE001 + 3 * level_num];
-    cpu->ram[0x67] = rom->banks[5][0xE002 + 3 * level_num];
-    r65816_cpu_add_exec_bp(cpu, 0x0583B8);
-    r65816_cpu_run_from(cpu, 0x0583AC);
+    wdc65816_cpu_clear(cpu);
+    cpu->ram[0x65] = rom->read(0x05E000 + 3 * level_num);
+    cpu->ram[0x66] = rom->read(0x05E001 + 3 * level_num);
+    cpu->ram[0x67] = rom->read(0x05E002 + 3 * level_num);
+    wdc65816_cpu_add_exec_bp(cpu, 0x0583B8);
+    wdc65816_cpu_run_from(cpu, 0x0583AC);
     cpu->ram[0x0014] = frame;
     cpu->ram[0x14AD] = 0;
     cpu->ram[0x14AE] = 0;
@@ -906,8 +892,8 @@ void smw_level_animate(smw_t* smw, u16 level_num, u8 frame) {
     cpu->regs.p.m = 1;
     //cpu->regs.d = 0x3000;
 
-    r65816_cpu_add_exec_bp(cpu, 0x00A601);
-    r65816_cpu_run_from(cpu, 0x00A5FD);
+    wdc65816_cpu_add_exec_bp(cpu, 0x00A601);
+    wdc65816_cpu_run_from(cpu, 0x00A5FD);
 
     u16 source[3], dest[3];
     // Get the dma source addresses. It works... note that 1000 is decimal.
@@ -933,38 +919,17 @@ void smw_level_animate(smw_t* smw, u16 level_num, u8 frame) {
         }
     }
 
-    r65816_cpu_free(cpu);
+    wdc65816_cpu_free(cpu);
 }
 
-void smw_level_deinit(smw_t* smw, u16 level_num) {
-    level_pc_t* l = &smw->levels[level_num];
-
-    if(l->is_boss_level) return;
-    for(int i = 0; i < l->layer1_objects.length; i++) {
-        if(l->layer1_objects.objects[i].tiles) free(l->layer1_objects.objects[i].tiles);
-    }
-#ifdef SPRITES
-    for(int i = 0; i < l->sprites.length; i++) {
-        if(l->sprites.data[i].tiles) free(l->sprites.data[i].tiles);
-    }
-    free(l->sprites.data);
-#endif
-    
-    if(l->has_layer2_bg) free(l->layer2_background.data);
-    free(l->layer1_objects.objects);
-    free(l->map16_bg.tiles);
-    free(l->map16_fg.tiles);
-    free(l->map8.tiles);
-    free(l->sprite_map8.tiles);
-}
-
+#if 0
 int smw_level_serialize_fast(smw_t* smw, u16 level_num) {
-    pool_t pool;
-    pool_init(&pool);
+    arena_t* temp_arena = &smw->temp_arena;
+    temp_t temp = temp_begin(temp_arena);
     uint length = smw->levels[level_num].layer1_objects.length;
-
-    *(level_header_t*)pool_alloc(&pool, sizeof(level_header_t)) =
-        smw->levels[level_num].header;
+    void* level_data = arena_alloc(temp_arena, 0, 0);
+    level_header_t* level_header = arena_alloc_type(temp_arena, level_header_t);
+    *level_header = smw->levels[level_num].header;
     int prev_screen = 0;
     for(int i = 0; i < length; i++) {
         object_pc_t* object = &smw->levels[level_num].layer1_objects.objects[i];
@@ -974,7 +939,7 @@ int smw_level_serialize_fast(smw_t* smw, u16 level_num) {
 
         u8* data;
         int screen = object->x / 16;
-        data = pool_alloc(&pool, 3);
+        data = arena_alloc_array(temp_arena, 3, u8);
         if(prev_screen == screen) {
             data[0] =  (object->num >> 4) << 5;
         } else if(prev_screen + 1 == screen) {
@@ -983,7 +948,7 @@ int smw_level_serialize_fast(smw_t* smw, u16 level_num) {
             data[0] = screen;
             data[1] = 0; // We can savely set this to zero. 
             data[2] = 1;
-            data = pool_alloc(&pool, 3);
+            data = arena_alloc_array(temp_arena, 3, u8);
             data[0] = (object->num >> 4) << 5;
         }
         data[0] |= object->y;
@@ -994,7 +959,8 @@ int smw_level_serialize_fast(smw_t* smw, u16 level_num) {
 
         prev_screen = screen;
     }
-    *pool_alloc(&pool, 1) = 0xFF;
+    
+    *(u8*)arena_alloc_array(temp_arena, 1, u8) = 0xFF;
 
     /* u8* data = pool.data; */
     /* u8 output, output2, output3; */
@@ -1025,20 +991,22 @@ int smw_level_serialize_fast(smw_t* smw, u16 level_num) {
     /* } */
     /* printf("\n"); */
 
-    u32 freespace_addr_pc = freespace_manager_request(&smw->freespace_manager, pool.fill);
+    int level_data_length = arena_alloc(temp_arena, 0, 0) - level_data;
+    
+    u32 freespace_addr_pc = freespace_manager_request(&smw->freespace_manager,
+                                                      level_data_length);
+    int result = 0;
     if(freespace_addr_pc) {
         u8* rom_data = smw->rom->data;
-        memcpy(rom_data + freespace_addr_pc, pool.data, pool.fill);
+        memcpy(rom_data + freespace_addr_pc, level_data, level_data_length);
         u32 freespace_addr_sfc = ((freespace_addr_pc << 1) & 0x7F0000) | (freespace_addr_pc & 0x7FFF) | 0x8000;
         rom_data[level_layer1_data_table_pc + 2 + 3 * level_num] = (freespace_addr_sfc & 0xFF0000) >> 16;
         rom_data[level_layer1_data_table_pc + 1 + 3 * level_num] = (freespace_addr_sfc & 0x00FF00) >>  8;
         rom_data[level_layer1_data_table_pc + 0 + 3 * level_num] = (freespace_addr_sfc & 0x0000FF) >>  0;
-        pool_deinit(&pool);
-        return 1;
-    } else {
-        pool_deinit(&pool);
-        return 0;
+        result = 1;
     }
+    temp_end(temp);
+    return result;
 }
 
 void smw_level_remove_layer1_object(smw_t* smw, u16 level_num, uint object_index) {
@@ -1048,21 +1016,25 @@ void smw_level_remove_layer1_object(smw_t* smw, u16 level_num, uint object_index
     }
     l->layer1_objects.length--;
 }
+#endif
 
 void smw_level_add_layer1_object(smw_t* smw, u16 level_num, uint object_index, object_pc_t object) {
-    object_pc_t* old_objects = smw->levels[level_num].layer1_objects.objects;
-    object_pc_t* new_objects = malloc(sizeof(object_pc_t) * (smw->levels[level_num].layer1_objects.length + 1));
+    object_list_pc_t* object_list = &smw->levels[level_num].layer1_objects;
+    object_pc_t* old_objects = object_list->objects;
+    object_pc_t* new_objects = arena_alloc_array(&smw->arena, object_list->length + 1, object_pc_t);
     memcpy(new_objects + object_index + 1, old_objects,
-           (smw->levels[level_num].layer1_objects.length - object_index) * sizeof(object_pc_t));
+           (object_list->length - object_index) * sizeof(object_pc_t));
     free(old_objects);
-    smw->levels[level_num].layer1_objects.objects = new_objects;
-    smw->levels[level_num].layer1_objects.objects[object_index] = object;
-    smw->levels[level_num].layer1_objects.length++;
+    object_list->objects = new_objects;
+    object_list->objects[object_index] = object;
+    object_list->length++;
 }
 
+#if 0
 void smw_level_refresh(smw_t* smw, u16 level_num) {
     freespace_manager_empty(&smw->freespace_manager);
     if(smw_level_serialize_fast(smw, level_num)) {
         smw_level_load(smw, level_num);
     }
 }
+#endif

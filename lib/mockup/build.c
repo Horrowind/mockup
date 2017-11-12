@@ -1,3 +1,5 @@
+//#define SPRITES
+
 #include "decode.c"
 #include "freespace.c"
 #include "gfx_store.c"

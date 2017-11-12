@@ -2,7 +2,7 @@
 #ifndef MOCKUP_TILESET_H
 #define MOCKUP_TILESET_H
 
-#include "r65816/r65816.h"
+#include "wdc65816/wdc65816.h"
 #include "gfx_store.h"
 
 typedef struct {
@@ -13,5 +13,5 @@ typedef struct {
 } tileset_t;
 
 void tileset_init(tileset_t* tileset, gfx_store_t* gfx_store, u8 fg1, u8 fg2, u8 bg1, u8 fg3);
-void tileset_init_level(tileset_t* tileset, r65816_rom_t* rom, int num_level, gfx_store_t* gfx_store);
+void tileset_init_level(tileset_t* tileset, wdc65816_rom_t* rom, int num_level, gfx_store_t* gfx_store);
 #endif //MOCKUP_TILESET_H
