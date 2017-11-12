@@ -3,12 +3,8 @@
 #include <ctype.h>
 #include <linux/limits.h>
 
-#define BASE_VARIABLE_STRING_IMPLEMENTATION
-#define BASE_HASH_IMPLEMENTATION
-#define BASE_POOL_IMPLEMENTATION
 #include "base/base.h"
-
-#define TEXT_POS
+#include "nuts/nuts.h"
 
 #define OPCODES_X                                                       \
     X(ADC) X(AND) X(ASL) X(BBR) X(BBS) X(BCC) X(BCS) X(BEQ) X(BIT) X(BMI) \
@@ -28,14 +24,16 @@
     X(ENDIF) X(FILL) X(BASE) X(TABLE) X(OFF)
 
 #define X(c) IDENT_##c,
-typedef enum {
+//typedef enum {
+enum {
     IDENT_OPCODE  = 0x0000,
     OPCODES_X
 
     IDENT_COMMAND = 0x1000,
     COMMANDS_X
     IDENT__B, IDENT__W, IDENT__L,
-} ident_type_t;
+//} ident_type_t;
+};
 #undef X
 
 #define TOKEN_X                                                     \
@@ -45,11 +43,11 @@ typedef enum {
     X(LABEL_DEF) X(STRING) X(DEFINE) X(LESS) X(GREATER)             \
     X(LSHIFT) X(RSHIFT) X(DOT) X(NUM)  X(WIDTH_SPECIFIER)           \
     X(IDENTIFIER) X(PIPE) X(AMPERSAND) X(ARROW) X(EOF)              \
-    X(LABEL) X(MAX)
+    X(LABEL) X(MAX) 
 #define X(c) TOKEN_##c,
-    typedef enum { TOKEN_X } token_type_t;
+// typedef enum { TOKEN_X } token_type_t;
+    enum { TOKEN_X };
 #undef X
-
 
 #define X(c) #c,
 static char* commands[] = { COMMANDS_X };
@@ -57,7 +55,7 @@ static char* opcodes[] = { OPCODES_X };
 static char* token_names[] = { TOKEN_X };
 
 // These will be converted to lowercase in cmd_map_fill
-static char commands_lower[][10] = { COMMANDS_X };
+static char commands_lower[][12] = { COMMANDS_X };
 static char opcodes_lower[][4] = { OPCODES_X };
 #undef X
 
@@ -193,50 +191,29 @@ static short opcode_addr_mode[][25] ={
     [IDENT_XCE] = { 0x0fb,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1}, 
 };
 
-
-
 u32 num_bytes_of_u32(u32 i) {
     return (sizeof(int) * 8 - __builtin_clz(i) + 7) / 8;
 }
 
-typedef struct free_list {
-    struct free_list* next;
-    u8 data[];
-} free_list_t;
-
-static
-buffer_t open_file(string_t file, free_list_t** free_list) {
+buffer_t open_file(string_t file_name, arena_t* a) {
 
     // TODO: Maybe there is a way to open files with char* begin + int length?
-    char file_name[PATH_MAX] = { 0 };
-    strncpy(file_name, file.data, file.length < PATH_MAX ? file.length : PATH_MAX);
+    char file_name_c[PATH_MAX] = { 0 };
+    strncpy(file_name_c, file_name.data, file_name.length < PATH_MAX ? file_name.length : PATH_MAX);
 
-    FILE* fp = fopen(file_name, "r");
+    FILE* fp = fopen(file_name_c, "r");
     if(!fp) {
-        fprintf(stderr, "Error: could not open file \"%.*s\"\n", file.length, file.data);
+        fprintf(stderr, "Error: could not open file \"%.*s\"\n", file_name.length, file_name.data);
         exit(1);
     }
     fseek(fp, 0, SEEK_END);
     long int file_size = ftell(fp);
-    free_list_t* buffer = malloc(file_size + sizeof(free_list_t));
+    void* data = arena_alloc(a, file_size, 8);
     rewind(fp);
-    fread(buffer->data, file_size, 1, fp);
+    fread(data, file_size, 1, fp);
     fclose(fp);
-    buffer->next = *free_list;
-    *free_list = buffer;
-    return (buffer_t) { .begin = buffer->data, .end = buffer->data + file_size};
+    return (buffer_t) { .begin = data, .end = data + file_size};
 }
-
-
-//#define TEXT_POS
-
-typedef struct {
-    string_t   name;
-    buffer_t   buffer;
-#ifdef TEXT_POS
-    text_pos_t text_pos;
-#endif
-} define_t;
 
 u32 define_equal(define_t e1, define_t e2) {
     return string_equal(e1.name, e2.name);
@@ -246,15 +223,6 @@ u32 define_hash(define_t e) {
     return SuperFastHash(e.name);
 }
 
-
-typedef struct {
-    string_t   name;
-    u32        address;
-#ifdef TEXT_POS
-    text_pos_t definition_pos;
-#endif
-} label_t;
-
 u32 label_equal(label_t e1, label_t e2) {
     return string_equal(e1.name, e2.name);
 }
@@ -262,11 +230,6 @@ u32 label_equal(label_t e1, label_t e2) {
 u32 label_hash(label_t e) {
     return SuperFastHash(e.name);
 }
-
-typedef struct {
-    string_t name;
-    ident_type_t type;
-} identifier_t;
 
 u32 identifier_hash(identifier_t e) {
     string_t s = e.name;
@@ -277,9 +240,9 @@ u32 identifier_equal(identifier_t e1, identifier_t e2) {
     return string_equal(e1.name, e2.name);
 }
 
-generate_hashmap(define_map, define_t, define_hash, define_equal);
-generate_hashmap(label_map, label_t, label_hash, label_equal);
-generate_hashmap(identifier_map, identifier_t, identifier_hash, identifier_equal);
+implement_hashmap(define_map, define_t, define_hash, define_equal);
+implement_hashmap(label_map, label_t, label_hash, label_equal);
+implement_hashmap(identifier_map, identifier_t, identifier_hash, identifier_equal);
 identifier_map_t identifier_map;
 
 #ifndef TEXT_POS
@@ -287,20 +250,9 @@ identifier_map_t identifier_map;
 #define error_at_pos(a)
 #endif
 
-typedef struct {
-    token_type_t type;
-#ifdef TEXT_POS
-    text_pos_t   text_pos;
-#endif
-    string_t     text;
-    u64 num;
-    ident_type_t ident_type;
-    int bytes;
-} token_t;
-
 
 void identifier_map_fill() {
-    identifier_map_init(&identifier_map, 128);
+    identifier_map_init(&identifier_map, 256);
     for(int i = 0; i < array_length(opcodes); i++) {
         identifier_t entry = {
             .name = string_from_c_string(opcodes[i]),
@@ -331,6 +283,9 @@ void identifier_map_fill() {
     
 }
 
+implement_stack(lexer_stack, lexer_state_t);
+
+
 static
 int is_ident_char_start(char c) {
     return (c >= 'a' && c <= 'z')
@@ -350,28 +305,6 @@ static
 int is_whitespace(char c) {
     return c == ' ' || c == '\t';
 }
-
-typedef struct {
-    buffer_t   buffer;
-    char*      pos;
-    int        allocated_buffer : 1;
-#ifdef TEXT_POS
-    text_pos_t text_pos;
-#endif
-} lexer_state_t; 
-
-generate_stack(lexer_stack, lexer_state_t);
-
-typedef struct {
-    char* pos;
-    char* end;
-    lexer_state_t* top;
-#ifdef TEXT_POS
-    text_pos_t text_pos;
-#endif
-    define_map_t define_map;
-    lexer_stack_t lexer_stack;
-} lexer_t;
 
 static
 void lexer_init(lexer_t* lexer) {
@@ -421,14 +354,16 @@ void lexer_push_buffer(lexer_t* lexer, buffer_t buffer
 
 
 static
-void lexer_push_file(lexer_t* lexer, string_t file_name, free_list_t** free_list) {
-    buffer_t buffer = open_file(file_name, free_list);
+void lexer_push_file(lexer_t* lexer, string_t file_name, arena_t* arena) {
+    buffer_t buffer = open_file(file_name, arena);
+#ifdef TEXT_POS
     text_pos_t text_pos = {
         .file_name = file_name,
         .line_number = 1,
         .line_pos = 0,
         .line_start = buffer.begin
     };
+#endif
     lexer_push_buffer(lexer, buffer
 #ifdef TEXT_POS
                       , text_pos
@@ -538,7 +473,7 @@ token_t lexer_get_token(lexer_t* lexer) {
     }
     result = lexer_set_token_pos(lexer);
 
-    result.type == TOKEN_NULL;
+    result.type = TOKEN_NULL;
     while(result.type == TOKEN_NULL) {
         if(is_whitespace(lexer->pos[0])) {
             while(is_whitespace(lexer->pos[0])) {
@@ -698,7 +633,6 @@ token_t lexer_get_token(lexer_t* lexer) {
             }
 
             result.text.length = lexer->pos - result.text.data + 1;
-            char* c = lexer->pos + 1;
             
             define_t define = {
                 .name = result.text,
@@ -769,42 +703,21 @@ token_t lexer_get_token(lexer_t* lexer) {
     return result;
 }
 
-
-typedef struct {
-    int         pc;
-    int         size;
-    lexer_t     lexer;
-    token_t     token;
-    label_map_t label_map;
-    pool_t      expr_pool;
-    u8*         data;
-    free_list_t* free_list;
-} parser_state_t;
-
-static
-void parser_init(parser_state_t* parser, string_t file_name) {
+void parser_init(parser_state_t* parser, string_t file_name, wdc65816_rom_t* rom, arena_t* arena) {
     parser->pc = 0;
     parser->size = 4 * 1024 * 1024;
     parser->token = (token_t){ 0 };
     lexer_init(&parser->lexer);
     label_map_init(&parser->label_map, 512);
-    parser->free_list = NULL;
-    lexer_push_file(&parser->lexer, file_name, &parser->free_list);
-    pool_init(&parser->expr_pool);
+    parser->arena = arena;
+    lexer_push_file(&parser->lexer, file_name, parser->arena);
     parser->data = malloc(4*1024*1024);
 }
 
-static
 void parser_deinit(parser_state_t* parser) {
     free(parser->data);
-    pool_deinit(&parser->expr_pool);
     label_map_deinit(&parser->label_map);
     lexer_deinit(&parser->lexer);
-    while(parser->free_list != NULL) {
-        free_list_t* tmp = parser->free_list;
-        parser->free_list = parser->free_list->next;
-        free(tmp);
-    }
 }
 
 
@@ -936,7 +849,7 @@ expr_t parse_expr_(parser_state_t* parser, int level) {
         } else {
             // we copy op1 into neg_expr and use op1 below
             // as the result of the negation
-            expr_t* neg_expr = (expr_t*)pool_alloc(&parser->expr_pool, sizeof(expr_t));
+            expr_t* neg_expr = arena_alloc_type(parser->arena, expr_t);
             *neg_expr = op1;
             op1 = (expr_t) {
                 .type = EXPR_NEG,
@@ -969,12 +882,12 @@ expr_t parse_expr_(parser_state_t* parser, int level) {
             op1.bytes = max(op1.bytes, op2.bytes);                      \
             op1.num   = hierarchy[expr_type].op(op1.num, op2.num);      \
         } else {                                                        \
-            expr_t* ops = (expr_t*)pool_alloc(&parser->expr_pool, 2 * sizeof(expr_t)); \
+            expr_t* ops = arena_alloc_array(parser->arena, 2, expr_t);  \
             ops[0] = op1; ops[1] = op2;                                 \
             expr_t op1 = { .type  = expr_type, .op1   = ops + 0, .op2   = ops + 1, \
                            .bytes = max(ops[0].bytes, ops[1].bytes)};   \
             if(hierarchy[expr_type].optimize && op2.type == EXPR_NUM) { \
-                u32 max_num = 1 << (op1.bytes * 8) - 1;                 \
+                u32 max_num = (1 << (op1.bytes * 8)) - 1;               \
                 op1.bytes = num_bytes_of_u32(                           \
                     hierarchy[expr_type].op(max_num, op2.num));         \
             }                                                           \
@@ -1157,7 +1070,7 @@ void parse_statement(parser_state_t* parser) {
 
                 string_t file_name = parser->token.text;
                 parser_advance(parser);
-                lexer_push_file(&parser->lexer, file_name, &parser->free_list);
+                lexer_push_file(&parser->lexer, file_name, parser->arena);
                 parser_advance(parser);
                 return;
             }
@@ -1203,7 +1116,7 @@ void parse_statement(parser_state_t* parser) {
                 
                 if(pc + file_size >= parser->size) {
                     error_at_pos(parser->token.text_pos);
-                    fprintf(stderr, "File to large!\n", file_name);
+                    fprintf(stderr, "File \"%s\" is to large!\n", file_name);
                     exit(1);
                 }
                 rewind(fp);
@@ -1390,12 +1303,12 @@ void parse_statement(parser_state_t* parser) {
         } else {
             token_t opcode = parser->token;
             parser_advance(parser);
-            short bytes = 0; // 0 = unsure
+            //short bytes = 0; // 0 = unsure
             short width_specifier = 0;
-            short length = 0;
-            u8    code[4];
+            //short length = 0;
+            //u8    code[4];
             u8    op_byte = opcode.ident_type;
-            code[0] = opcode_addr_mode[op_byte][0];
+            //code[0] = opcode_addr_mode[op_byte][0];
             if(opcode.ident_type == IDENT_MVN || opcode.ident_type == IDENT_MVP) {
                 expr_t op1 = parse_expr(parser);
                 parser_expect_expr(parser, op1);
@@ -1406,7 +1319,7 @@ void parse_statement(parser_state_t* parser) {
             } else {
                 if(parser->token.type == TOKEN_WIDTH_SPECIFIER) {
                     parser_advance(parser);
-                    bytes = width_specifier = parser->token.bytes;
+                    //bytes = width_specifier = parser->token.bytes;
                 }
                 if(parser->token.type == TOKEN_CMD_DELIM) {
                     if(opcode_addr_mode[op_byte][0] == -1) {
@@ -1416,10 +1329,11 @@ void parse_statement(parser_state_t* parser) {
                     }
                     if(width_specifier != 0) {
                         error_at_pos(opcode.text_pos);
-                        fprintf(stderr, "Width specifier meaningless for implied mode.\n", opcode.text.length, opcode.text.data);
+                        fprintf(stderr, "Width specifier meaningless for implied mode in opcode \"%.*s.\n",
+                                opcode.text.length, opcode.text.data);
                         exit(1);
                     }
-                    length  = 1;
+                    //length  = 1;
                 } else if(parser->token.type == TOKEN_IDENTIFIER && parser->token.ident_type == IDENT_A) {
                     parser_advance(parser);
                     if(opcode_addr_mode[op_byte][24] == -1) {
@@ -1429,10 +1343,11 @@ void parse_statement(parser_state_t* parser) {
                     }
                     if(width_specifier != 0) {
                         error_at_pos(opcode.text_pos);
-                        fprintf(stderr, "Width specifier meaningless for implied mode.\n", opcode.text.length, opcode.text.data);
+                        fprintf(stderr, "Width specifier meaningless for implied mode in opcode \"%.*s.\n",
+                                opcode.text.length, opcode.text.data);
                         exit(1);
                     }
-                    length  = 1;
+                    //length  = 1;
                 } else if(parser->token.type ==  TOKEN_HASH) {
                     if(opcode_addr_mode[opcode.ident_type][7] == -1) {
                         error_at_pos(opcode.text_pos);
@@ -1442,7 +1357,6 @@ void parse_statement(parser_state_t* parser) {
                     parser_advance(parser);
                     expr_t expr = parse_expr(parser);
                     parser_expect_expr(parser, expr);
-                    short actual_bytes = bytes;
                 } else if(parser->token.type == TOKEN_LPAREN) {
                     parser_advance(parser);
                     expr_t expr = parse_expr(parser);
@@ -1519,8 +1433,8 @@ void parse_statement(parser_state_t* parser) {
                 exit(1);
             }
             char* c = lexer_state->pos; 
-            while((u8*)c < lexer_state->buffer.end && c[0] != '\n' &&
-                  !(c[0] == '\r' && (u8*)c + 1 < lexer_state->buffer.end && c[1] == '\n')) {
+            while((void*)c < lexer_state->buffer.end && c[0] != '\n' &&
+                  !(c[0] == '\r' && (void*)c + 1 < lexer_state->buffer.end && c[1] == '\n')) {
                 c++;
             }
             define_t define = {
@@ -1568,34 +1482,16 @@ void parse_statement(parser_state_t* parser) {
 }
 
 
-static
-void parse_program(parser_state_t* parser) {
+void parse_asm(parser_state_t* parser) {
     parser_advance(parser);
     while(parser->token.type != TOKEN_EOF) {
         parse_statement(parser);
     }
 }
 
-int main(int argc, char** argv) {
-    if(argc != 2) {
-        printf("Usage: nuts FILE\n");
-        return 0;
-    }
-    if(0) {
-        free_list_t* free_list = NULL;
-        buffer_t manifest = open_file(string_from_c_string(argv[1]), &free_list);
-        pool_t pool;
-        pool_init(&pool);
-        bml_node_t* node = bml_parse(manifest, pool);
-        bml_print_node(node, 0);
-        printf("Finish\n");
-    } else {    
-        identifier_map_fill();
-        parser_state_t parser;
-        parser_init(&parser, string_from_c_string(argv[1]));
-        parse_program(&parser);
-        parser_deinit(&parser);
-        identifier_map_deinit(&identifier_map);
-    }
-    return 0;
+void parser_global_init() {
+    identifier_map_fill();
+}
+void parser_global_deinit() {
+    identifier_map_deinit(&identifier_map);
 }
