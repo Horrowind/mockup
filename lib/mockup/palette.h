@@ -11,7 +11,6 @@ typedef struct {
     u32 data[256];
 } palette_pc_t;
 
-void palette_init(palette_t* palette, wdc65816_rom_t* rom, int num_level);
 void palette_to_pc(palette_t* palette, palette_pc_t* palette_pc);
 
 #endif //MOCKUP_PALETTE_H

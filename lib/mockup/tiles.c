@@ -1,3 +1,4 @@
+#include "smw.h"
 #include "tiles.h"
 
 /* tile8_t tile8_flip(tile8_t tile, tile_properties_t props) { */
@@ -82,92 +83,6 @@ tile16_t tile16_from_tile8(tile8_t* t[4], tile_properties_t properties[4]) {
     }
     return tile;
 }
-
-
-void map16_init_fg(map16_t* map16, wdc65816_rom_t* rom, int num_level, map8_t* map8) {
-    wdc65816_cpu_t cpu;
-    wdc65816_cpu_init(&cpu, rom);
-
-    cpu.ram[0x65] = cpu.read(0x05E000 + 3 * num_level); 
-    cpu.ram[0x66] = cpu.read(0x05E001 + 3 * num_level);
-    cpu.ram[0x67] = cpu.read(0x05E002 + 3 * num_level);
-
-    wdc65816_cpu_add_exec_bp(&cpu, 0x0583B8);
-    wdc65816_cpu_run_from(&cpu, 0x0583AC);
-    map16->length = 512;
-    map16->tiles = malloc(512 * sizeof(tile16_t));
-    for(int i = 0; i < map16->length; i++) {
-        int map16_lookup_sfc = 0x0D0000 + cpu.ram[2 * i + 0x0FBF] * 256 + cpu.ram[2 * i + 0x0FBE];
-        for(int j = 0; j < 4; j++) {
-            map16->tiles[i].properties[j] = (tile_properties_t)cpu.read(map16_lookup_sfc + j * 2 + 1);
-            u16 num_tile                  = cpu.read(map16_lookup_sfc + j * 2) | ((cpu.read(map16_lookup_sfc + j * 2 + 1) & 0x03) << 8);
-            map16->tiles[i].tile8s[j]     = &map8->tiles[num_tile];
-        }
-    }
-
-    wdc65816_cpu_free(&cpu);
-}
-
-void map16_init_bg(map16_t* map16, wdc65816_rom_t* rom, int num_level, map8_t* map8) {
-    wdc65816_cpu_t cpu;
-    wdc65816_cpu_init(&cpu, rom);
-
-    cpu.ram[0x65] = cpu.read(0x05E000 + 3 * num_level); 
-    cpu.ram[0x66] = cpu.read(0x05E001 + 3 * num_level);
-    cpu.ram[0x67] = cpu.read(0x05E002 + 3 * num_level);
-
-    wdc65816_cpu_add_exec_bp(&cpu, 0x0583B8);
-    wdc65816_cpu_run_from(&cpu, 0x0583AC);
-
-    map16->length = 512;
-    map16->tiles = malloc(512 * sizeof(tile16_t));
-    for(int i = 0; i < 512; i++) {
-        /* int map16lookupSNES = 0x0D9100 + i*8; */
-        /* int map16lookupPC   = ((map16lookupSNES & 0x7f0000) >> 1) + (map16lookupSNES & 0x7fff); */
-
-        for(int j = 0; j < 4; j++) {
-            map16->tiles[i].properties[j] = (tile_properties_t)rom->read(0x0D9100 + i * 8 + j * 2 + 1);
-            u16 num_tile                  = rom->read(0x0D9100 + i * 8 + j * 2);
-            num_tile                     |= (rom->read(0x0D9100 + i * 8 + j * 2 + 1) & 0b00000011) << 8;
-            map16->tiles[i].tile8s[j]     = &map8->tiles[num_tile];
-        }
-    }
-
-    wdc65816_cpu_free(&cpu);
-}
-
-void map16_deinit(map16_t* map16) {
-
-
-}
-
-void map8_init(map8_t* map8, tileset_t* tileset) {
-    map8->length = 512;
-    map8->tiles = malloc(512 * sizeof(tile8_t));
-    for(int tile = 0; tile < 512; tile++) {
-        gfx_page_t* used_chr;
-        switch(tile >> 7) {
-        case 0:
-            used_chr = tileset->fg1;
-            break;
-        case 1:
-            used_chr = tileset->fg2;
-            break;
-        case 2:
-            used_chr = tileset->bg1;
-            break;
-        default: //(... = 3), gcc cannot determine that we listed all posibilities here...
-            used_chr = tileset->fg3;
-            break;
-        }
-        map8->tiles[tile] = tile8_from_3bpp(used_chr->data + 24 * (tile % 128));
-    }
-}
-
-void map8_deinit(map8_t* map8) {
-    free(map8->tiles);
-}
-
 
 void tile16_pc_init(tile16_pc_t* tile16_pc, tile16_t* tile16) {
     for(int k = 0; k < 2; k++) {

@@ -1,9 +1,10 @@
 #ifndef MOCKUP_TILES_HPP
 #define MOCKUP_TILES_HPP
 
-#include "wdc65816/wdc65816.h"
 #include "palette.h"
 #include "tileset.h"
+
+struct smw;
 
 typedef union {
     struct {
@@ -56,11 +57,6 @@ tile8_t tile8_from_4bpp(u8* data);
 
 tile16_t tile16_from_tile8(tile8_t* tiles[4], tile_properties_t poperties[4]);
 
-void map8_init(map8_t* map8, tileset_t* tileset);
-void map8_deinit(map8_t* map8);
-
-void map16_init_bg(map16_t* map16, wdc65816_rom_t* rom, int num_level, map8_t* map8);
-void map16_init_fg(map16_t* map16, wdc65816_rom_t* rom, int num_level, map8_t* map8);
 void map16_pc_init(map16_pc_t* map16_pc, map16_t* map16);
 void map16_pc_deinit(map16_pc_t* map16);
 #endif //MOCKUP_TILES_HPP

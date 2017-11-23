@@ -1,23 +1,5 @@
 #include "palette.h"
 
-void palette_init(palette_t* palette, wdc65816_rom_t* rom, int num_level) {
-    wdc65816_cpu_t cpu = {.regs.p.b = 0x24};
-    wdc65816_cpu_init(&cpu, rom);
-
-    cpu.ram[0x65] = cpu.read(0x05E000 + 3 * num_level); 
-    cpu.ram[0x66] = cpu.read(0x05E001 + 3 * num_level);
-    cpu.ram[0x67] = cpu.read(0x05E002 + 3 * num_level);
-
-    wdc65816_cpu_add_exec_bp(&cpu, 0x0583B8);
-    wdc65816_cpu_run_from(&cpu, 0x0583AC);
-    memcpy(palette->data, cpu.ram + 0x0703, 512);
-    
-    for(int i = 0; i < 16; i++) {
-        palette->data[i << 4] = 0;
-    }
-    wdc65816_cpu_free(&cpu);
-}
-
 void palette_to_pc(palette_t* palette, palette_pc_t* palette_pc) {
     for(int i = 0; i < 256; i++) {
         u16 snes = palette->data[i];
