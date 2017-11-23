@@ -76,8 +76,8 @@ uint32_t       map8_pixel_data[128*256*16];
 uint32_t       sprite_map8_pixel_data[128*256*16];
 uint32_t       map16_fg_pixel_data[256*512];
 uint32_t       map16_bg_pixel_data[256*512];
-uint16_t*      level_object_data = NULL;
-uint16_t*      level_tile_flags = NULL;
+uint16_t*      level_layer1_object_data = NULL;
+uint16_t*      level_layer2_object_data = NULL;
 
 uint16_t selected_index_x;
 uint16_t selected_index_y;
@@ -158,20 +158,24 @@ void render() {
 
     glfwGetWindowSize(win, &fb_width, &fb_height);
 
+    level_pc_t* level = smw.levels + current_level;
+    
     /* Update */
     for(int i = 0; i < 1; i++) {
         smw_level_animate(&smw, current_level, frame_num & 0x1F);
         frame_num++;
     }
 
-    palette_to_pc(&smw.levels[current_level].palette, &palette);
+    
+    
+    palette_to_pc(&level->palette, &palette);
     
     // Map8
     for(int p = 0; p < 16; p++) {
         for(int i = 0; i < 512; i++) {
             for(int j = 0; j < 64; j++) {
                 map8_pixel_data[p * 128 * 256 + (i % 16) * 8 + (j % 8) + ((i / 16) * 8 + (j / 8)) * 128]
-                    = palette.data[16 * p + smw.levels[current_level].map8.tiles[i].pixels[j]];
+                    = palette.data[16 * p + level->map8.tiles[i].pixels[j]];
             }
         }
     }
@@ -182,15 +186,15 @@ void render() {
         for(int i = 0; i < 512; i++) {
             for(int j = 0; j < 64; j++) {
                 sprite_map8_pixel_data[p * 128 * 256 + (i % 16) * 8 + (j % 8) + ((i / 16) * 8 + (j / 8)) * 128]
-                    = palette.data[16 * p + smw.levels[current_level].sprite_map8.tiles[i].pixels[j]];
+                    = palette.data[16 * p + level->sprite_map8.tiles[i].pixels[j]];
             }
         }
     }
     #endif
     
     // Map16
-    map16_pc_init(&map16_fg, &smw.levels[current_level].map16_fg);
-    map16_pc_init(&map16_bg, &smw.levels[current_level].map16_bg);
+    map16_pc_init(&map16_fg, &level->map16_fg);
+    map16_pc_init(&map16_bg, &level->map16_bg);
     for(int i = 0; i < 2; i++) {
         for(int k = 0; k < 512; k++) {
             for(int j = 0; j < 256; j++) {
@@ -203,40 +207,53 @@ void render() {
     }
 
     // Level objects
-    level_object_data = (uint16_t*)realloc(level_object_data,
-                                           smw.levels[current_level].width * smw.levels[current_level].height * sizeof(uint16_t));
-    level_tile_flags = (uint16_t*)realloc(level_tile_flags,
-                                          smw.levels[current_level].width * smw.levels[current_level].height * sizeof(uint16_t));
+    level_layer1_object_data = (uint16_t*)realloc(level_layer1_object_data,
+                                                  level->width * level->height * sizeof(uint16_t));
+    level_layer2_object_data = (uint16_t*)realloc(level_layer2_object_data,
+                                                  level->width * level->height * sizeof(uint16_t));
 
-    for(int i = 0; i < smw.levels[current_level].width * smw.levels[current_level].height; i++) {
-        level_object_data[i] = 0x25;
-        level_tile_flags[i] = 0;
+    for(int i = 0; i < level->width * level->height; i++) {
+        level_layer1_object_data[i] = 0x25;
+        level_layer2_object_data[i] = 0x25;
     }
     
-    for(int i = 0; i < smw.levels[current_level].layer1_objects.length; i++) {
-        object_pc_t* obj = smw.levels[current_level].layer1_objects.objects + i;
+    for(int i = 0; i < level->layer1_objects.length; i++) {
+        object_pc_t* obj = level->layer1_objects.objects + i;
         if(!obj->tiles) continue;
         int obj_width = obj->bb_xmax - obj->bb_xmin + 1;
         int obj_height = obj->bb_ymax - obj->bb_ymin + 1;
         for(int j = 0; j < obj_height; j++) {
             for(int k = 0; k < obj_width; k++) {
                 if(j + obj->bb_ymin >= 0 && k + obj->bb_xmin >= 0 &&
-                   j + obj->bb_ymin < smw.levels[current_level].height &&
-                   k + obj->bb_xmin < smw.levels[current_level].width &&
+                   j + obj->bb_ymin < level->height &&
+                   k + obj->bb_xmin < level->width &&
                    obj->tiles[j * obj_width + k] != 0xFFFF) {
-                    level_object_data[(j + obj->bb_ymin) * smw.levels[current_level].width + k + obj->bb_xmin]
+                    level_layer1_object_data[(j + obj->bb_ymin) * level->width + k + obj->bb_xmin]
                         = obj->tiles[j * obj_width + k];
-                    if(hot_index == i) {
-                        level_tile_flags[(j + obj->bb_ymin) * smw.levels[current_level].width + k + obj->bb_xmin] |= 0x1;
-                    }
-                    if(selected_index == i) {
-                        level_tile_flags[(j + obj->bb_ymin) * smw.levels[current_level].width + k + obj->bb_xmin] |= 0x2;
+                }
+            }
+        }
+    }
+
+    if(level->has_layer2_objects) {
+        for(int i = 0; i < level->layer2_objects.length; i++) {
+            object_pc_t* obj = level->layer2_objects.objects + i;
+            if(!obj->tiles) continue;
+            int obj_width = obj->bb_xmax - obj->bb_xmin + 1;
+            int obj_height = obj->bb_ymax - obj->bb_ymin + 1;
+            for(int j = 0; j < obj_height; j++) {
+                for(int k = 0; k < obj_width; k++) {
+                    if(j + obj->bb_ymin >= 0 && k + obj->bb_xmin >= 0 &&
+                       j + obj->bb_ymin < level->height &&
+                       k + obj->bb_xmin < level->width &&
+                       obj->tiles[j * obj_width + k] != 0xFFFF) {
+                        level_layer2_object_data[(j + obj->bb_ymin) * level->width + k + obj->bb_xmin]
+                            = obj->tiles[j * obj_width + k];
                     }
                 }
             }
         }
     }
-    
 
     gl_update_textures();
     map16_pc_deinit(&map16_fg);
@@ -343,79 +360,77 @@ void render() {
         
 
         char window_title[64];
-        if(smw.levels[current_level].is_boss_level) {
-            sprintf(window_title, "Level %x - Boss Level", current_level);
-            nk_begin_titled(ctx, "Level", window_title, nk_rect(640, 30, 500, 566),
-                            NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|NK_WINDOW_BORDER|
-                            NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE);
-            nk_end(ctx);
-        } else {
-            sprintf(window_title, "Level %x", current_level);
-            if(nk_begin_titled(ctx, "Level", window_title, nk_rect(640, 30, 500, 566),
-                               NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|NK_WINDOW_BORDER|
-                               NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE)) {
+        sprintf(window_title, "Level %x", current_level);
+        if(nk_begin_titled(ctx, "Level", window_title, nk_rect(640, 30, 500, 566),
+                           NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|NK_WINDOW_BORDER|
+                           NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE)) {
 
-                static int show_layer1 = 1;
-                static int show_layer2 = 1;
-                static int show_layer3 = 1;
+            static int show_layer1 = 1;
+            static int show_layer2 = 1;
+            static int show_layer3 = 1;
 
-                nk_layout_row_static(ctx, 30, 70, 4);
-                nk_checkbox_label(ctx, "Layer 1", &show_layer1);
-                nk_checkbox_label(ctx, "Layer 2", &show_layer2);
-                nk_checkbox_label(ctx, "Layer 3", &show_layer3);
+            nk_layout_row_static(ctx, 30, 70, 4);
+            nk_checkbox_label(ctx, "Layer 1", &show_layer1);
+            nk_checkbox_label(ctx, "Layer 2", &show_layer2);
+            nk_checkbox_label(ctx, "Layer 3", &show_layer3);
 #ifdef SPRITES
-                static int show_sprites = 1;
-                nk_checkbox_label(ctx, "Sprites", &show_sprites);
+            static int show_sprites = 1;
+            nk_checkbox_label(ctx, "Sprites", &show_sprites);
 #endif
-                nk_layout_row_static(ctx, 30, 120, 3);
+            nk_layout_row_static(ctx, 30, 120, 3);
 
-                int current_level_old = current_level;
-                nk_property_int(ctx, "Level:", 0, &current_level, 511, 1, 1);
+            int current_level_old = current_level;
+            nk_property_int(ctx, "Level:", 0, &current_level, 511, 1, 1);
 
-                if(nk_button_label(ctx, "Prev") && current_level > 0)     {
-                    current_level--;
-                }
-                if(nk_button_label(ctx, "Next") && current_level < 0x1FF) {
-                    current_level++;
-                }
-                if(current_level_old != current_level)
-                    smw_level_load(&smw, current_level);
+            if(nk_button_label(ctx, "Prev") && current_level > 0)     {
+                current_level--;
+            }
+            if(nk_button_label(ctx, "Next") && current_level < 0x1FF) {
+                current_level++;
+            }
+            if(current_level_old != current_level)
+                smw_level_load(&smw, current_level);
                                 
-                int width = smw.levels[current_level].width;
-                int height = smw.levels[current_level].height;
+            int width = level->width;
+            int height = level->height;
                 
-                struct nk_command_buffer *canvas;
-                //struct nk_input *input = &ctx->input;
-                canvas = nk_window_get_canvas(ctx);
+            struct nk_command_buffer *canvas;
+            //struct nk_input *input = &ctx->input;
+            canvas = nk_window_get_canvas(ctx);
 
                 
-                struct nk_rect space;
-                enum nk_widget_layout_states state;
-                nk_layout_row_template_begin(ctx, height * 16);
-                nk_layout_row_template_push_dynamic(ctx);
-                nk_layout_row_template_push_static(ctx, width * 16);
-                nk_layout_row_template_push_dynamic(ctx);
-                nk_layout_row_template_end(ctx);
-                nk_spacing(ctx, 1);
+            struct nk_rect space;
+            enum nk_widget_layout_states state;
+            nk_layout_row_template_begin(ctx, height * 16);
+            nk_layout_row_template_push_dynamic(ctx);
+            nk_layout_row_template_push_static(ctx, width * 16);
+            nk_layout_row_template_push_dynamic(ctx);
+            nk_layout_row_template_end(ctx);
+            nk_spacing(ctx, 1);
 
                 
-                state = nk_widget(&space, ctx);
-                if (state) {
-                    if (state != NK_WIDGET_ROM) {
-                        // @TODO: Handle input
-                    }
+            state = nk_widget(&space, ctx);
+            if (state) {
+                if (state != NK_WIDGET_ROM) {
+                    // @TODO: Handle input
+                }
 
-                    // Layer 3
-                    if(show_layer3) {
-                        nk_fill_rect(canvas, space, 0, nk_rgba_u32(smw.levels[current_level].background_color));
-                    }
+                // Layer 3
+                if(show_layer3) {
+                    nk_fill_rect(canvas, space, 0, nk_rgba_u32(level->background_color));
+                }
                     
-                    // Layer 2
-                    if(show_layer2) {
+                // Layer 2
+                if(show_layer2) {
+                    if(level->has_layer2_bg) {
                         for(int j = 0; j < height; j++) {
                             for(int i = 0; i < width; i++) {
-                                uint16_t tile_num = smw.levels[current_level].layer2_background
-                                    .data[(i & 0x10) * 27 + j * 16 + (i & 0x0F)];
+                                uint16_t tile_num;
+                                if(level->is_vertical_level) {
+                                    tile_num = level->layer2_background.data[((i & 0x10) * 27) + ((j % 27) * 16) + (i & 0x0F)];
+                                } else {
+                                    tile_num = level->layer2_background.data[((i & 0x10) * 27) + (j << 4) + (i & 0x0F)];
+                                }
                                 int tile_x = tile_num & 0x00F;
                                 int tile_y = (tile_num & 0xFF0) >> 4;
                                 struct nk_image tile_img = nk_subimage_handle(
@@ -426,14 +441,10 @@ void render() {
                                               &tile_img, nk_rgba_u32(0xFFFFFFFF));
                             }
                         }
-                    }
-
-                    // Layer 1
-                    if(show_layer1) {
+                    } else if(level->has_layer2_objects) {
                         for(int j = 0; j < height; j++) {
                             for(int i = 0; i < width; i++) {
-                                uint16_t tile_num = level_object_data[j * width + i];
-                                //uint16_t tile_flags = level_object_flags[j * width + i];
+                                uint16_t tile_num = level_layer2_object_data[j * width + i];
                                 int tile_x = tile_num & 0x00F;
                                 int tile_y = (tile_num & 0xFF0) >> 4;
                                 struct nk_image tile_img = nk_subimage_handle(
@@ -445,57 +456,73 @@ void render() {
                             }
                         }
                     }
+                }
+                // Layer 1
+                if(show_layer1) {
+                    for(int j = 0; j < height; j++) {
+                        for(int i = 0; i < width; i++) {
+                            uint16_t tile_num = level_layer1_object_data[j * width + i];
+                            int tile_x = tile_num & 0x00F;
+                            int tile_y = (tile_num & 0xFF0) >> 4;
+                            struct nk_image tile_img = nk_subimage_handle(
+                                map16_fg_img.nk_image_handle.handle,
+                                256, 512,
+                                nk_rect(16 * tile_x, 16 * tile_y, 16, 16));
+                            nk_draw_image(canvas, nk_rect(space.x + 16 * i, space.y + 16 * j, 16, 16),
+                                          &tile_img, nk_rgba_u32(0xFFFFFFFF));
+                        }
+                    }
+                }
 #ifdef SPRITES
-                    if(show_sprites) {
-                        for(int i = 0; i < smw.levels[current_level].sprites.length; i++) {
-                            int num_tiles = smw.levels[current_level].sprites.data[i].num_tiles;
-                            for(int j = 0; j < num_tiles; j++) {
-                                sprite_tile_t* tile = &smw.levels[current_level].sprites.data[i].tiles[j];
-                                uint16_t tile_num = tile->tile_num;
-                                int tile_x = tile_num & 0x00F;
-                                int tile_y = (tile_num & 0xFF0) >> 4;
-                                struct nk_rect tile_rect;
-                                if(tile->flip_x) {
-                                    if(tile->flip_y) {
-                                        tile_rect = nk_rect(8 * tile->x + 8, 8 * tile_y + 8, -8, -8);
-                                    } else {
-                                        tile_rect = nk_rect(8 * tile_x + 8, 8 * tile_y + 0, -8,  8);
-                                    }
+                if(show_sprites) {
+                    for(int i = 0; i < level->sprites.length; i++) {
+                        int num_tiles = level->sprites.data[i].num_tiles;
+                        for(int j = 0; j < num_tiles; j++) {
+                            sprite_tile_t* tile = &level->sprites.data[i].tiles[j];
+                            uint16_t tile_num = tile->tile_num;
+                            int tile_x = tile_num & 0x00F;
+                            int tile_y = (tile_num & 0xFF0) >> 4;
+                            struct nk_rect tile_rect;
+                            if(tile->flip_x) {
+                                if(tile->flip_y) {
+                                    tile_rect = nk_rect(8 * tile->x + 8, 8 * tile_y + 8, -8, -8);
                                 } else {
-                                    if(tile->flip_y) {
-                                        tile_rect = nk_rect(8 * tile_x + 0, 8 * tile_y + 8,  8, -8);
-                                    } else {
-                                        tile_rect = nk_rect(8 * tile_x + 0, 8 * tile_y + 0,  8,  8);
-                                    }
+                                    tile_rect = nk_rect(8 * tile_x + 8, 8 * tile_y + 0, -8,  8);
                                 }
+                            } else {
+                                if(tile->flip_y) {
+                                    tile_rect = nk_rect(8 * tile_x + 0, 8 * tile_y + 8,  8, -8);
+                                } else {
+                                    tile_rect = nk_rect(8 * tile_x + 0, 8 * tile_y + 0,  8,  8);
+                                }
+                            }
 
 
                                 
-                                struct nk_image tile_img = nk_subimage_handle(
-                                    sprite_map8_img[tile->palette].nk_image_handle.handle,
-                                    128, 256, tile_rect);
-                                nk_draw_image(canvas, nk_rect(space.x + tile->x, space.y + tile->y, 8, 8),
-                                              &tile_img, nk_rgba_u32(0xFFFFFFFF));
-                            }
-
-                            int sprite_x = space.x + 16 * smw.levels[current_level].sprites.data[i].x;
-                            int sprite_y = space.y + 16 * smw.levels[current_level].sprites.data[i].y;
-                            char* sprite_name = sprite_names[smw.levels[current_level].sprites.data[i].number];
-                            int   sprite_name_length = strlen(sprite_name);
-                            float sprite_name_width = ctx->style.font->width(ctx->style.font->userdata,
-                                                                             ctx->style.font->height,
-                                                                             sprite_name,
-                                                                             sprite_name_length);
-                            struct nk_rect sprite_rect =  nk_rect(sprite_x, sprite_y, sprite_name_width, 16);
-                            nk_fill_rect(canvas, sprite_rect, 0, nk_rgba_u32(0x80FF0000));
-                            nk_draw_text(canvas, sprite_rect, sprite_name, sprite_name_length, ctx->style.font,
-                                         nk_rgba_u32(0x80FF0000), nk_rgba_u32(0x80FFFFFF));
-
+                            struct nk_image tile_img = nk_subimage_handle(
+                                sprite_map8_img[tile->palette].nk_image_handle.handle,
+                                128, 256, tile_rect);
+                            nk_draw_image(canvas, nk_rect(space.x + tile->x, space.y + tile->y, 8, 8),
+                                          &tile_img, nk_rgba_u32(0xFFFFFFFF));
                         }
+
+                        int sprite_x = space.x + 16 * level->sprites.data[i].x;
+                        int sprite_y = space.y + 16 * level->sprites.data[i].y;
+                        char* sprite_name = sprite_names[level->sprites.data[i].number];
+                        int   sprite_name_length = strlen(sprite_name);
+                        float sprite_name_width = ctx->style.font->width(ctx->style.font->userdata,
+                                                                         ctx->style.font->height,
+                                                                         sprite_name,
+                                                                         sprite_name_length);
+                        struct nk_rect sprite_rect =  nk_rect(sprite_x, sprite_y, sprite_name_width, 16);
+                        nk_fill_rect(canvas, sprite_rect, 0, nk_rgba_u32(0x80FF0000));
+                        nk_draw_text(canvas, sprite_rect, sprite_name, sprite_name_length, ctx->style.font,
+                                     nk_rgba_u32(0x80FF0000), nk_rgba_u32(0x80FFFFFF));
+
                     }
+                }
 #endif
-                }                
-            }
+            }                
             nk_end(ctx);
 
 
@@ -613,13 +640,13 @@ void render() {
                 nk_layout_row_push(ctx, 15); nk_label(ctx, "E2", NK_TEXT_ALIGN_RIGHT);
                 
                 
-                for(int i = 0; i < smw.levels[current_level].sprites.length; i++) {
-                    sprite_table_entries_t* entries = &smw.levels[current_level].sprites.data[i].table_entries;
+                for(int i = 0; i < level->sprites.length; i++) {
+                    sprite_table_entries_t* entries = &level->sprites.data[i].table_entries;
                     nk_layout_row_begin(ctx, NK_STATIC, 20, 50);
                     nk_layout_row_push(ctx, 20);
                     nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%i", i);
                     char sprite_name[64];
-                    sprintf(sprite_name, "%s", sprite_names[smw.levels[current_level].sprites.data[i].number]);
+                    sprintf(sprite_name, "%s", sprite_names[level->sprites.data[i].number]);
                     nk_layout_row_push(ctx, 200);
                     nk_label(ctx, sprite_name, NK_TEXT_ALIGN_LEFT);
                     nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_009E);
@@ -744,7 +771,7 @@ int main(int argc, char** argv)
     win = glfwCreateWindow(width, height, "Mockup", NULL, NULL);
     if (!win)
     {
-        printf("Could not create window. Test failed.\n");
+        printf("Could not create window.\n");
         glfwTerminate();
         return -1;
     }
@@ -753,16 +780,16 @@ int main(int argc, char** argv)
     /* Nuklear */
     ctx = nk_glfw3_init(win, NK_GLFW3_INSTALL_CALLBACKS);
     /* Load Fonts: if none of these are loaded a default font will be used  */
-    {struct nk_font_atlas *atlas;
-        nk_glfw3_font_stash_begin(&atlas);
-        /*struct nk_font *droid = nk_font_atlas_add_from_file(atlas, "../../../extra_font/DroidSans.ttf", 14, 0);*/
-        /*struct nk_font *roboto = nk_font_atlas_add_from_file(atlas, "../../../extra_font/Roboto-Regular.ttf", 14, 0);*/
-        /*struct nk_font *future = nk_font_atlas_add_from_file(atlas, "../../../extra_font/kenvector_future_thin.ttf", 13, 0);*/
-        /*struct nk_font *clean = nk_font_atlas_add_from_file(atlas, "../../../extra_font/ProggyClean.ttf", 12, 0);*/
-        /*struct nk_font *tiny = nk_font_atlas_add_from_file(atlas, "../../../extra_font/ProggyTiny.ttf", 10, 0);*/
-        /*struct nk_font *cousine = nk_font_atlas_add_from_file(atlas, "../../../extra_font/Cousine-Regular.ttf", 13, 0);*/
-        nk_glfw3_font_stash_end();
-        /*nk_style_set_font(ctx, &droid->handle);*/}
+    struct nk_font_atlas *atlas;
+    nk_glfw3_font_stash_begin(&atlas);
+    /*struct nk_font *droid = nk_font_atlas_add_from_file(atlas, "../../../extra_font/DroidSans.ttf", 14, 0);*/
+    /*struct nk_font *roboto = nk_font_atlas_add_from_file(atlas, "../../../extra_font/Roboto-Regular.ttf", 14, 0);*/
+    /*struct nk_font *future = nk_font_atlas_add_from_file(atlas, "../../../extra_font/kenvector_future_thin.ttf", 13, 0);*/
+    /*struct nk_font *clean = nk_font_atlas_add_from_file(atlas, "../../../extra_font/ProggyClean.ttf", 12, 0);*/
+    /*struct nk_font *tiny = nk_font_atlas_add_from_file(atlas, "../../../extra_font/ProggyTiny.ttf", 10, 0);*/
+    /*struct nk_font *cousine = nk_font_atlas_add_from_file(atlas, "../../../extra_font/Cousine-Regular.ttf", 13, 0);*/
+    nk_glfw3_font_stash_end();
+    /*nk_style_set_font(ctx, &droid->handle);*/
     background = nk_rgb(190,205,255);
 
 
@@ -804,7 +831,7 @@ int main(int argc, char** argv)
     }
     
     wdc65816_rom_t rom;
-    arena_t arena = arena_create(MB(128));
+    arena_t arena = arena_create(MB(256));
     wdc65816_rom_init(&rom, &vfs, &arena);
 
     smw_init(&smw, &rom, &arena);
