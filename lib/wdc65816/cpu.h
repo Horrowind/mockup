@@ -38,12 +38,12 @@ typedef struct wdc65816_cpu {
 
     wdc65816_mapper_t read_mapper;
     wdc65816_mapper_t write_mapper;
-    u8 ram[0x20000];
-    u8 sreg[0x2500];
+    u8* ram;
+    u8* sreg;
 } wdc65816_cpu_t;
 
-void wdc65816_cpu_init(wdc65816_cpu_t* cpu, wdc65816_rom_t* rom);
-void wdc65816_cpu_init2(wdc65816_cpu_t* cpu, buffer_t manifest);
+void wdc65816_cpu_init(wdc65816_cpu_t* cpu, wdc65816_rom_t* rom, arena_t* arena);
+void wdc65816_cpu_init2(wdc65816_cpu_t* cpu, buffer_t manifest, arena_t* arena);
 void wdc65816_cpu_load(wdc65816_cpu_t* cpu, const char* path);
 void wdc65816_cpu_clear(wdc65816_cpu_t* cpu);
 void wdc65816_cpu_free(wdc65816_cpu_t* cpu);
@@ -64,6 +64,10 @@ void wdc65816_cpu_add_write_bp(wdc65816_cpu_t* cpu, u32 address);
 void wdc65816_cpu_add_exec_bp_range(wdc65816_cpu_t* cpu, u32 address_low, u32 address_high);
 void wdc65816_cpu_add_read_bp_range(wdc65816_cpu_t* cpu, u32 address_low, u32 address_high);
 void wdc65816_cpu_add_write_bp_range(wdc65816_cpu_t* cpu, u32 address_low, u32 address_high);
+
+void wdc65816_cpu_clear_exec_bp(wdc65816_cpu_t* cpu);
+void wdc65816_cpu_clear_read_bp(wdc65816_cpu_t* cpu);
+void wdc65816_cpu_clear_write_bp(wdc65816_cpu_t* cpu);
 
 void wdc65816_cpu_show_state(wdc65816_cpu_t* cpu, char ouput[256]);
 void wdc65816_cpu_disassemble_opcode(wdc65816_cpu_t* cpu, char* output, u32 addr);

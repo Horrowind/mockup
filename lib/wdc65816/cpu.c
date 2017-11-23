@@ -6,9 +6,12 @@
 #include "memory.h"
 #include "table.h"
 
-void wdc65816_cpu_init(wdc65816_cpu_t* cpu, wdc65816_rom_t* rom) {
+void wdc65816_cpu_init(wdc65816_cpu_t* cpu, wdc65816_rom_t* rom, arena_t* arena) {
     cpu->regs.p.b = 0x24;
-    cpu->rom = rom;
+    cpu->rom  = rom;
+    cpu->ram  = arena_alloc_array(arena, 0x20000, u8);
+    cpu->sreg = arena_alloc_array(arena, 0x2500, u8);
+
     cpu->regs.pc.d = 0x000000;
     wdc65816_breakpoint_list_init(&cpu->breakpoints_exec);
     wdc65816_breakpoint_list_init(&cpu->breakpoints_read);
@@ -113,6 +116,20 @@ void wdc65816_cpu_add_read_bp_range(wdc65816_cpu_t* cpu, u32 addr_low, u32 addr_
 void wdc65816_cpu_add_write_bp_range(wdc65816_cpu_t* cpu, u32 addr_low, u32 addr_high) {
     wdc65816_breakpoint_list_add_range(&cpu->breakpoints_write, addr_low, addr_high);
 }
+
+
+void wdc65816_cpu_clear_exec_bp(wdc65816_cpu_t* cpu) {
+    wdc65816_breakpoint_list_deinit(&cpu->breakpoints_exec);
+}
+
+void wdc65816_cpu_clear_read_bp(wdc65816_cpu_t* cpu) {
+    wdc65816_breakpoint_list_deinit(&cpu->breakpoints_read);
+}
+
+void wdc65816_cpu_clear_write_bp(wdc65816_cpu_t* cpu) {
+    wdc65816_breakpoint_list_deinit(&cpu->breakpoints_write);
+}
+
 
 
 void wdc65816_cpu_show_state(wdc65816_cpu_t* cpu, char* output) {
