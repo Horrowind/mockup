@@ -1,8 +1,7 @@
-CFLAGS        := -g -Wall -Werror -MMD -MP
 
 GLLIBS         = -lGLEW -lGL -lglfw
 
-TARGETS        = linux windows wasm
+TARGETS        = linux windows wasm linux_release
 .PHONY:        $(TARGETS) dirs
 .DEFAULT_GOAL := linux
 
@@ -64,9 +63,14 @@ wasm:    CC      =../emscripten/emcc
 wasm:    CFLAGS  =-s WASM=1 -O2 -DNO_COMPUTED_GOTO
 wasm:    LFLAGS  =-s "BINARYEN_METHOD='native-wasm'" -v
 wasm:    EXT     =.js
+windows: CFLAGS  = -g -Wall -Werror -MMD -MP
 windows: dirs build/windows/lmockup build/windows/imockup build/windows/nuts
+linux:   CFLAGS  = -g -Wall -Werror -MMD -MP
 linux:   dirs build/linux/lmockup   build/linux/imockup   build/linux/nuts
 wasm:    dirs build/wasm/lmockup    build/wasm/imockup    build/wasm/nuts
+
+linux_release: CFLAGS  = -O3 -Wall -Werror -MMD -MP
+linux_release: dirs build/linux/lmockup   build/linux/imockup   build/linux/nuts
 
 
 # all:
