@@ -1,9 +1,3 @@
-#include <errno.h>
-
-#include <dirent.h>
-#include <fcntl.h>
-#include <libgen.h>
-
 #include "mockup/smw.h"
 
 char* strncpy2(char *dest, const char *src, size_t n) {
@@ -16,47 +10,16 @@ char* strncpy2(char *dest, const char *src, size_t n) {
 
 
 int main(int argc, char** argv) {
-    char* path = (argc > 1) ? argv[1] : "smw.sfc";
+    arena_t arena = arena_create(MB(128));
 
-    int  dd = open(path, O_RDONLY | O_DIRECTORY | __O_PATH);
-    DIR* dp = opendir(path);
-    if(!dp) {
-        fprintf(stderr, "Error: Failed to open input directory \"%s\"\n", strerror(errno));
-        exit(1);
-    }
-
+    string_t path_name = (argc > 1) ? string_from_c_string(argv[1]) : L("SuperMarioWorld.sfc");
+    path_t path;
+    path_init(&path, path_name);
     vfs_t vfs;
     vfs_init(&vfs, 4);
-    
-    struct dirent* de;
-    while((de = readdir(dp))) {
-        printf("File: %s\n", de->d_name);
-        if (!strcmp (de->d_name, "."))
-            continue;
-        if (!strcmp (de->d_name, ".."))
-            continue;
-        vfs_entry_t entry = { 0 };
-        int fd = openat(dd, de->d_name, O_RDONLY);
-        FILE* fp = fdopen(fd, "r");
-        if(!fp) {
-            fprintf(stderr, "Error: could not open file \"%s\"\n", de->d_name);
-            exit(1);
-        }
-        entry.name = string_from_c_string(basename(de->d_name));
-        fseek(fp, 0, SEEK_END);
-        long int file_size = ftell(fp);
-        u8* data = malloc(file_size + 1);
-        rewind(fp);
-        fread(data, file_size, 1, fp);
-        fclose(fp);
-        data[file_size] = 0;
-        entry.buffer = (buffer_t){ .begin = data, .end = data + file_size};
-        printf("%016lx %016lx\n", (u64)entry.buffer.begin, (u64)entry.buffer.end);
-        vfs_insert(&vfs, entry);
-    }
+    vfs_add_dir(&vfs, &path, &arena);
     
     wdc65816_rom_t rom;
-    arena_t arena = arena_create(MB(128));
     wdc65816_rom_init(&rom, &vfs, &arena);
 
     smw_t smw;
