@@ -1,7 +1,3 @@
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-
 #include "decode.h"
 
 void decode_rle1(const u8* data, u8* output) {

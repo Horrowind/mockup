@@ -1,10 +1,6 @@
-#include <assert.h>
 #include "smw.h"
 #include "addresses.h"
 #include "misc.h"
-
-#include <signal.h>
-                
 
 void smw_init(smw_t* smw, wdc65816_rom_t* rom, arena_t* arena) {
     smw->arena = arena_subarena(arena, MB(96));
@@ -206,13 +202,17 @@ void smw_level_load(smw_t* smw, u16 level_num) {
     wdc65816_cpu_add_exec_bp(cpu, level_load_routine_end_sfc);
     wdc65816_cpu_run_from(cpu, level_load_routine_sfc);
     wdc65816_cpu_clear_exec_bp(cpu);
-    
-    int needs_full_reload = memcmp(&(l->header), rom->ptr(level_layer1_data_addr_sfc), 5);
+
+
+    u8 header[5];
+    wdc65816_mapper_read_range(&rom->read_mapper, level_layer1_data_addr_sfc,
+                               level_layer1_data_addr_sfc + 5, header);
+    int needs_full_reload = memcmp(&(l->header), header, 5);
     if(needs_full_reload) {
 
         // --- header init ------
         {
-            memcpy(&(l->header), rom->ptr(level_layer1_data_addr_sfc), 5);
+            memcpy(&(l->header), header, 5);
             l->is_vertical_level = cpu->ram[0x5B] & 0x01;
             switch(l->header.level_mode) {
             case 0x00:
@@ -601,7 +601,7 @@ void smw_level_load(smw_t* smw, u16 level_num) {
                         tile->y = h + y;
                     } else {
                         // TODO: Clean up
-                        int pure_addr = (cpu->breakpoint_address & 0xFFFF) - 0xC800 - 0x0E * 27 * 16;
+                        int pure_addr = (cpu->breakpoint_address & 0xFFFF) - 0xC800 - 0x10 * 27 * 16;
                         int screen_addr = pure_addr % 432;
                         int screen = pure_addr / 432;
                         tile->x = (screen_addr & 0x0F) | (screen * 16);
@@ -683,14 +683,16 @@ void smw_level_load(smw_t* smw, u16 level_num) {
                 memcpy(cpu->ram, ram_copy, 0x20000);
                 sprite_pc_t* sprite = arena_alloc_type(arena, sprite_pc_t);
 
-                u8* sprite_data_addr = cpu->ptr(level_sprite_data_addr_sfc + 3*sprites_length + 1);
-                int screen = (sprite_data_addr[0] & 0x2) << 3;
-                screen |= sprite_data_addr[1] & 0xF;
-                sprite->x = (screen << 4) | ((sprite_data_addr[1] & 0xF0) >> 4);
-                sprite->y = sprite_data_addr[0] & 0xF1;
+                u8 sprite_data_byte1 = cpu->read(level_sprite_data_addr_sfc + 3*sprites_length + 1);
+                u8 sprite_data_byte2 = cpu->read(level_sprite_data_addr_sfc + 3*sprites_length + 2);
+                u8 sprite_data_byte3 = cpu->read(level_sprite_data_addr_sfc + 3*sprites_length + 3);
+                int screen = (sprite_data_byte1 & 0x2) << 3;
+                screen |= sprite_data_byte2 & 0xF;
+                sprite->x = (screen << 4) | ((sprite_data_byte2 & 0xF0) >> 4);
+                sprite->y = sprite_data_byte1 & 0xF1;
                 sprite->y = ((sprite->y & 0xF0) >> 4) | ((sprite->y & 0x01) << 4);
-                sprite->number = sprite_data_addr[2];
-                sprite->extra_bits = (sprite_data_addr[0] & 0x0C) >> 2;
+                sprite->number = sprite_data_byte3;
+                sprite->extra_bits = (sprite_data_byte1 & 0x0C) >> 2;
                 sprite->tiles = arena_alloc_array(temp_arena, 0, sprite_tile_t);
                 
                 // Clear sprite tables
@@ -727,9 +729,9 @@ void smw_level_load(smw_t* smw, u16 level_num) {
                 
                 //Copy sprite to scratch ram
                 cpu->ram[0x19c7b] = cpu->read(level_sprite_data_addr_sfc);
-                cpu->ram[0x19c7c] = sprite_data_addr[0];
-                cpu->ram[0x19c7d] = sprite_data_addr[1];
-                cpu->ram[0x19c7e] = sprite_data_addr[2];
+                cpu->ram[0x19c7c] = sprite_data_byte1;
+                cpu->ram[0x19c7d] = sprite_data_byte2;
+                cpu->ram[0x19c7e] = sprite_data_byte3;
                 cpu->ram[0x19c7f] = 0xff;
                 cpu->ram[0x19c80] = 0xff; //
                 cpu->ram[0x19c81] = 0xff; // 
@@ -746,11 +748,10 @@ void smw_level_load(smw_t* smw, u16 level_num) {
                 int sprite_index = 0;
 
                 wdc65816_cpu_run_jsl(cpu, 0x02A751);
-                //wdc65816_cpu_run_jsl(cpu, 0x02A751);
-                cpu->debug = 0;
+
+                // Find sprite index and set it to register x and ram value 7E15E9.
                 for(int i = 0x0; i < 12; i++) {
                     if(cpu->ram[i + 0x9E] != 0) {
-                        //printf("Sprite index was %i is %i\n", sprite_index, i);
                         cpu->ram[0x15E9] = cpu->regs.x.w = sprite_index = i;
                     }
                 }
@@ -760,9 +761,13 @@ void smw_level_load(smw_t* smw, u16 level_num) {
 
                 // Sprites are facing left. NOTE: Maybe add special cases for different sprites.
                 cpu->ram[0x157C + sprite_index] = 0x1;
+                // Rex needs this.
+                cpu->ram[0x1FE2 + sprite_index] = 0x0;
                 
                 cpu->regs.db = 1;
-                wdc65816_cpu_run_jsr(cpu, 0x0185C3);
+                wdc65816_cpu_run_jsr(cpu, 0x018127);
+                wdc65816_cpu_run_jsr(cpu, 0x018127);
+                //wdc65816_cpu_run_jsr(cpu, 0x0185C3);
                 
                 cpu->regs.db = 0;
                 int number_tiles = 0;
@@ -929,8 +934,6 @@ void smw_level_animate(smw_t* smw, u16 level_num, u8 frame) {
             }
         }
     }
-
-    wdc65816_cpu_free(cpu);
 }
 
 #if 0

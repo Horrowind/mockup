@@ -3,6 +3,8 @@
 
 #include "base/base.h"
 
+
+// TODO: Add length to buffer / replace u8* with buffer_t
 void decode_rle1(const u8* data, u8* output);
 int decode_rle1_get_size(const u8* data);
 void decode_lz2(const u8* data, u8* output);
