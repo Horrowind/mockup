@@ -1,22 +1,27 @@
-#ifdef BASE_IMPLEMENTATION
-#define BASE_ARENA_IMPLEMENTATION
-#define BASE_HASH_IMPLEMENTATION
-#define BASE_POOL_IMPLEMENTATION
-#define BASE_VARIABLE_STRING_IMPLEMENTATION
-#define BASE_BML_IMPLEMENTATION
-#endif
-
 #ifndef BASE_GUARD
 #define BASE_GUARD
 
-#include <assert.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdalign.h>
 #include <stdio.h>
 #include <stdint.h>
 
-#include <sys/mman.h>
+#include <dirent.h>
+#include <fcntl.h>
+#include <libgen.h>
+#include <errno.h>
+#include <signal.h>
+
+
+#if defined(__EMSCRIPTEN__)
+#define WASM
+#elif defined(__MINGW32__)
+#define WINDOWS
+#else
+#define LINUX
+#endif
 
 typedef int8_t i8;
 typedef uint8_t u8;
@@ -32,8 +37,25 @@ typedef double f64;
 
 typedef unsigned int uint;
 typedef unsigned short ushort;
+typedef unsigned char uchar;
 
 typedef uintptr_t uintptr;
+
+
+
+#ifndef NDEBUG
+#define assert(x) if(!(x)) {*(int *)0 = 0;}
+#else
+#define assert(x)
+#endif
+
+#define STR_(x) #x
+#define STR(x) STR_(x)
+#define CODE_LOCATION STR(__FILE__) ": " STR(__LINE__) " in " STR(__PRETTY_FUNCTION__)
+#define invalid_code_path assert(!"Invalid code path at "   \
+                                 CODE_LOCATION)
+#define invalid_default_case default: {invalid_code_path;} break
+
 
 #define KB(x) (x * 1024ull)
 #define MB(x) (x * 1024ull * 1024ull)
@@ -44,8 +66,15 @@ typedef uintptr_t uintptr;
 #undef min
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
-
+#define debug_break raise(SIGINT)
 #define PAGE_SIZE 4096
+
+struct {
+    uint page_size;
+    uint is_initialized : 1;
+} global;
+
+void global_init();
 
 typedef struct page_list {
     struct page_list* next;
@@ -103,6 +132,42 @@ u64 string_to_u64_base(string_t s, int base);
 
 
 typedef struct {
+    uint has_stats : 1;
+    uint invalid   : 1;
+#ifdef LINUX
+    int fd_;
+    struct stat st_buf_;
+#endif
+} path_t;
+
+typedef struct {
+    path_t path;
+    path_t* dir_path;
+#ifdef LINUX
+    DIR* dp_;
+#endif
+} dir_iter_t;
+
+void       path_init(path_t* path, string_t name);
+void       path_init_c(path_t* path, char* name);
+void       path_init_working_directory(path_t* path);
+void       path_init_from_c(path_t* path, path_t* dir, char* name);
+void       path_init_from(path_t* path, path_t* dir, string_t name);
+void       path_copy(path_t* orig, path_t* copy);
+buffer_t   path_open_file(path_t* path, arena_t* arena);
+buffer_t   path_open_file_aligned(path_t* path, arena_t* arena, int alignment);
+void       path_close(path_t* path);
+void       path_navigate(path_t* path, string_t name);
+void       path_navigate_c(path_t* path, char* name);
+ulong      path_get_file_size(path_t* path);
+int        path_is_directory(path_t* path);
+string_t   path_get_name(path_t* path, arena_t* arena); //TODO
+string_t   path_get_base_name(path_t* path, arena_t* arena); //TODO
+dir_iter_t dir_iter_begin(path_t* path);
+int        dir_iter_next(dir_iter_t* dir_iter);
+void       dir_iter_end(dir_iter_t* dir_iter);
+
+typedef struct {
     page_list_t* free_list;
     void* data;
     ulong length;
@@ -132,16 +197,6 @@ void error_at_pos2(text_pos_t text_pos);
 #define error_at_pos(text_pos) error_at_pos2(text_pos, __LINE__)
 void error_at_pos2(text_pos_t text_pos, int line_num);
 #endif
-
-typedef struct bml_node {
-    string_t name;
-    string_t value;
-    struct bml_node* child;
-    struct bml_node* next;
-} bml_node_t;
-
-bml_node_t* bml_parse(buffer_t buffer, arena_t* arena);
-void bml_print_node(bml_node_t* node, int indent);
 
 #define fixed_string_t(size)                                            \
     struct {                                                            \
@@ -213,6 +268,19 @@ void bml_print_node(bml_node_t* node, int indent);
 #define generate_fixed_string(name, size)                               \
     define_fixed_string(name, size);                                    \
     implement_fixed_string(name, size);                                 \
+
+
+typedef struct bml_node {
+    string_t name;
+    string_t value;
+    struct bml_node* child;
+    struct bml_node* next;
+} bml_node_t;
+
+bml_node_t* bml_parse(buffer_t buffer, arena_t* arena);
+void bml_print_node(bml_node_t* node, int indent);
+
+
 
 #define define_stack(name, type)                                        \
     typedef struct {                                                    \
@@ -417,13 +485,16 @@ u32 vfs_entry_equal(vfs_entry_t v1, vfs_entry_t v2);
 
 define_hashmap(vfs, vfs_entry_t, vfs_entry_hash, vfs_entry_equal);
 
+void vfs_add_dir(vfs_t* vfs, path_t* path, arena_t* arena);
 
 #endif //BASE_GUARD
 
-#ifdef BASE_ARENA_IMPLEMENTATION
-#ifndef BASE_ARENA_IMPLEMENTATION_GUARD
-#define BASE_ARENA_IMPLEMENTATION_GUARD
+#ifdef BASE_IMPLEMENTATION
+#ifndef BASE_IMPLEMENTATION_GUARD
+#define BASE_IMPLEMENTATION_GUARD
 
+#ifdef LINUX
+#include <sys/mman.h>
 void* page_alloc(uint num_pages) {
     return mmap(NULL, PAGE_SIZE * num_pages, PROT_READ | PROT_WRITE,
                 MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
@@ -432,6 +503,18 @@ void* page_alloc(uint num_pages) {
 void page_free(void* page, uint num_pages) {
     munmap(page, num_pages * PAGE_SIZE);
 }
+#elif WINDOWS
+#include <windows.h>
+void* page_alloc(uint num_pages) {
+    return VirtualAlloc(0, PAGE_SIZE * num_pages,
+                        MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+}
+
+void page_free(void* page, uint num_pages) {
+    VirtualFree(page, num_pages * PAGE_SIZE, MEM_RELEASE);
+}
+#endif
+
 
 void page_list_init(page_list_t* l) {
     l->next = l;
@@ -568,14 +651,6 @@ void temp_end(temp_t temp) {
 /*     if (a->blk) a->blk->used = tmp.used; */
 /* } */
 
-#endif //BASE_ARENA_IMPLEMENTATION_GUARD
-#endif //BASE_ARENA_IMPLEMENTATION
-
-
-#ifdef BASE_VARIABLE_STRING_IMPLEMENTATION
-#ifndef BASE_VARIABLE_STRING_IMPLEMENTATION_GUARD
-#define BASE_VARIABLE_STRING_IMPLEMENTATION_GUARD
-
 b32 string_equal(string_t s1, string_t s2) {
     if(s1.length != s2.length) return 0;
     for(int i = 0; i < s1.length; i++) {
@@ -636,12 +711,207 @@ string_t string_from_c_string(char* buf) {
     return s;
 }
 
-#endif //BASE_VARIABLE_STRING_IMPLEMENTATION_GUARD
-#endif //BASE_VARIABLE_STRING_IMPLEMENTATION
+#ifdef LINUX
+#include <unistd.h>
+#include <sys/stat.h>
 
-#ifdef BASE_HASH_IMPLEMENTATION
-#ifndef BASE_HASH_IMPLEMENTATION_GUARD
-#define BASE_HASH_IMPLEMENTATION_GUARD
+void path_init_c(path_t* path, char* name) {
+    path->fd_ = open(name, O_RDONLY);
+    path->has_stats = 0;
+    path->invalid = 0;
+}
+
+void path_init(path_t* path, string_t name) {
+    char name_c[PATH_MAX];
+    if(name.length >= PATH_MAX - 1) {
+        fprintf(stderr, "File name \"%.*s\" is to long.\n", name.length, name.data);
+    }
+    strncpy(name_c, name.data, name.length);
+    name_c[name.length] = '\0';
+    path_init_c(path, name_c);
+}
+
+void path_init_from_c(path_t* path, path_t* dir, char* name) {
+    path->fd_ = openat(dir->fd_, name, O_RDONLY);
+    path->has_stats = 0;
+    path->invalid = 0;
+}
+
+
+void path_init_from(path_t* path, path_t* dir, string_t name) {
+    char name_c[PATH_MAX];
+    if(name.length >= PATH_MAX - 1) {
+        fprintf(stderr, "File name \"%.*s\" is to long.\n", name.length, name.data);
+    }
+    strncpy(name_c, name.data, name.length);
+    name_c[name.length] = '\0';
+    path_init_c(path, name_c);
+}
+
+
+void path_init_working_directory(path_t* path) {
+    path_init_c(path, ".");
+}
+
+void path_load_stats(path_t* path) {
+    if(!path->has_stats) {
+        fstat(path->fd_, &path->st_buf_);        
+        path->has_stats = 1;
+    }
+}
+
+void path_copy(path_t* orig, path_t* copy) {
+    *copy = (path_t){ 0 };
+    copy->fd_ = dup(orig->fd_);
+    if(orig->has_stats) path_load_stats(copy);
+}
+
+
+buffer_t path_open_file_aligned(path_t* path, arena_t* arena, int alignment) {
+    path_load_stats(path);
+    size_t file_size = path->st_buf_.st_size;
+    buffer_t result = { 0 };
+    result.begin = arena_alloc(arena, file_size, alignment);
+    result.end = result.begin + file_size;
+    read(path->fd_, result.begin, file_size);
+    return result;
+}
+
+buffer_t path_open_file(path_t* path, arena_t* arena) {
+    return path_open_file_aligned(path, arena, 1);
+}
+
+void path_close(path_t* path) {
+    if(!path->invalid) {
+        close(path->fd_);
+        path->invalid = 1;
+    }
+}
+
+void path_navigate_c(path_t* path, char* name) {
+    int new_fd = openat(path->fd_, name, O_RDONLY);
+    path_close(path);
+    path->fd_ = new_fd;
+    path->has_stats = 0;
+    path->invalid = 0;
+}
+
+void path_navigate(path_t* path, string_t name) {
+    char name_c[PATH_MAX];
+    if(name.length >= PATH_MAX - 1) {
+        fprintf(stderr, "File name \"%.*s\" is to long.\n", name.length, name.data);
+    }
+    strncpy(name_c, name.data, name.length);
+    name_c[name.length] = '\0';
+    path_navigate_c(path, name_c);
+}
+
+int path_is_directory(path_t* path) {
+    path_load_stats(path);
+    return path->st_buf_.st_mode == S_IFDIR;
+}
+
+ulong path_get_file_size(path_t* path) {
+    path_load_stats(path);
+    return path->st_buf_.st_size;
+}
+
+string_t path_get_name(path_t* path, arena_t* arena) {
+    char proc_path_name[256];
+    sprintf(proc_path_name, "/proc/self/fd/%i", path->fd_);
+    struct stat sb;
+    if(lstat(proc_path_name, &sb) == -1) {
+        perror("lstat");
+        exit(1);
+    }
+    int supposed_file_name_length = sb.st_size + 1;
+    if(sb.st_size == 0) supposed_file_name_length = PATH_MAX;
+    string_t result;
+    result.data   = arena_alloc_array(arena, supposed_file_name_length, char);
+    result.length = readlink(proc_path_name, result.data,
+                             supposed_file_name_length);
+    if(result.length == -1) {
+        perror("readlink");
+        exit(1);
+    }
+    return result;
+}
+
+
+string_t path_get_base_name(path_t* path, arena_t* arena) {
+    string_t result;
+    result.data = arena_alloc_array(arena, 256, char);
+    temp_t temp = temp_begin(arena);
+    string_t path_name = path_get_name(path, arena);
+    char* last_char = path_name.data + path_name.length - 1;
+    char* last_slash = last_char;
+    // If path_name == '/':
+    if(*last_char == '/' && path_name.length == 1) {
+        result.data[0] = '/';
+        result.length  = 1;
+        return result;
+    }
+    
+    // If path_name ends in '/'s, do not include these '/':
+    while(*last_char == '/') {
+        last_char--;
+        last_slash--;
+    }
+
+    //Search for the last slash:
+    for(; last_slash >= path_name.data; last_slash--) {
+        if(*last_slash == '/') {
+            break;
+        }
+    }
+
+    if(last_slash >= path_name.data - 1) {
+        result.length = last_char - last_slash;
+        strncpy(result.data, last_slash + 1, result.length);
+    } else {
+        assert(0 && "This should not happen.");
+        exit(1);
+    }
+    
+    temp_end(temp);
+    return result;
+}
+
+int dir_iter_next(dir_iter_t* dir_iter) {
+    struct dirent* de;
+    do {
+        de = readdir(dir_iter->dp_);
+        if(!de) return 0;
+        if(!strcmp(de->d_name, "."))
+            continue;
+        if(!strcmp(de->d_name, ".."))
+            continue;
+        break;
+    } while(1);
+    path_close(&dir_iter->path);
+    dir_iter->path.fd_ = openat(dir_iter->dir_path->fd_, de->d_name, O_RDONLY);
+    dir_iter->path.has_stats = 0;
+    dir_iter->path.invalid   = 0;
+    return 1;
+}
+
+dir_iter_t dir_iter_begin(path_t* path) {
+    dir_iter_t result = { 0 };
+    result.dp_ = fdopendir(path->fd_);
+
+    if(!result.dp_) {
+        fprintf(stderr, strerror(errno));
+        exit(1);
+    }
+    result.dir_path = path;
+    return result;
+}
+
+void dir_iter_end(dir_iter_t* dir_iter) {
+    path_close(&dir_iter->path);
+    closedir(dir_iter->dp_);
+}
+#endif
 
 implement_hashmap(string_map, string_t, SuperFastHash, string_equal);
 
@@ -700,15 +970,6 @@ u32 vfs_entry_equal(vfs_entry_t v1, vfs_entry_t v2) {
 
 implement_hashmap(vfs, vfs_entry_t, vfs_entry_hash, vfs_entry_equal);
 
-#endif //BASE_HASH_IMPLEMENTATION_GUARD
-#endif //BASE_HASH_IMPLEMENTATION
-
-
-
-#ifdef BASE_POOL_IMPLEMENTATION
-#ifndef BASE_POOL_IMPLEMENTATION_GUARD
-#define BASE_POOL_IMPLEMENTATION_GUARD
-
 void pool_init(pool_t* pool, page_list_t* free_list) {
     pool->free_list = free_list;
     pool->data      = page_alloc(1);
@@ -749,16 +1010,6 @@ void pool_empty(pool_t* pool) {
 void pool_deinit(pool_t* pool) {
     page_list_add(pool->free_list, pool->data, pool->length / PAGE_SIZE);
 }
-
-#endif //BASE_POOL_IMPLEMENTATION_GUARD
-#endif //BASE_POOL_IMPLEMENTATION
-
-#ifdef BASE_BML_IMPLEMENTATION
-#ifndef BASE_BML_IMPLEMENTATION_GUARD
-#define BASE_BML_IMPLEMENTATION_GUARD
-
-
-
 
 #ifdef NDEBUG
 void error_at_pos2(text_pos_t text_pos) {
@@ -1080,5 +1331,19 @@ void bml_print_node(bml_node_t* node, int indent) {
         bml_print_node(node->next, indent);
     }
 }
-#endif //BASE_BML_IMPLEMENTATION_GUARD
-#endif //BASE_BML_IMPLEMENTATION
+
+
+
+void vfs_add_dir(vfs_t* vfs, path_t* path, arena_t* arena) {
+    dir_iter_t dir_iter = dir_iter_begin(path);
+    while(dir_iter_next(&dir_iter)) {
+        vfs_entry_t entry = { 0 };
+        entry.name   = path_get_base_name(&dir_iter.path, arena);
+        entry.buffer = path_open_file(&dir_iter.path, arena);
+        vfs_insert(vfs, entry);
+    }
+    dir_iter_end(&dir_iter);
+}
+
+#endif //BASE_IMPLEMENTATION_GUARD
+#endif //BASE_IMPLEMENTATION
