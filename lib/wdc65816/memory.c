@@ -3,11 +3,9 @@
 
 
 inline u8 wdc65816_op_readpc(wdc65816_cpu_t* cpu) {
-    //Hack: The following assumes, that we only execute from ROM. It gives significant speed boost though.
-    //return cpu->rom->data[((cpu->regs.pc.b & 0x7F) << 15) | (cpu->regs.pc.w++ & 0x7FFF)];
-    //This should be the right approach.
     return wdc65816_cpu_read(cpu, cpu->regs.pc.d++);
 }
+
 inline u8 wdc65816_op_readstack(wdc65816_cpu_t* cpu) {
     cpu->regs.e ? cpu->regs.s.l++ : cpu->regs.s.w++;
     return wdc65816_cpu_read(cpu, cpu->regs.s.w);

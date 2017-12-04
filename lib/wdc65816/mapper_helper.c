@@ -1,4 +1,7 @@
-#include "mapper.h"
+#include <stdint.h>
+
+typedef uint32_t u32;
+typedef unsigned int uint;
 
 u32 wdc65816_mapper_reduce(u32 addr, u32 mask) {
     while(mask) {

@@ -40,12 +40,8 @@ typedef struct {
     wdc65816_ptr_function_t   ptr;
 } wdc65816_mapper_t;
 
-u32 wdc65816_mapper_reduce(u32 addr, u32 mask);
-u32 wdc65816_mapper_mirror(uint addr, uint size);
 void wdc65816_mapper_add(wdc65816_mapper_t* mapper, wdc65816_mapper_entry_t* entry);
-u8   wdc65816_mapper_read(wdc65816_mapper_t* mapper, u32 full_addr);
-void wdc65816_mapper_write(wdc65816_mapper_t* mapper, u32 full_addr, u8 data);
-u8*  wdc65816_mapper_ptr(wdc65816_mapper_t* mapper, u32 full_addr);
-
 void wdc65816_mapper_init_functions(wdc65816_mapper_t* mapper);
+u8* wdc65816_mapper_read_range(wdc65816_mapper_t* mapper, u32 addr_low, u32 addr_high, u8* data);
+u8* wdc65816_mapper_write_range(wdc65816_mapper_t* mapper, u32 addr_low, u32 addr_high, u8* data);
 #endif //R65816_MAPPER_H

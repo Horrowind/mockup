@@ -1,6 +1,3 @@
-#include "assert.h"
-#include "stdio.h"
-
 #include "rom.h"
 
 static

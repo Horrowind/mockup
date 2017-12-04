@@ -4,7 +4,6 @@
 #include "cpu_io.c"
 #include "disassembler.c"
 #include "memory.c"
-#include "mapper_helper.c"
 #include "mapper.c"
 #include "rom.c"
 

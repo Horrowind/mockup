@@ -3,11 +3,6 @@
 
 #define DEBUG_PRINT_CPU_STATE
 
-
-
-#include <stdio.h>
-#include <string.h>
-
 #include "base/base.h"
 
 #include "breakpoint.h"

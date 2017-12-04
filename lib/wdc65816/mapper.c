@@ -1,6 +1,3 @@
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <llvm-c/Analysis.h>
 #include <llvm-c/BitReader.h>
 #include <llvm-c/BitWriter.h>
@@ -8,7 +5,10 @@
 #include <llvm-c/ExecutionEngine.h>
 #include <llvm-c/OrcBindings.h>
 #include <llvm-c/Transforms/PassManagerBuilder.h>
+
 #include "mapper.h"
+#include "mapper_helper.c"
+#include "mapper_bc.h"
 
 void wdc65816_mapper_add(wdc65816_mapper_t* mapper, wdc65816_mapper_entry_t* entry) {
     if(mapper->num_entries >= 255) return;
@@ -17,32 +17,40 @@ void wdc65816_mapper_add(wdc65816_mapper_t* mapper, wdc65816_mapper_entry_t* ent
 }
 
 
-u8 wdc65816_mapper_read(wdc65816_mapper_t* mapper, u32 addr) {
-    u8* data_ptr = wdc65816_mapper_ptr(mapper, addr);
-    if(data_ptr) return *data_ptr;
-    return 0;
-}
-
-void wdc65816_mapper_write(wdc65816_mapper_t* mapper, u32 addr, u8 data) {
-    u8* data_ptr = wdc65816_mapper_ptr(mapper, addr);
-    if(data_ptr) *data_ptr = data;
-}
-
-u8* wdc65816_mapper_ptr(wdc65816_mapper_t* mapper, u32 full_addr) {
-    u8 bank  = full_addr >> 16;
-    u16 addr = full_addr & 0xFFFF;
-    
-    for(int i = 0; i < mapper->num_entries; i++) {
-        wdc65816_mapper_entry_t* entry = &mapper->entries[i];
-        if(entry->bank_low <= bank && bank <= entry->bank_high
-           && entry->addr_low <= addr && addr <= entry->addr_high) {
-            u32 offset = wdc65816_mapper_reduce(full_addr, entry->mask);
-            if(entry->size) offset = entry->base + wdc65816_mapper_mirror(offset, entry->size - entry->base);
-            return entry->data + offset;
+u8* wdc65816_mapper_read_range(wdc65816_mapper_t* mapper, u32 addr_low, u32 addr_high, u8* data) {
+    for(u32 full_addr = addr_low; full_addr < addr_high; full_addr++) {
+        u8  bank = full_addr >> 16;
+        u16 addr = full_addr & 0xFFFF;
+        for(int i = 0; i < mapper->num_entries; i++) {
+            wdc65816_mapper_entry_t* entry = &mapper->entries[i];
+            if(entry->bank_low <= bank && bank <= entry->bank_high
+               && entry->addr_low <= addr && addr <= entry->addr_high) {
+                u32 offset = wdc65816_mapper_reduce(full_addr, entry->mask);
+                if(entry->size) offset = entry->base + wdc65816_mapper_mirror(offset, entry->size - entry->base);
+                data[full_addr - addr_low] = entry->data[offset];
+            }
         }
     }
     return 0;
 }
+
+u8* wdc65816_mapper_write_range(wdc65816_mapper_t* mapper, u32 addr_low, u32 addr_high, u8* data) {
+    for(u32 full_addr = addr_low; full_addr < addr_high; full_addr++) {
+        u8  bank = full_addr >> 16;
+        u16 addr = full_addr & 0xFFFF;
+        for(int i = 0; i < mapper->num_entries; i++) {
+            wdc65816_mapper_entry_t* entry = &mapper->entries[i];
+            if(entry->bank_low <= bank && bank <= entry->bank_high
+               && entry->addr_low <= addr && addr <= entry->addr_high) {
+                u32 offset = wdc65816_mapper_reduce(full_addr, entry->mask);
+                if(entry->size) offset = entry->base + wdc65816_mapper_mirror(offset, entry->size - entry->base);
+                entry->data[offset] = data[full_addr - addr_low];
+            }
+        }
+    }
+    return 0;
+}
+
 
 static
 u64 symbol_resolver(const char* name, void* ctx) {
@@ -66,8 +74,7 @@ void wdc65816_mapper_init_functions(wdc65816_mapper_t* mapper) {
 #if 0
     // Sort mapper entries by size, so the entries which map large parts of the
     // bus are evaluated first.
-    wdc65816_mapper_t mapper_cpy = *mapper;
-    mapper = &mapper_cpy;
+    // Does not seem to have a good impact on runtime performance.
     for(int i = 0; i < mapper->num_entries - 1; i++) {
         int bank_i = mapper->entries[i].bank_high - mapper->entries[i].bank_low + 1;
         int addr_i = mapper->entries[i].addr_high - mapper->entries[i].addr_low + 1;
@@ -85,22 +92,23 @@ void wdc65816_mapper_init_functions(wdc65816_mapper_t* mapper) {
     }
 #endif
     
-    LLVMMemoryBufferRef mapper_objectmem_buf;
-    LLVMCreateMemoryBufferWithContentsOfFile("build/mapper.bc", &mapper_objectmem_buf, NULL);
-
+    LLVMMemoryBufferRef mapper_objectmem_buf =
+        LLVMCreateMemoryBufferWithMemoryRange((const char*) build_mapper_bc, build_mapper_bc_len, "build/mapper.bc", 1);
     LLVMContextRef context = LLVMContextCreate();
     
     LLVMModuleRef mapper_module;
     LLVMParseBitcodeInContext2(context, mapper_objectmem_buf, &mapper_module);
 
-    LLVMTypeRef lint8     = LLVMInt8TypeInContext(context);
-    LLVMTypeRef lint32    = LLVMInt32TypeInContext(context);
-    LLVMTypeRef lint8_ptr = LLVMPointerType(lint8, 0);
-    LLVMTypeRef lvoid     = LLVMVoidTypeInContext(context);
+    LLVMTypeRef lint8       = LLVMInt8TypeInContext(context);
+    LLVMTypeRef lint32      = LLVMInt32TypeInContext(context);
+    LLVMTypeRef lint8_ptr   = LLVMPointerType(lint8, 0);
+    LLVMTypeRef lvoid       = LLVMVoidTypeInContext(context);
+    LLVMTypeRef lbuffer     = LLVMStructTypeInContext(context, (LLVMTypeRef[]){ lint8_ptr, lint8_ptr }, 2, 0);
+    LLVMTypeRef lbuffer_ptr = LLVMPointerType(lbuffer, 0);
     
-    LLVMTypeRef read_func_type  = LLVMFunctionType(lint8,     (LLVMTypeRef[]){ lint32        }, 1, 0);
-    LLVMTypeRef write_func_type = LLVMFunctionType(lvoid,     (LLVMTypeRef[]){ lint32, lint8 }, 2, 0);
-    LLVMTypeRef ptr_func_type   = LLVMFunctionType(lint8_ptr, (LLVMTypeRef[]){ lint32        }, 1, 0);
+    LLVMTypeRef read_func_type  = LLVMFunctionType(lint8,     (LLVMTypeRef[]){ lint32              }, 1, 0);
+    LLVMTypeRef write_func_type = LLVMFunctionType(lvoid,     (LLVMTypeRef[]){ lint32, lint8       }, 2, 0);
+    LLVMTypeRef ptr_func_type   = LLVMFunctionType(lint8_ptr, (LLVMTypeRef[]){ lint32, lbuffer_ptr }, 2, 0);
 
     LLVMValueRef data_ptr[256];
     for(int i = 0; i < mapper->num_entries; i++) {
@@ -209,10 +217,9 @@ void wdc65816_mapper_init_functions(wdc65816_mapper_t* mapper) {
                 LLVMBuildStore(builder, LLVMGetParam(mapper_functions[i], 1), ptr);
                 LLVMBuildRetVoid(builder);
             } else if(i == 2) { // ptr
+                              
                 LLVMBuildRet(builder, ptr);
-            } else {
-                assert(0 && "This should not happen");
-            }
+            } else invalid_code_path;
 
         }
 

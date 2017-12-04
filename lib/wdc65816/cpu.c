@@ -1,6 +1,3 @@
-#include <string.h>
-#include <stdlib.h>
-
 #include "cpu.h"
 #include "disassembler.h"
 #include "memory.h"
