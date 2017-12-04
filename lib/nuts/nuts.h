@@ -73,20 +73,22 @@ typedef struct {
     lexer_stack_t lexer_stack;
 } lexer_t;
 
+define_stack(addr_stack, u32);
+
 typedef struct {
-    int         pc;
-    int         size;
-    lexer_t     lexer;
-    token_t     token;
-    label_map_t label_map;
-    pool_t      expr_pool;
-    u8*         data;
-    arena_t*    arena;
+    addr_stack_t    pc_stack;
+    lexer_t         lexer;
+    token_t         token;
+    label_map_t     label_map;
+    pool_t          expr_pool;
+    wdc65816_rom_t* rom;
+    arena_t*        arena;
+    path_t*         working_directory;
 } parser_state_t;
 
 void parser_global_init();
 void parser_global_deinit();
-buffer_t open_file(string_t file, arena_t* arena);
-void parser_init(parser_state_t* parser, string_t file_name, wdc65816_rom_t* rom, arena_t* arena);
+void parser_init(parser_state_t* parser, wdc65816_rom_t* rom, arena_t* arena,
+                 path_t* file, path_t* working_directory);
 void parser_deinit(parser_state_t* parser);
 void parse_asm(parser_state_t* parser);

@@ -1,8 +1,3 @@
-#include <assert.h>
-#include <stdio.h>
-#include <ctype.h>
-#include <linux/limits.h>
-
 #include "base/base.h"
 #include "nuts/nuts.h"
 
@@ -195,26 +190,6 @@ u32 num_bytes_of_u32(u32 i) {
     return (sizeof(int) * 8 - __builtin_clz(i) + 7) / 8;
 }
 
-buffer_t open_file(string_t file_name, arena_t* a) {
-
-    // TODO: Maybe there is a way to open files with char* begin + int length?
-    char file_name_c[PATH_MAX] = { 0 };
-    strncpy(file_name_c, file_name.data, file_name.length < PATH_MAX ? file_name.length : PATH_MAX);
-
-    FILE* fp = fopen(file_name_c, "r");
-    if(!fp) {
-        fprintf(stderr, "Error: could not open file \"%.*s\"\n", file_name.length, file_name.data);
-        exit(1);
-    }
-    fseek(fp, 0, SEEK_END);
-    long int file_size = ftell(fp);
-    void* data = arena_alloc(a, file_size, 8);
-    rewind(fp);
-    fread(data, file_size, 1, fp);
-    fclose(fp);
-    return (buffer_t) { .begin = data, .end = data + file_size};
-}
-
 u32 define_equal(define_t e1, define_t e2) {
     return string_equal(e1.name, e2.name);
 }
@@ -245,6 +220,8 @@ implement_hashmap(label_map, label_t, label_hash, label_equal);
 implement_hashmap(identifier_map, identifier_t, identifier_hash, identifier_equal);
 identifier_map_t identifier_map;
 
+implement_stack(addr_stack, u32);
+
 #ifndef TEXT_POS
 #undef error_at_pos
 #define error_at_pos(a)
@@ -259,7 +236,7 @@ void identifier_map_fill() {
             .type = IDENT_OPCODE + i + 1,
         };
         identifier_map_insert(&identifier_map, entry);
-        for(char* p = opcodes_lower[i]; *p; p++) *p = tolower(*p);
+        for(char* p = opcodes_lower[i]; *p; p++) *p = *p + ('a' - 'A');
         entry = (identifier_t){
             .name = string_from_c_string(opcodes_lower[i]),
             .type = IDENT_OPCODE + i + 1,
@@ -273,7 +250,7 @@ void identifier_map_fill() {
             .type = IDENT_COMMAND + i + 1,
         };
         identifier_map_insert(&identifier_map, entry);
-        for(char* p = commands_lower[i]; *p; p++) *p = tolower(*p);
+        for(char* p = commands_lower[i]; *p; p++) *p = *p + ('a' - 'A');
         entry = (identifier_t){
             .name = string_from_c_string(commands_lower[i]),
             .type = IDENT_COMMAND + i + 1,
@@ -354,8 +331,9 @@ void lexer_push_buffer(lexer_t* lexer, buffer_t buffer
 
 
 static
-void lexer_push_file(lexer_t* lexer, string_t file_name, arena_t* arena) {
-    buffer_t buffer = open_file(file_name, arena);
+void lexer_push_file(lexer_t* lexer, path_t* file, arena_t* arena) {
+    buffer_t buffer = path_open_file(file, arena);
+    string_t file_name = path_get_name(file, arena);
 #ifdef TEXT_POS
     text_pos_t text_pos = {
         .file_name = file_name,
@@ -703,21 +681,22 @@ token_t lexer_get_token(lexer_t* lexer) {
     return result;
 }
 
-void parser_init(parser_state_t* parser, string_t file_name, wdc65816_rom_t* rom, arena_t* arena) {
-    parser->pc = 0;
-    parser->size = 4 * 1024 * 1024;
+void parser_init(parser_state_t* parser, wdc65816_rom_t* rom, arena_t* arena,
+                 path_t* file, path_t* working_directory) {
     parser->token = (token_t){ 0 };
     lexer_init(&parser->lexer);
     label_map_init(&parser->label_map, 512);
     parser->arena = arena;
-    lexer_push_file(&parser->lexer, file_name, parser->arena);
-    parser->data = malloc(4*1024*1024);
+    parser->rom   = rom;
+    lexer_push_file(&parser->lexer, file, parser->arena);
+    addr_stack_init(&parser->pc_stack, 256);
 }
 
 void parser_deinit(parser_state_t* parser) {
-    free(parser->data);
     label_map_deinit(&parser->label_map);
     lexer_deinit(&parser->lexer);
+    // TODO:
+    //addr_stack_deinit(&parser->pc_stack);
 }
 
 
@@ -828,7 +807,6 @@ const bin_op_hierarchy_entry hierarchy[] = {
     [EXPR_SUB]    = { .token_type = TOKEN_MINUS,     .op = usub,    .level = 1, .optimize = 0 },
 };
 
-#if 1
 static
 expr_t parse_expr_(parser_state_t* parser, int level) {
     expr_t op1 = { 0 };
@@ -896,14 +874,14 @@ expr_t parse_expr_(parser_state_t* parser, int level) {
     }
 
     while(1) {
-        if(parser->token.type == TOKEN_TIMES) parse_binary_operator(EXPR_MULT);
-        if(parser->token.type == TOKEN_SLASH) parse_binary_operator(EXPR_DIV);
+        if(parser->token.type == TOKEN_TIMES)     parse_binary_operator(EXPR_MULT);
+        if(parser->token.type == TOKEN_SLASH)     parse_binary_operator(EXPR_DIV);
         if(parser->token.type == TOKEN_AMPERSAND) parse_binary_operator(EXPR_BITAND);
-        if(parser->token.type == TOKEN_PIPE) parse_binary_operator(EXPR_BITOR);
-        if(parser->token.type == TOKEN_LSHIFT) parse_binary_operator(EXPR_LSHIFT);
-        if(parser->token.type == TOKEN_RSHIFT) parse_binary_operator(EXPR_RSHIFT);
-        if(parser->token.type == TOKEN_PLUS) parse_binary_operator(EXPR_ADD);
-        if(parser->token.type == TOKEN_MINUS) parse_binary_operator(EXPR_SUB);
+        if(parser->token.type == TOKEN_PIPE)      parse_binary_operator(EXPR_BITOR);
+        if(parser->token.type == TOKEN_LSHIFT)    parse_binary_operator(EXPR_LSHIFT);
+        if(parser->token.type == TOKEN_RSHIFT)    parse_binary_operator(EXPR_RSHIFT);
+        if(parser->token.type == TOKEN_PLUS)      parse_binary_operator(EXPR_ADD);
+        if(parser->token.type == TOKEN_MINUS)     parse_binary_operator(EXPR_SUB);
 
         break;
 	}
@@ -915,151 +893,10 @@ static
 expr_t parse_expr(parser_state_t* parser) {
     return parse_expr_(parser, 0);
 }
-#else
-
-static
-expr_t parse_binary_operator(parser_state_t* parser, expr_t operand1,
-                           token_type_t token_type, expr_type_t expr_type,
-                           u64 (*op)(u64, u64),
-                           expr_t (*next_parse_level)(parser_state_t* parser)) {
-    expr_t result = { 0 };
-    if(parser->token.type == token_type) {
-        parser_advance(parser);
-        expr_t operand2 = next_parse_level(parser);
-        if(operand1.type == EXPR_NUM && operand2.type == EXPR_NUM) {
-            operand1.bytes = max(operand1.bytes, operand2.bytes);
-            operand1.num   = op(operand1.num, operand2.num);
-            result = operand1;
-        } else {
-            expr_t* ops = malloc(2 * sizeof(expr_t));
-            ops[0] = operand1; ops[1] = operand2;
-            expr_t result = {
-                .type  = expr_type,
-                .op1   = ops + 0,
-                .op2   = ops + 1,
-                .bytes = max(ops[0].bytes, ops[1].bytes)
-            };
-        }
-    }
-    return result;
-}
-
-static
-expr_t parse_expr(parser_state_t* parser);
-
-static
-expr_t parse_expr5(parser_state_t* parser) {
-    expr_t result = { 0 };
-    if(parser->token.type == TOKEN_NUM) {
-        result = (expr_t){
-            .type  = EXPR_NUM,
-            .num   = parser->token.num,
-            .bytes = parser->token.bytes,
-        };
-        parser_advance(parser);
-    } else if(parser->token.type == TOKEN_IDENTIFIER) {
-        result = (expr_t){
-            .type  = EXPR_NUM,
-            .name  = parser->token.text,
-            .bytes = 3,
-        };
-        parser_advance(parser);
-    } else if(parser->token.type == TOKEN_LPAREN) {
-        parser_advance(parser);
-        result = parse_expr(parser);
-        parser_expect_expr(parser, result);
-        parser_expect(parser, TOKEN_RPAREN);
-        parser_advance(parser);
-    }
-    return result;
-}
-
-
-
-static
-expr_t parse_expr4(parser_state_t* parser) {
-    expr_t op1 = parse_expr5(parser);
-    expr_t result = { 0 };
-    if(result.type == EXPR_NULL)
-        result = parse_binary_operator(parser, op1,
-                                       TOKEN_LSHIFT, EXPR_LSHIFT, ulshift,
-                                       parse_expr4);
-    if(result.type == EXPR_NULL)
-        result = parse_binary_operator(parser, op1,
-                                       TOKEN_RSHIFT, EXPR_RSHIFT, urshift,
-                                       parse_expr4);
-    if(result.type == EXPR_NULL)
-        result = op1;      
-    return result;
-}
-
-static
-expr_t parse_expr3(parser_state_t* parser) {
-    expr_t op1 = parse_expr4(parser);
-    expr_t result = { 0 };
-    if(result.type == EXPR_NULL) result = parse_binary_operator(parser, op1,
-                                                                TOKEN_PIPE, EXPR_BITOR, ubitor,
-                                                                parse_expr3);
-    if(result.type == EXPR_NULL) result = parse_binary_operator(parser, op1,
-                                                                TOKEN_AMPERSAND, EXPR_BITAND, ubitand,
-                                                                parse_expr3);
-    if(result.type == EXPR_NULL) result = op1;
-    return result;
-}
-
-
-static
-expr_t parse_expr2(parser_state_t* parser) {
-    expr_t op1 = parse_expr3(parser);
-    expr_t result = { 0 };
-    if(result.type == EXPR_NULL) result = parse_binary_operator(parser, op1,
-                                                                TOKEN_TIMES, EXPR_MULT, umul,
-                                                                parse_expr2);
-    if(result.type == EXPR_NULL) result = parse_binary_operator(parser, op1,
-                                                                TOKEN_SLASH, EXPR_DIV, udiv,
-                                                                parse_expr2);
-    if(result.type == EXPR_NULL) result = op1;
-    return result;
-}
-
-
-static
-expr_t parse_expr(parser_state_t* parser) {
-    int neg = parser->token.type == TOKEN_MINUS;
-    if(parser->token.type == TOKEN_MINUS || parser->token.type == TOKEN_PLUS) {
-        parser_advance(parser);
-    }
-
-    expr_t op1 = parse_expr2(parser);
-
-    if(neg) {
-        if(op1.type == EXPR_NUM) {
-            op1.num = -op1.num;
-        } else {
-            // we copy op1 into neg_expr and use op1 below
-            // as the result of the negation
-            expr_t* neg_expr = malloc(sizeof(expr_t));
-            *neg_expr = op1;
-            op1 = (expr_t) {
-                .type = EXPR_NEG,
-                .op1  = neg_expr,
-            };
-        }
-    }
-    expr_t result = { 0 };
-    if(result.type == EXPR_NULL) result = parse_binary_operator(parser, op1,
-                                                                TOKEN_PLUS, EXPR_ADD, uadd,
-                                                                parse_expr);
-    if(result.type == EXPR_NULL) result = parse_binary_operator(parser, op1,
-                                                                TOKEN_MINUS, EXPR_SUB, usub,
-                                                                parse_expr);
-    if(result.type == EXPR_NULL) result = op1;
-    return result;
-}
-#endif
 
 static
 void parse_statement(parser_state_t* parser) {
+    u32* pc = addr_stack_top(&parser->pc_stack);
     switch(parser->token.type) {
     case TOKEN_IDENTIFIER: {
         if(parser->token.ident_type & IDENT_COMMAND) {
@@ -1069,8 +906,10 @@ void parse_statement(parser_state_t* parser) {
                 parser_expect(parser, TOKEN_STRING);
 
                 string_t file_name = parser->token.text;
+                path_t* file = arena_alloc_type(parser->arena, path_t);
+                path_init_from(file, parser->working_directory, file_name);
                 parser_advance(parser);
-                lexer_push_file(&parser->lexer, file_name, parser->arena);
+                lexer_push_file(&parser->lexer, file, parser->arena);
                 parser_advance(parser);
                 return;
             }
@@ -1078,29 +917,15 @@ void parse_statement(parser_state_t* parser) {
             case IDENT_INCBIN: {
                 parser_advance(parser);
                 parser_expect(parser, TOKEN_STRING);
-                
-                char file_name[PATH_MAX] = { 0 };
-                if(parser->token.text.length >= PATH_MAX) {
-                    error_at_pos(parser->token.text_pos);
-                    fprintf(stderr, "File name to long");
-                    exit(1);
-                }
-                
-                strncpy(file_name, parser->token.text.data,
-                        parser->token.text.length);
 
-                FILE* fp = fopen(file_name, "r");
-                if(!fp) {
-                    error_at_pos(parser->token.text_pos);
-                    fprintf(stderr, "Could not open file \"%s\"\n", file_name);
-                    exit(1);
-                }
-                fseek(fp, 0, SEEK_END);
-                long int file_size = ftell(fp);
+                string_t file_name = parser->token.text;
+                path_t* file = arena_alloc_type(parser->arena, path_t);
+                path_init_from(file, parser->working_directory, file_name);
+
                 parser_advance(parser);
-
-                int pc = parser->pc;
                 int include_somewhere_else = 0;
+                u32 addr = *pc;
+
                 if(parser->token.type == TOKEN_ARROW) {
                     parser_advance(parser);
                     expr_t expr = parse_expr(parser);
@@ -1109,20 +934,18 @@ void parse_statement(parser_state_t* parser) {
                         fprintf(stderr, "Expression not fully computable.\n");
                         exit(1);
                     }
-                    pc = expr.num;
+                    addr = expr.num;
                     include_somewhere_else = 1;
                 }
 
-                
-                if(pc + file_size >= parser->size) {
-                    error_at_pos(parser->token.text_pos);
-                    fprintf(stderr, "File \"%s\" is to large!\n", file_name);
-                    exit(1);
-                }
-                rewind(fp);
-                fread(parser->data + pc, file_size, 1, fp);
-                fclose(fp);
-                if(include_somewhere_else) parser->pc += file_size;
+                temp_t temp = temp_begin(parser->arena);
+                buffer_t buffer = path_open_file(file, parser->arena);
+                ulong file_size = path_get_file_size(file);
+
+                wdc65816_mapper_write_range(&parser->rom->read_mapper, addr,
+                                            addr + file_size, buffer.begin);
+                temp_end(temp);
+                if(!include_somewhere_else) *addr_stack_top(&parser->pc_stack) += file_size;
                 break;
             }
 
@@ -1143,10 +966,11 @@ void parse_statement(parser_state_t* parser) {
                     fprintf(stderr, "Expression not fully computable.\n");
                     exit(1);
                 }
-                if(parser->pc > expr.num) {
+                if(*addr_stack_top(&parser->pc_stack) > expr.num) {
+                    u32 pc = *addr_stack_top(&parser->pc_stack);
                     error_at_pos(parser->token.text_pos);
                     fprintf(stderr, "warnpc: pc = %06x = %i, "
-                            "should be %06x = %i.\n", parser->pc, parser->pc,
+                            "should be %06x = %i.\n", pc, pc,
                             expr.num, expr.num);
                     exit(1);
                 }
@@ -1162,7 +986,7 @@ void parse_statement(parser_state_t* parser) {
                     fprintf(stderr, "Expression not fully computable.\n");
                     exit(1);
                 }
-                parser->pc = expr.num;
+                *addr_stack_top(&parser->pc_stack) = expr.num;
                 break;
             }
 
@@ -1174,24 +998,44 @@ void parse_statement(parser_state_t* parser) {
                 parser_advance(parser);
                 expr_t expr;
                 if(parser->token.type == TOKEN_STRING) {
-                    if(parser->pc + length * parser->token.text.length > parser->size) {
-                        error_at_pos(parser->token.text_pos);
-                        fprintf(stderr, "String to large");
-                        exit(1);
-                    }
-                    u8* rom_ptr = parser->data + parser->pc;
+                    /* if(pc + length * parser->token.text.length > parser->size) { */
+                    /*     error_at_pos(parser->token.text_pos); */
+                    /*     fprintf(stderr, "String to large"); */
+                    /*     exit(1); */
+                    /* } */
+                    /* u8* rom_ptr = parser->data + parser->pc; */
                     for(int i = 0; i < parser->token.text.length; i++) {
                         //TODO: Table conversion
-                        *rom_ptr++ = ((u8*)parser->token.text.data)[i];
-                        for(int j = 1; j < length; j++) *rom_ptr++ = 0;
+                        /* *rom_ptr++ = ((u8*)parser->token.text.data)[i]; */
+                        /* for(int j = 1; j < length; j++) *rom_ptr++ = 0; */
+                        //(*parser->rom->ptr(*addr_stack_top(&parser->pc_stack), NULL)) += parser->token.text.length * length;
                     }
-                    parser->pc += parser->token.text.length * length;
+                    *addr_stack_top(&parser->pc_stack) += parser->token.text.length * length;
                     parser_advance(parser);
                 } else {
                     expr = parse_expr(parser);
                     if(expr.type == EXPR_NULL) {
                         error_at_pos(parser->token.text_pos);
                         fprintf(stderr, "Expected expression or string\n");
+                        exit(1);
+                    }
+                    switch(length) {
+                    case 4:
+                        parser->rom->write(*pc, expr.num >> 24);
+                        *pc += 1;
+                    case 3:
+                        parser->rom->write(*pc, expr.num >> 16);
+                        *pc += 1;
+                    case 2:
+                        parser->rom->write(*pc, expr.num >>  8);
+                        *pc += 1;
+                    case 1:
+                        parser->rom->write(*pc, expr.num);
+                        *pc += 1;
+                        break;
+                    default:
+                        error_at_pos(parser->token.text_pos);
+                        fprintf(stderr, "Length %i on line " STR(__LINE__) " in " STR(__FILE__) " should not occur.\n", length);
                         exit(1);
                     }
                 }
@@ -1203,18 +1047,18 @@ void parse_statement(parser_state_t* parser) {
                     } else {
                         parser_advance(parser);
                         if(parser->token.type == TOKEN_STRING) {
-                            if(parser->pc + length * parser->token.text.length > parser->size) {
-                                error_at_pos(parser->token.text_pos);
-                                fprintf(stderr, "String to large");
-                                exit(1);
-                            }
-                            u8* rom_ptr = parser->data + parser->pc;
+                            /* if(parser->pc + length * parser->token.text.length > parser->size) { */
+                            /*     error_at_pos(parser->token.text_pos); */
+                            /*     fprintf(stderr, "String to large"); */
+                            /*     exit(1); */
+                            /* } */
+                            /* u8* rom_ptr = parser->data + parser->pc; */
                             for(int i = 0; i < parser->token.text.length; i++) {
                                 //TODO: Table conversion
-                                *rom_ptr++ = ((u8*)parser->token.text.data)[i];
-                                for(int j = 1; j < length; j++) *rom_ptr++ = 0;
+                                /* *rom_ptr++ = ((u8*)parser->token.text.data)[i]; */
+                                /* for(int j = 1; j < length; j++) *rom_ptr++ = 0; */
                             }
-                            parser->pc += parser->token.text.length * length;
+                            *pc += parser->token.text.length * length;
                             parser_advance(parser);
                         } else {
                             expr = parse_expr(parser);
