@@ -35,11 +35,13 @@ typedef uint64_t u64;
 typedef float f32;
 typedef double f64;
 
-typedef unsigned int uint;
+typedef unsigned long  ulong;
+typedef unsigned int   uint;
 typedef unsigned short ushort;
-typedef unsigned char uchar;
+typedef unsigned char  uchar;
 
-typedef uintptr_t uintptr;
+typedef intptr_t       iptr;
+typedef uintptr_t      uptr;
 
 
 
@@ -76,55 +78,46 @@ struct {
 
 void global_init();
 
-typedef struct page_list {
-    struct page_list* next;
-    struct page_list* prev;
-    int num_pages;
-} page_list_t;
-
 typedef struct {
     void* begin;
     void* end;
-} buffer_t;
+} Buffer;
 
 typedef struct {
-    buffer_t buffer;
-    void*    current;
-} arena_t;
+    Buffer buffer;
+    void*  current;
+} Arena;
 
-typedef struct {
-    arena_t* arena;
-    void*    old_current;
-} temp_t;
-
-void page_list_init(page_list_t* list);
-void page_list_deinit(page_list_t* list);
-
-arena_t arena_create(ulong size);
-arena_t arena_create_buffer(buffer_t buffer);
-void    arena_clear(arena_t* a);
-arena_t arena_subarena(arena_t* a, ulong size);
-void*   arena_alloc(arena_t* a, ulong size, ulong align);
+Arena   arena_create(ulong size);
+Arena   arena_create_buffer(Buffer buffer);
+void    arena_clear(Arena* a);
+Arena   arena_subarena(Arena* a, ulong size);
+void*   arena_alloc(Arena* a, ulong size, ulong align);
 #define arena_alloc_type(a,type) ((type*)arena_alloc((a), sizeof(type), alignof(type)))
 #define arena_alloc_array(a,n,type) (type*)arena_alloc((a), (n)*sizeof(type), alignof(type))
 
-temp_t temp_begin(arena_t* a);
-void temp_end(temp_t tmp);
+typedef struct {
+    Arena* arena;
+    void*  old_current;
+} Temp;
+
+Temp temp_begin(Arena* a);
+void temp_end(Temp tmp);
 
 typedef struct {
     char* data;
     ushort length;
-} string_t;
+} String;
 
-#define L(cstr) (string_t){.data = cstr, .length = array_length(cstr) - 1 }
+#define L(cstr) (String){.data = cstr, .length = array_length(cstr) - 1 }
 
-b32 string_equal(string_t s1, string_t s2);
-string_t string_from_c_string(char* buf);
-u64 string_to_u64(string_t s);
-u64 string_to_u64_base(string_t s, int base);
+b32 string_equal(String s1, String s2);
+String string_from_c_string(char* buf);
+u64 string_to_u64(String s);
+u64 string_to_u64_base(String s, int base);
 
 #define string_split_foreach(s, t, c)                                   \
-    string_t t = { .data = (s).data };                                  \
+    String t = { .data = (s).data };                                  \
     for(char* macro_c_ = (s).data; macro_c_ <= (s).data + (s).length;   \
         t.data = (*macro_c_ == c) ? macro_c_ + 1 : t.data,              \
             macro_c_++, t.length = macro_c_ - t.data)                   \
@@ -138,41 +131,34 @@ typedef struct {
     int fd_;
     struct stat st_buf_;
 #endif
-} path_t;
+} Path;
 
 typedef struct {
-    path_t path;
-    path_t* dir_path;
+    Path path;
+    Path* dir_path;
 #ifdef LINUX
     DIR* dp_;
 #endif
-} dir_iter_t;
+} DirIter;
 
-void       path_init(path_t* path, string_t name);
-void       path_init_c(path_t* path, char* name);
-void       path_init_working_directory(path_t* path);
-void       path_init_from_c(path_t* path, path_t* dir, char* name);
-void       path_init_from(path_t* path, path_t* dir, string_t name);
-void       path_copy(path_t* orig, path_t* copy);
-buffer_t   path_open_file(path_t* path, arena_t* arena);
-buffer_t   path_open_file_aligned(path_t* path, arena_t* arena, int alignment);
-void       path_close(path_t* path);
-void       path_navigate(path_t* path, string_t name);
-void       path_navigate_c(path_t* path, char* name);
-ulong      path_get_file_size(path_t* path);
-int        path_is_directory(path_t* path);
-string_t   path_get_name(path_t* path, arena_t* arena); //TODO
-string_t   path_get_base_name(path_t* path, arena_t* arena); //TODO
-dir_iter_t dir_iter_begin(path_t* path);
-int        dir_iter_next(dir_iter_t* dir_iter);
-void       dir_iter_end(dir_iter_t* dir_iter);
-
-typedef struct {
-    page_list_t* free_list;
-    void* data;
-    ulong length;
-    ulong fill;
-} pool_t;
+void       path_init(Path* path, String name);
+void       path_init_c(Path* path, char* name);
+void       path_init_working_directory(Path* path);
+void       path_init_from_c(Path* path, Path* dir, char* name);
+void       path_init_from(Path* path, Path* dir, String name);
+void       path_copy(Path* orig, Path* copy);
+Buffer     path_open_file(Path* path, Arena* arena);
+Buffer     path_open_file_aligned(Path* path, Arena* arena, int alignment);
+void       path_close(Path* path);
+void       path_navigate(Path* path, String name);
+void       path_navigate_c(Path* path, char* name);
+ulong      path_get_file_size(Path* path);
+int        path_is_directory(Path* path);
+String   path_get_name(Path* path, Arena* arena); //TODO
+String   path_get_base_name(Path* path, Arena* arena); //TODO
+DirIter dir_iter_begin(Path* path);
+int        dir_iter_next(DirIter* dir_iter);
+void       dir_iter_end(DirIter* dir_iter);
 
 /* void  pool_init(pool_t* pool, page_list_t* free_list); */
 /* void* pool_alloc(pool_t* pool,ulong bytes, ulong align); */
@@ -182,38 +168,38 @@ typedef struct {
 /* #define pool_alloc_array(a,n,type) (type*)pool_alloc(a, (n)*sizeof(type), alignof(type)) */
 
 typedef struct {
-    string_t file_name;
+    String file_name;
     int      line_number;
     int      line_pos;
     char*    line_start;
-} text_pos_t;
+} TextPos;
 
 
 
 #ifdef NDEBUG
 #define error_at_pos(text_pos) error_at_pos2(text_pos)
-void error_at_pos2(text_pos_t text_pos);
+void error_at_pos2(TextPos text_pos);
 #else
 #define error_at_pos(text_pos) error_at_pos2(text_pos, __LINE__)
-void error_at_pos2(text_pos_t text_pos, int line_num);
+void error_at_pos2(TextPos text_pos, int line_num);
 #endif
 
-#define fixed_string_t(size)                                            \
+#define FixedString(size)                                               \
     struct {                                                            \
         char data[size];                                                \
         u16 length;                                                     \
     } 
 
-#define define_fixed_string(name, size)                                 \
-    typedef fixed_string_t(size) name##_t;                              \
-    void name##_append(name##_t s1, name##_t s2);                       \
-    name##_t name##_cat(name##_t s1, name##_t s2);                      \
-    string_t name##_to_string(name##_t* s);                             \
-    void name##_from_c_string(name##_t* s, char* cstring);              \
-    char* name##_find_char(name##_t* s, char c);
+#define define_fixed_string(name, prefix, size)                         \
+    typedef FixedString(size) name;                                     \
+    void prefix##_append(name s1, name s2);                             \
+    name prefix##_cat(name s1, name s2);                                \
+    String prefix##_to_string(name* s);                                 \
+    void prefix##_from_c_string(name* s, char* cstring);                \
+    char* prefix##_find_char(name* s, char c);
 
-#define implement_fixed_string(name, size)                              \
-    inline void name##_append(name##_t s1, name##_t s2) {               \
+#define implement_fixed_string(name, prefix, size)                      \
+    inline void prefix##_append(name s1, name s2) {                     \
         u16 size_to_copy;                                               \
         if(s1.length + s2.length > size) {                              \
             size_to_copy = size - s1.length;                            \
@@ -225,8 +211,8 @@ void error_at_pos2(text_pos_t text_pos, int line_num);
         }                                                               \
     }                                                                   \
                                                                         \
-    inline name##_t name##_cat(name##_t s1, name##_t s2) {              \
-        name##_t result = s1;                                           \
+    inline name prefix##_cat(name s1, name s2) {                        \
+        name result = s1;                                               \
         u16 size_to_copy;                                               \
         if(s1.length + s2.length > size) {                              \
             size_to_copy = size - s1.length;                            \
@@ -239,7 +225,7 @@ void error_at_pos2(text_pos_t text_pos, int line_num);
         return result;                                                  \
     }                                                                   \
                                                                         \
-    inline char* name##_find_char(name##_t* s, char c) {                \
+    inline char* prefix##_find_char(name* s, char c) {                  \
         char* iter = s->data;                                           \
         for(int i = 0; i < s->length; i++) {                            \
             if(*iter == c) return iter;                                 \
@@ -247,7 +233,7 @@ void error_at_pos2(text_pos_t text_pos, int line_num);
         }                                                               \
     }                                                                   \
                                                                         \
-    inline void name##_from_c_string(name##_t* s, char* cstring) {      \
+    inline void prefix##_from_c_string(name* s, char* cstring) {        \
         u16 length = 0;                                                 \
         while(*cstring != '\0' || length == size) {                     \
             s->data[length] = *cstring;                                 \
@@ -257,57 +243,57 @@ void error_at_pos2(text_pos_t text_pos, int line_num);
         s->length = length;                                             \
     }                                                                   \
                                                                         \
-    inline string_t name##_to_string(name##_t* s) {                     \
-        string_t result = {                                             \
+    inline String prefix##_to_string(name* s) {                         \
+        String result = {                                               \
             .data = (char*)&s->data,                                    \
             .length = s->length                                         \
         };                                                              \
         return result;                                                  \
     }
 
-#define generate_fixed_string(name, size)                               \
-    define_fixed_string(name, size);                                    \
-    implement_fixed_string(name, size);                                 \
+#define generate_fixed_string(name, prefix, size)                       \
+    define_fixed_string(name, prefix, size);                            \
+    implement_fixed_string(name, prefix, size);                         \
 
 
 typedef struct bml_node {
-    string_t name;
-    string_t value;
+    String name;
+    String value;
     struct bml_node* child;
     struct bml_node* next;
-} bml_node_t;
+} BMLNode;
 
-bml_node_t* bml_parse(buffer_t buffer, arena_t* arena);
-void bml_print_node(bml_node_t* node, int indent);
+BMLNode* bml_parse(Buffer buffer, Arena* arena);
+void bml_print_node(BMLNode* node, int indent);
 
 
 
-#define define_stack(name, type)                                        \
+#define define_stack(name, prefix, type)                                \
     typedef struct {                                                    \
         type* data;                                                     \
         u16 fill;                                                       \
         u16 capacity;                                                   \
-    } name##_t;                                                         \
-    extern void name##_init(name##_t* s, int size);                     \
-    extern void name##_deinit(name##_t* s);                             \
-    extern type* name##_push(name##_t* s, type data);                   \
-    extern void name##_reserve(name##_t* s);                            \
-    extern type* name##_pop(name##_t* s);                               \
-    extern type* name##_top(name##_t* s);                               \
-    extern b32 name##_is_empty(name##_t* s);
+    } name;                                                             \
+    extern void prefix##_init(name* s, int size);                       \
+    extern void prefix##_deinit(name* s);                               \
+    extern type* prefix##_push(name* s, type data);                     \
+    extern void prefix##_reserve(name* s);                              \
+    extern type* prefix##_pop(name* s);                                 \
+    extern type* prefix##_top(name* s);                                 \
+    extern b32 prefix##_is_empty(name* s);
 
-#define implement_stack(name, type)                                     \
-    inline void name##_init(name##_t* s, int size) {                    \
+#define implement_stack(name, prefix, type)                             \
+    inline void prefix##_init(name* s, int size) {                      \
         s->data = malloc(size * sizeof(type));                          \
         s->fill = 0;                                                    \
         s->capacity = size;                                             \
     }                                                                   \
                                                                         \
-    inline void name##_deinit(name##_t* s) {                            \
+    inline void prefix##_deinit(name* s) {                              \
         free(s->data);                                                  \
     }                                                                   \
                                                                         \
-    inline type* name##_push(name##_t* s, type data) {                  \
+    inline type* prefix##_push(name* s, type data) {                    \
         if(s->fill == s->capacity) {                                    \
             s->capacity *= 2;                                           \
             /*TODO: One should check for null here...        */         \
@@ -318,7 +304,7 @@ void bml_print_node(bml_node_t* node, int indent);
         return s->data + s->fill - 1;                                   \
     }                                                                   \
                                                                         \
-    inline void name##_reserve(name##_t* s) {                           \
+    inline void prefix##_reserve(name* s) {                             \
         if(s->fill == s->capacity) {                                    \
             s->capacity *= 2;                                           \
             /*TODO: One should check for null here...        */         \
@@ -327,28 +313,28 @@ void bml_print_node(bml_node_t* node, int indent);
         s->fill++;                                                      \
     }                                                                   \
                                                                         \
-    inline type* name##_top(name##_t* s) {                              \
+    inline type* prefix##_top(name* s) {                                \
         return s->data + s->fill - 1;                                   \
     }                                                                   \
                                                                         \
-    inline type* name##_pop(name##_t* s) {                              \
+    inline type* prefix##_pop(name* s) {                                \
         s->fill--;                                                      \
         return s->data + s->fill - 1;                                   \
     }                                                                   \
                                                                         \
-    inline void name##_do_empty(name##_t* s) {                          \
+    inline void prefix##_do_empty(name* s) {                            \
         s->fill = 0;                                                    \
         return;                                                         \
     }                                                                   \
                                                                         \
-    inline b32 name##_is_empty(name##_t* s) {                           \
+    inline b32 prefix##_is_empty(name* s) {                             \
         return s->fill == 0;                                            \
     }
 
 
-#define generate_stack(name, type)                                      \
-    define_stack(name, type);                                           \
-    implement_stack(name, type);
+#define generate_stack(name, prefix, type)                               \
+    define_stack(name, prefix, type);                                    \
+    implement_stack(name, prefix, type);
 
 
 
@@ -357,9 +343,9 @@ void bml_print_node(bml_node_t* node, int indent);
 #define MAX_FILL_NOMINATOR 9
 #define MAX_FILL_DENOMINATOR 10
 
-u32 SuperFastHash (string_t str);
+u32 SuperFastHash(String str);
 
-#define hashmap_t(type)                                                 \
+#define Hashmap(type)                                                   \
     struct {                                                            \
         struct {                                                        \
             type data;                                                  \
@@ -369,37 +355,37 @@ u32 SuperFastHash (string_t str);
         uint fill;                                                      \
     }
 
-#define define_hashmap(name, type, fun, cmp)                            \
-    typedef hashmap_t(type) name##_t;                                   \
-    void name##_init(name##_t* map, int size);                          \
-    void name##_deinit(name##_t* map);                                  \
-    void name##_resize(name##_t* map);                                  \
-    type* name##_find(name##_t* map, type data);                        \
-    type* name##_find_hash(name##_t* map, type data, u32 hash);         \
-    void name##_insert(name##_t* map, type data);                       \
-    void name##_insert2(name##_t* map, type data, u32 hash);
+#define define_hashmap(name, prefix, type, fun, cmp)                    \
+    typedef Hashmap(type) name;                                         \
+    void prefix##_init(name* map, int size);                            \
+    void prefix##_deinit(name* map);                                    \
+    void prefix##_resize(name* map);                                    \
+    type* prefix##_find(name* map, type data);                          \
+    type* prefix##_find_hash(name* map, type data, u32 hash);           \
+    void prefix##_insert(name* map, type data);                         \
+    void prefix##_insert2(name* map, type data, u32 hash);
 
 
-#define implement_hashmap(name, type, fun, cmp)                         \
-    void name##_init(name##_t* map, int size) {                         \
+#define implement_hashmap(name, prefix, type, fun, cmp)                 \
+    void prefix##_init(name* map, int size) {                           \
         map->size = size;                                               \
         map->fill = 0;                                                  \
         map->entries = calloc(size, sizeof(*map->entries));             \
     }                                                                   \
                                                                         \
-    void name##_deinit(name##_t* map) {                                 \
+    void prefix##_deinit(name* map) {                                   \
         free(map->entries);                                             \
     }                                                                   \
                                                                         \
-    void name##_insert2(name##_t* map, type data, u32 hash);            \
-    void name##_resize(name##_t* map) {                                 \
-        name##_t new_map;                                               \
-        name##_init(&new_map, 2 * map->size);                           \
+    void prefix##_insert2(name* map, type data, u32 hash);              \
+    void prefix##_resize(name* map) {                                   \
+        name new_map;                                                   \
+        prefix##_init(&new_map, 2 * map->size);                         \
         for(int i = 0; i < map->size; i++) {                            \
             type data = map->entries[i].data;                           \
             u32 hash = map->entries[i].hash;                            \
             if(hash != 0x00000000) {                                    \
-                name##_insert2(&new_map, data, hash);                   \
+                prefix##_insert2(&new_map, data, hash);                 \
             }                                                           \
         }                                                               \
         free(map->entries);                                             \
@@ -407,7 +393,7 @@ u32 SuperFastHash (string_t str);
     }                                                                   \
                                                                         \
     inline                                                              \
-    void name##_insert2(name##_t* map, type data, u32 hash) {           \
+    void prefix##_insert2(name* map, type data, u32 hash) {             \
         u32 mask = (map->size - 1);                                     \
         u32 pos = hash & mask;                                          \
         u32 dist = 0;                                                   \
@@ -434,21 +420,21 @@ u32 SuperFastHash (string_t str);
         }                                                               \
         map->fill++;                                                    \
         if(map->fill * MAX_FILL_DENOMINATOR > map->size * MAX_FILL_NOMINATOR) \
-            name##_resize(map);                                         \
+            prefix##_resize(map);                                       \
     }                                                                   \
                                                                         \
                                                                         \
-    void name##_insert(name##_t* map, type data) {                      \
+    void prefix##_insert(name* map, type data) {                        \
         u32 hash = fun(data);                                           \
-        name##_insert2(map, data, hash);                                \
+        prefix##_insert2(map, data, hash);                              \
     }                                                                   \
                                                                         \
-    type* name##_find(name##_t* map, type data) {                       \
+    type* prefix##_find(name* map, type data) {                         \
         u32 hash = fun(data);                                           \
-        return name##_find_hash(map, data, hash);                       \
+        return prefix##_find_hash(map, data, hash);                     \
     }                                                                   \
                                                                         \
-    type* name##_find_hash(name##_t* map, type data, u32 hash) {        \
+    type* prefix##_find_hash(name* map, type data, u32 hash) {          \
         u32 mask = (map->size - 1);                                     \
         u32 dist = 0;                                                   \
         u32 pos = hash & mask;                                          \
@@ -473,19 +459,19 @@ u32 SuperFastHash (string_t str);
     define_hashmap(name, type, fun, cmp)                                \
     implement_hashmap(name, type, fun, cmp)
 
-define_hashmap(string_map, string_t, SuperFastHash, string_equal);
+define_hashmap(StringMap, string_map, String, SuperFastHash, string_equal);
 
 typedef struct {
-    string_t name;
-    buffer_t buffer;
-} vfs_entry_t;
+    String name;
+    Buffer buffer;
+} VFSEntry;
 
-u32 vfs_entry_hash(vfs_entry_t v);
-u32 vfs_entry_equal(vfs_entry_t v1, vfs_entry_t v2);
+u32 vfs_entry_hash(VFSEntry v);
+u32 vfs_entry_equal(VFSEntry v1, VFSEntry v2);
 
-define_hashmap(vfs, vfs_entry_t, vfs_entry_hash, vfs_entry_equal);
+define_hashmap(VFS, vfs, VFSEntry, vfs_entry_hash, vfs_entry_equal);
 
-void vfs_add_dir(vfs_t* vfs, path_t* path, arena_t* arena);
+void vfs_add_dir(VFS* vfs, Path* path, Arena* arena);
 
 #endif //BASE_GUARD
 
@@ -503,7 +489,7 @@ void* page_alloc(uint num_pages) {
 void page_free(void* page, uint num_pages) {
     munmap(page, num_pages * PAGE_SIZE);
 }
-#elif WINDOWS
+#elif defined(WINDOWS)
 #include <windows.h>
 void* page_alloc(uint num_pages) {
     return VirtualAlloc(0, PAGE_SIZE * num_pages,
@@ -516,89 +502,33 @@ void page_free(void* page, uint num_pages) {
 #endif
 
 
-void page_list_init(page_list_t* l) {
-    l->next = l;
-    l->prev = l;
-    l->num_pages = 0;
-}
 
-void page_list_add(page_list_t* l, void* page, int num_pages) {
-    page_list_t* page_list = (page_list_t*)page;
-    page_list->num_pages = num_pages;
-    page_list->prev = l;
-    page_list->next = l->next;
-    l->next->prev = page_list;
-    l->next = page_list;
-}
-
-void page_list_add_list(page_list_t* l1, page_list_t* l2) {
-    l1->prev->next = l2->next;
-    l2->next->prev = l1->prev;
-    l1->prev       = l2->prev;
-    l2->prev->next = l1;
-}
-
-void* page_list_alloc(page_list_t* sentinel, int num_pages) {
-    void* result = NULL;
-    page_list_t* l = sentinel->next;
-    while(l != sentinel && l->num_pages > num_pages) {
-        l = l->next;
-    }
-    if(l != sentinel) {
-        result = l;
-        if(l->num_pages == num_pages) {
-            l->prev->next = l->next;
-            l->next->prev = l->prev;
-        } else {
-            int new_num_pages = l->num_pages - num_pages;
-            page_list_t* new_page = (page_list_t*)(((void*)l) + num_pages * PAGE_SIZE);
-            new_page->num_pages = new_num_pages;
-            new_page->next = l->next;
-            new_page->prev = l->prev;
-            l->prev->next = l->next;
-            l->next->prev = l->prev;
-        }
-    } else {
-        result = page_alloc(num_pages);
-    }
-    return result;
-}
-
-void page_list_deinit(page_list_t* l) {
-    assert(l);
-    while(l) {
-        page_list_t* next = l->next;
-        page_free(l, l->num_pages);
-        l = next;
-    }
-}
-
-arena_t arena_create(ulong size) {
-    buffer_t buffer;
+Arena arena_create(ulong size) {
+    Buffer buffer;
     buffer.begin = page_alloc((size + PAGE_SIZE - 1) / PAGE_SIZE);
     buffer.end   = buffer.begin + size;
-    return (arena_t){
+    return (Arena){
         .buffer = buffer,
         .current = buffer.begin
     };
 }
 
-arena_t arena_create_buffer(buffer_t buffer) {
-    return (arena_t){
+Arena arena_create_buffer(Buffer buffer) {
+    return (Arena){
         .buffer = buffer,
         .current = buffer.begin
     };
 }
 
-void arena_clear(arena_t* a) {
+void arena_clear(Arena* a) {
     a->current = a->buffer.begin;
 }
 
-void* arena_alloc(arena_t* a, ulong size, ulong align) {
+void* arena_alloc(Arena* a, ulong size, ulong align) {
     assert(a && a->current >= a->buffer.begin && a->current <= a->buffer.end);
     if (!a) return 0;
     align = align == 0 ? 0 : align - 1;
-    void* result = ((void*)(((intptr_t)(a->current + align)&~align)));
+    void* result = ((void*)(((iptr)(a->current + align)&~align)));
     assert(result + size < a->buffer.end);
     if(result + size >= a->buffer.end) return NULL;
     /* { */
@@ -612,9 +542,9 @@ void* arena_alloc(arena_t* a, ulong size, ulong align) {
     return result;
 }
 
-arena_t arena_subarena(arena_t* a, ulong size) {
+Arena arena_subarena(Arena* a, ulong size) {
     void* data = arena_alloc(a, size, alignof(void*));
-    arena_t result = {
+    Arena result = {
         .buffer.begin = data,
         .buffer.end   = data + size,
         .current      = data
@@ -622,36 +552,18 @@ arena_t arena_subarena(arena_t* a, ulong size) {
     return result;
 }
 
-temp_t temp_begin(arena_t* a) {
-    return (temp_t) {
+Temp temp_begin(Arena* a) {
+    return (Temp) {
         .arena = a,
         .old_current = a->current
     };
 }
 
-void temp_end(temp_t temp) {
+void temp_end(Temp temp) {
     temp.arena->current = temp.old_current;
 }
 
-
-
-/* temp_memory_t temp_memory_begin(arena_t* a) */
-/* { */
-/*     temp_memory_t res; */
-/*     res.used = a->blk ? a->blk->used: 0; */
-/*     res.blk = a->blk; */
-/*     res.arena = a; */
-/*     return res; */
-/* } */
-/* void temp_memory_end(temp_memory_t tmp) */
-/* { */
-/*    arena_t* a = tmp.arena; */
-/*     while (a->blk != tmp.blk) */
-/*         arena_free_last_blk(a); */
-/*     if (a->blk) a->blk->used = tmp.used; */
-/* } */
-
-b32 string_equal(string_t s1, string_t s2) {
+b32 string_equal(String s1, String s2) {
     if(s1.length != s2.length) return 0;
     for(int i = 0; i < s1.length; i++) {
         if(s1.data[i] != s2.data[i]) return 0;
@@ -659,7 +571,7 @@ b32 string_equal(string_t s1, string_t s2) {
     return 1;
 }
 
-u64 string_to_u64_base(string_t s, int base) {
+u64 string_to_u64_base(String s, int base) {
     u64 num = 0;
     for(int i = 0; i < s.length; i++) {
         int digit = 0;
@@ -678,7 +590,7 @@ u64 string_to_u64_base(string_t s, int base) {
     return num;
 }
 
-u64 string_to_u64(string_t s) {
+u64 string_to_u64(String s) {
     int base = 10;
     if(s.length >= 3 && s.data[0] == '0' && (s.data[1] == 'x' || s.data[1] == 'X')) {
         base = 16; s.data += 2; s.length -= 2;
@@ -696,9 +608,9 @@ u64 string_to_u64(string_t s) {
 
 
 
-string_t string_from_c_string(char* buf) {
+String string_from_c_string(char* buf) {
     int length = 0;
-    string_t s = {
+    String s = {
         .data = buf
     };
     while(*buf != '\0') {
@@ -715,13 +627,13 @@ string_t string_from_c_string(char* buf) {
 #include <unistd.h>
 #include <sys/stat.h>
 
-void path_init_c(path_t* path, char* name) {
+void path_init_c(Path* path, char* name) {
     path->fd_ = open(name, O_RDONLY);
     path->has_stats = 0;
     path->invalid = 0;
 }
 
-void path_init(path_t* path, string_t name) {
+void path_init(Path* path, String name) {
     char name_c[PATH_MAX];
     if(name.length >= PATH_MAX - 1) {
         fprintf(stderr, "File name \"%.*s\" is to long.\n", name.length, name.data);
@@ -731,14 +643,14 @@ void path_init(path_t* path, string_t name) {
     path_init_c(path, name_c);
 }
 
-void path_init_from_c(path_t* path, path_t* dir, char* name) {
+void path_init_from_c(Path* path, Path* dir, char* name) {
     path->fd_ = openat(dir->fd_, name, O_RDONLY);
     path->has_stats = 0;
     path->invalid = 0;
 }
 
 
-void path_init_from(path_t* path, path_t* dir, string_t name) {
+void path_init_from(Path* path, Path* dir, String name) {
     char name_c[PATH_MAX];
     if(name.length >= PATH_MAX - 1) {
         fprintf(stderr, "File name \"%.*s\" is to long.\n", name.length, name.data);
@@ -749,46 +661,46 @@ void path_init_from(path_t* path, path_t* dir, string_t name) {
 }
 
 
-void path_init_working_directory(path_t* path) {
+void path_init_working_directory(Path* path) {
     path_init_c(path, ".");
 }
 
-void path_load_stats(path_t* path) {
+void path_load_stats(Path* path) {
     if(!path->has_stats) {
         fstat(path->fd_, &path->st_buf_);        
         path->has_stats = 1;
     }
 }
 
-void path_copy(path_t* orig, path_t* copy) {
-    *copy = (path_t){ 0 };
+void path_copy(Path* orig, Path* copy) {
+    *copy = (Path){ 0 };
     copy->fd_ = dup(orig->fd_);
     if(orig->has_stats) path_load_stats(copy);
 }
 
 
-buffer_t path_open_file_aligned(path_t* path, arena_t* arena, int alignment) {
+Buffer path_open_file_aligned(Path* path, Arena* arena, int alignment) {
     path_load_stats(path);
     size_t file_size = path->st_buf_.st_size;
-    buffer_t result = { 0 };
+    Buffer result = { 0 };
     result.begin = arena_alloc(arena, file_size, alignment);
     result.end = result.begin + file_size;
     read(path->fd_, result.begin, file_size);
     return result;
 }
 
-buffer_t path_open_file(path_t* path, arena_t* arena) {
+Buffer path_open_file(Path* path, Arena* arena) {
     return path_open_file_aligned(path, arena, 1);
 }
 
-void path_close(path_t* path) {
+void path_close(Path* path) {
     if(!path->invalid) {
         close(path->fd_);
         path->invalid = 1;
     }
 }
 
-void path_navigate_c(path_t* path, char* name) {
+void path_navigate_c(Path* path, char* name) {
     int new_fd = openat(path->fd_, name, O_RDONLY);
     path_close(path);
     path->fd_ = new_fd;
@@ -796,7 +708,7 @@ void path_navigate_c(path_t* path, char* name) {
     path->invalid = 0;
 }
 
-void path_navigate(path_t* path, string_t name) {
+void path_navigate(Path* path, String name) {
     char name_c[PATH_MAX];
     if(name.length >= PATH_MAX - 1) {
         fprintf(stderr, "File name \"%.*s\" is to long.\n", name.length, name.data);
@@ -806,17 +718,17 @@ void path_navigate(path_t* path, string_t name) {
     path_navigate_c(path, name_c);
 }
 
-int path_is_directory(path_t* path) {
+int path_is_directory(Path* path) {
     path_load_stats(path);
     return path->st_buf_.st_mode == S_IFDIR;
 }
 
-ulong path_get_file_size(path_t* path) {
+ulong path_get_file_size(Path* path) {
     path_load_stats(path);
     return path->st_buf_.st_size;
 }
 
-string_t path_get_name(path_t* path, arena_t* arena) {
+String path_get_name(Path* path, Arena* arena) {
     char proc_path_name[256];
     sprintf(proc_path_name, "/proc/self/fd/%i", path->fd_);
     struct stat sb;
@@ -826,7 +738,7 @@ string_t path_get_name(path_t* path, arena_t* arena) {
     }
     int supposed_file_name_length = sb.st_size + 1;
     if(sb.st_size == 0) supposed_file_name_length = PATH_MAX;
-    string_t result;
+    String result;
     result.data   = arena_alloc_array(arena, supposed_file_name_length, char);
     result.length = readlink(proc_path_name, result.data,
                              supposed_file_name_length);
@@ -838,11 +750,11 @@ string_t path_get_name(path_t* path, arena_t* arena) {
 }
 
 
-string_t path_get_base_name(path_t* path, arena_t* arena) {
-    string_t result;
+String path_get_base_name(Path* path, Arena* arena) {
+    String result;
     result.data = arena_alloc_array(arena, 256, char);
-    temp_t temp = temp_begin(arena);
-    string_t path_name = path_get_name(path, arena);
+    Temp temp = temp_begin(arena);
+    String path_name = path_get_name(path, arena);
     char* last_char = path_name.data + path_name.length - 1;
     char* last_slash = last_char;
     // If path_name == '/':
@@ -877,7 +789,7 @@ string_t path_get_base_name(path_t* path, arena_t* arena) {
     return result;
 }
 
-int dir_iter_next(dir_iter_t* dir_iter) {
+int dir_iter_next(DirIter* dir_iter) {
     struct dirent* de;
     do {
         de = readdir(dir_iter->dp_);
@@ -895,8 +807,8 @@ int dir_iter_next(dir_iter_t* dir_iter) {
     return 1;
 }
 
-dir_iter_t dir_iter_begin(path_t* path) {
-    dir_iter_t result = { 0 };
+DirIter dir_iter_begin(Path* path) {
+    DirIter result = { 0 };
     result.dp_ = fdopendir(path->fd_);
 
     if(!result.dp_) {
@@ -907,15 +819,15 @@ dir_iter_t dir_iter_begin(path_t* path) {
     return result;
 }
 
-void dir_iter_end(dir_iter_t* dir_iter) {
+void dir_iter_end(DirIter* dir_iter) {
     path_close(&dir_iter->path);
     closedir(dir_iter->dp_);
 }
 #endif
 
-implement_hashmap(string_map, string_t, SuperFastHash, string_equal);
+implement_hashmap(StringMap, string_map, String, SuperFastHash, string_equal);
 
-u32 SuperFastHash(string_t str) {
+u32 SuperFastHash(String str) {
     u32 hash = str.length, tmp;
     uint length = str.length;
     char rem;
@@ -961,58 +873,18 @@ u32 SuperFastHash(string_t str) {
     return hash;
 }
 
-u32 vfs_entry_hash(vfs_entry_t v) {
+u32 vfs_entry_hash(VFSEntry v) {
     return SuperFastHash(v.name);
 }
-u32 vfs_entry_equal(vfs_entry_t v1, vfs_entry_t v2) {
+u32 vfs_entry_equal(VFSEntry v1, VFSEntry v2) {
     return string_equal(v1.name, v2.name);
 }
 
-implement_hashmap(vfs, vfs_entry_t, vfs_entry_hash, vfs_entry_equal);
+implement_hashmap(VFS, vfs, VFSEntry, vfs_entry_hash, vfs_entry_equal);
 
-void pool_init(pool_t* pool, page_list_t* free_list) {
-    pool->free_list = free_list;
-    pool->data      = page_alloc(1);
-    assert(pool->data);
-    pool->length    = PAGE_SIZE;
-    pool->fill      = 0;
-}
-
-void* pool_alloc(pool_t* pool, ulong bytes, ulong align) {
-    ulong old_fill = pool->fill;
-    void* result = NULL;
-    if(pool->fill > pool->length) {
-        long old_num_pages = pool->length / PAGE_SIZE;
-        while(pool->fill > pool->length) {
-            pool->length <<= 2;
-        }
-        long new_num_pages = pool->length / PAGE_SIZE;
-        void* new_data = page_list_alloc(pool->free_list, new_num_pages);
-        assert(new_data);
-        memcpy(new_data, pool->data, old_fill);
-        page_list_add(pool->free_list, pool->data, old_num_pages);
-
-        result = ((void*)(((intptr_t)(new_data + pool->fill + (align-1))&~(align-1))));
-        pool->fill = result + bytes - new_data;
-        pool->data = new_data;
-    } else {
-        result = ((void*)(((intptr_t)(pool->data + pool->fill + (align-1))&~(align-1))));
-        pool->fill = result + bytes - pool->data;
-    }
-    
-    return result;
-}
-
-void pool_empty(pool_t* pool) {
-    pool->fill = 0;
-}
-
-void pool_deinit(pool_t* pool) {
-    page_list_add(pool->free_list, pool->data, pool->length / PAGE_SIZE);
-}
 
 #ifdef NDEBUG
-void error_at_pos2(text_pos_t text_pos) {
+void error_at_pos2(TextPos text_pos) {
     fprintf(stderr, "%.*s:%i:%i: error\n", text_pos.file_name.length, text_pos.file_name.data,
         text_pos.line_number, text_pos.line_pos);
     char* line_end = text_pos.line_start;
@@ -1032,7 +904,7 @@ void error_at_pos2(text_pos_t text_pos) {
 }
 #else
 
-void error_at_pos2(text_pos_t text_pos, int line_num) {
+void error_at_pos2(TextPos text_pos, int line_num) {
     fprintf(stderr, "%.*s:%i:%i: error from line %i\n", text_pos.file_name.length, text_pos.file_name.data,
             text_pos.line_number, text_pos.line_pos, line_num);
     char* line_end = text_pos.line_start;
@@ -1054,11 +926,11 @@ void error_at_pos2(text_pos_t text_pos, int line_num) {
 #endif
 
 typedef struct {
-    buffer_t   buffer;
-    char*      pos;
-    text_pos_t text_pos;
-    arena_t*   arena;
-    int        had_new_line;
+    Buffer  buffer;
+    char*   pos;
+    TextPos text_pos;
+    Arena*  arena;
+    int     had_new_line;
 } bml_parser_state_t;
 
 
@@ -1076,7 +948,7 @@ int bml_is_valid_char(char p)  {  //A-Z, a-z, 0-9, -.
 }
 
 
-void bml_parse_name(bml_node_t* node, bml_parser_state_t* parser) {
+void bml_parse_name(BMLNode* node, bml_parser_state_t* parser) {
     char* begin = parser->pos;
     while(bml_is_valid_char(parser->pos[0])) bml_parser_advance(parser);
     if(parser->pos == begin) {
@@ -1084,13 +956,13 @@ void bml_parse_name(bml_node_t* node, bml_parser_state_t* parser) {
         fprintf(stderr, "Invalid node name.\n");
         exit(1);
     }
-    node->name = (string_t) {
+    node->name = (String) {
         .data = begin,
         .length = parser->pos - begin
     };
 }
 
-void bml_parse_data(bml_node_t* node, bml_parser_state_t* parser) {
+void bml_parse_data(BMLNode* node, bml_parser_state_t* parser) {
     char* begin = NULL, *end = NULL;
     if(parser->pos[0] == '=' && parser->pos[1] == '"') {
         bml_parser_advance(parser);
@@ -1161,14 +1033,14 @@ void bml_parse_data(bml_node_t* node, bml_parser_state_t* parser) {
         }
         end = parser->pos;
     }
-    node->value = (string_t) {
+    node->value = (String) {
         .data = begin,
         .length = end - begin
     };
 }
 
-void bml_parse_attributes(bml_node_t* node, bml_parser_state_t* parser) {
-    bml_node_t** next_node_ptr = &node->child;
+void bml_parse_attributes(BMLNode* node, bml_parser_state_t* parser) {
+    BMLNode** next_node_ptr = &node->child;
     while(1) {
         if(!parser->pos[0]) break;
         if(parser->pos[0] == '\n') {
@@ -1189,8 +1061,8 @@ void bml_parse_attributes(bml_node_t* node, bml_parser_state_t* parser) {
             break;
         }
 
-        bml_node_t* new_node = (bml_node_t*)arena_alloc_type(parser->arena, bml_node_t);
-        *new_node = (bml_node_t){ 0 };
+        BMLNode* new_node = (BMLNode*)arena_alloc_type(parser->arena, BMLNode);
+        *new_node = (BMLNode){ 0 };
         char* begin = parser->pos;
         while(bml_is_valid_char(parser->pos[0])) bml_parser_advance(parser);
         if(parser->pos == begin) {
@@ -1198,7 +1070,7 @@ void bml_parse_attributes(bml_node_t* node, bml_parser_state_t* parser) {
             fprintf(stderr, "Invalid attribute name.\n");
             exit(1);
         }
-        new_node->name = (string_t) {
+        new_node->name = (String) {
             .data = begin,
             .length = parser->pos - begin
         };
@@ -1217,7 +1089,7 @@ int bml_parse_indent(bml_parser_state_t* parser) {
     return result;
 }
 
-bml_node_t* bml_parse_node(bml_parser_state_t* parser, int* indent) {
+BMLNode* bml_parse_node(bml_parser_state_t* parser, int* indent) {
     if(parser->pos[0] == '\0') {
         return NULL;
     }
@@ -1227,12 +1099,12 @@ bml_node_t* bml_parse_node(bml_parser_state_t* parser, int* indent) {
             *indent = bml_parse_indent(parser);
         }
     }
-    bml_node_t* node = arena_alloc_type(parser->arena, bml_node_t);
-    *node = (bml_node_t) { 0 };
+    BMLNode* node = arena_alloc_type(parser->arena, BMLNode);
+    *node = (BMLNode) { 0 };
     bml_parse_name(node, parser);
     bml_parse_data(node, parser);
 
-    bml_node_t** next_node_ptr = &node->child;
+    BMLNode** next_node_ptr = &node->child;
 
     // Parse attributes
     while(1) {
@@ -1255,8 +1127,8 @@ bml_node_t* bml_parse_node(bml_parser_state_t* parser, int* indent) {
             break;
         }
 
-        bml_node_t* new_node = arena_alloc_type(parser->arena, bml_node_t);
-        *new_node = (bml_node_t){ 0 };
+        BMLNode* new_node = arena_alloc_type(parser->arena, BMLNode);
+        *new_node = (BMLNode){ 0 };
         char* begin = parser->pos;
         while(bml_is_valid_char(parser->pos[0])) bml_parser_advance(parser);
         if(parser->pos == begin) {
@@ -1264,7 +1136,7 @@ bml_node_t* bml_parse_node(bml_parser_state_t* parser, int* indent) {
             fprintf(stderr, "Invalid attribute name.\n");
             exit(1);
         }
-        new_node->name = (string_t) {
+        new_node->name = (String) {
             .data = begin,
             .length = parser->pos - begin
         };
@@ -1293,7 +1165,7 @@ bml_node_t* bml_parse_node(bml_parser_state_t* parser, int* indent) {
             fprintf(stderr, "Indentation error.\n");
             exit(1);
         } else {
-            bml_node_t* new_node = bml_parse_node(parser, &new_indent);
+            BMLNode* new_node = bml_parse_node(parser, &new_indent);
             *next_node_ptr = new_node;
             next_node_ptr = &new_node->next;
             if(new_indent <= *indent) {
@@ -1308,15 +1180,15 @@ bml_node_t* bml_parse_node(bml_parser_state_t* parser, int* indent) {
     }
 }
 
-bml_node_t* bml_parse(buffer_t buffer, arena_t* arena) {
+BMLNode* bml_parse(Buffer buffer, Arena* arena) {
     bml_parser_state_t parser = { 0 };
     parser.buffer = buffer;
     parser.pos    = (char*)buffer.begin;
     parser.text_pos.line_number = 1;
     parser.arena = arena;
     int indent = 0;
-    bml_node_t* root;
-    bml_node_t** next_node_ptr = &root;
+    BMLNode* root;
+    BMLNode** next_node_ptr = &root;
     while(parser.pos[0] != '\0') {
         *next_node_ptr =  bml_parse_node(&parser, &indent);
         next_node_ptr = &((*next_node_ptr)->next);
@@ -1324,7 +1196,7 @@ bml_node_t* bml_parse(buffer_t buffer, arena_t* arena) {
     return root;
 }
 
-void bml_print_node(bml_node_t* node, int indent) {
+void bml_print_node(BMLNode* node, int indent) {
     if(node) {
         printf("%*s%.*s: %.*s\n", indent, "", node->name.length, node->name.data, node->value.length, node->value.data);
         bml_print_node(node->child, indent + 2);
@@ -1334,10 +1206,10 @@ void bml_print_node(bml_node_t* node, int indent) {
 
 
 
-void vfs_add_dir(vfs_t* vfs, path_t* path, arena_t* arena) {
-    dir_iter_t dir_iter = dir_iter_begin(path);
+void vfs_add_dir(VFS* vfs, Path* path, Arena* arena) {
+    DirIter dir_iter = dir_iter_begin(path);
     while(dir_iter_next(&dir_iter)) {
-        vfs_entry_t entry = { 0 };
+        VFSEntry entry = { 0 };
         entry.name   = path_get_base_name(&dir_iter.path, arena);
         entry.buffer = path_open_file(&dir_iter.path, arena);
         vfs_insert(vfs, entry);
