@@ -19,7 +19,6 @@
     X(ENDIF) X(FILL) X(BASE) X(TABLE) X(OFF)
 
 #define X(c) IDENT_##c,
-//typedef enum {
 enum {
     IDENT_OPCODE  = 0x0000,
     OPCODES_X
@@ -27,7 +26,6 @@ enum {
     IDENT_COMMAND = 0x1000,
     COMMANDS_X
     IDENT__B, IDENT__W, IDENT__L,
-//} ident_type_t;
 };
 #undef X
 
@@ -40,7 +38,6 @@ enum {
     X(IDENTIFIER) X(PIPE) X(AMPERSAND) X(ARROW) X(EOF)              \
     X(LABEL) X(MAX) 
 #define X(c) TOKEN_##c,
-// typedef enum { TOKEN_X } token_type_t;
     enum { TOKEN_X };
 #undef X
 
@@ -190,37 +187,37 @@ u32 num_bytes_of_u32(u32 i) {
     return (sizeof(int) * 8 - __builtin_clz(i) + 7) / 8;
 }
 
-u32 define_equal(define_t e1, define_t e2) {
+u32 define_equal(Define e1, Define e2) {
     return string_equal(e1.name, e2.name);
 }
 
-u32 define_hash(define_t e) {
+u32 define_hash(Define e) {
     return SuperFastHash(e.name);
 }
 
-u32 label_equal(label_t e1, label_t e2) {
+u32 label_equal(Label e1, Label e2) {
     return string_equal(e1.name, e2.name);
 }
 
-u32 label_hash(label_t e) {
+u32 label_hash(Label e) {
     return SuperFastHash(e.name);
 }
 
-u32 identifier_hash(identifier_t e) {
-    string_t s = e.name;
+u32 identifier_hash(Identifier e) {
+    String s = e.name;
     return SuperFastHash(s);
 }
 
-u32 identifier_equal(identifier_t e1, identifier_t e2) {
+u32 identifier_equal(Identifier e1, Identifier e2) {
     return string_equal(e1.name, e2.name);
 }
 
-implement_hashmap(define_map, define_t, define_hash, define_equal);
-implement_hashmap(label_map, label_t, label_hash, label_equal);
-implement_hashmap(identifier_map, identifier_t, identifier_hash, identifier_equal);
-identifier_map_t identifier_map;
+implement_hashmap(DefineMap, define_map, Define, define_hash, define_equal);
+implement_hashmap(LabelMap, label_map, Label, label_hash, label_equal);
+implement_hashmap(IdentifierMap, identifier_map, Identifier, identifier_hash, identifier_equal);
+IdentifierMap identifier_map;
 
-implement_stack(addr_stack, u32);
+implement_stack(AddrStack, addr_stack, u32);
 
 #ifndef TEXT_POS
 #undef error_at_pos
@@ -231,13 +228,13 @@ implement_stack(addr_stack, u32);
 void identifier_map_fill() {
     identifier_map_init(&identifier_map, 256);
     for(int i = 0; i < array_length(opcodes); i++) {
-        identifier_t entry = {
+        Identifier entry = {
             .name = string_from_c_string(opcodes[i]),
             .type = IDENT_OPCODE + i + 1,
         };
         identifier_map_insert(&identifier_map, entry);
         for(char* p = opcodes_lower[i]; *p; p++) *p = *p + ('a' - 'A');
-        entry = (identifier_t){
+        entry = (Identifier){
             .name = string_from_c_string(opcodes_lower[i]),
             .type = IDENT_OPCODE + i + 1,
         };
@@ -245,13 +242,13 @@ void identifier_map_fill() {
     }
     
     for(int i = 0; i < array_length(commands); i++) {
-        identifier_t entry = {
+        Identifier entry = {
             .name = string_from_c_string(commands[i]),
             .type = IDENT_COMMAND + i + 1,
         };
         identifier_map_insert(&identifier_map, entry);
         for(char* p = commands_lower[i]; *p; p++) *p = *p + ('a' - 'A');
-        entry = (identifier_t){
+        entry = (Identifier){
             .name = string_from_c_string(commands_lower[i]),
             .type = IDENT_COMMAND + i + 1,
         };
@@ -260,7 +257,7 @@ void identifier_map_fill() {
     
 }
 
-implement_stack(lexer_stack, lexer_state_t);
+implement_stack(LexerStack, lexer_stack, LexerState);
 
 
 static
@@ -284,35 +281,26 @@ int is_whitespace(char c) {
 }
 
 static
-void lexer_init(lexer_t* lexer) {
+void lexer_init(Lexer* lexer) {
     lexer_stack_init(&lexer->lexer_stack, 512);
     define_map_init(&lexer->define_map, 1024);
 }
 
 static
-void lexer_deinit(lexer_t* lexer) {
+void lexer_deinit(Lexer* lexer) {
     lexer_stack_deinit(&lexer->lexer_stack);
     define_map_deinit(&lexer->define_map);
 }
 
-/* static */
-/* void print_stack(lexer_stack_t ls) { */
-/*     for(int i = 0; i < ls.fill; i++) { */
-/*         printf("(%.*s) ", ls.data[i].text_pos.file_name.length, */
-/*                ls.data[i].text_pos.file_name.data); */
-/*     } */
-/*     printf("\n"); */
-/* } */
-
 static
-void lexer_push_buffer(lexer_t* lexer, buffer_t buffer
+void lexer_push_buffer(Lexer* lexer, Buffer buffer
 #ifdef TEXT_POS
-                       , text_pos_t text_pos
+                       , TextPos text_pos
 #endif
     ) {
     // Only add to the stack, if the buffer is non-empty
     if(buffer.begin < buffer.end) {
-        lexer_state_t lexer_state = {
+        LexerState lexer_state = {
             .buffer = buffer,
             .pos = buffer.begin,
 #ifdef TEXT_POS
@@ -331,11 +319,11 @@ void lexer_push_buffer(lexer_t* lexer, buffer_t buffer
 
 
 static
-void lexer_push_file(lexer_t* lexer, path_t* file, arena_t* arena) {
-    buffer_t buffer = path_open_file(file, arena);
-    string_t file_name = path_get_name(file, arena);
+void lexer_push_file(Lexer* lexer, Path* file, Arena* arena) {
+    Buffer buffer = path_open_file(file, arena);
+    String file_name = path_get_name(file, arena);
 #ifdef TEXT_POS
-    text_pos_t text_pos = {
+    TextPos text_pos = {
         .file_name = file_name,
         .line_number = 1,
         .line_pos = 0,
@@ -350,8 +338,8 @@ void lexer_push_file(lexer_t* lexer, path_t* file, arena_t* arena) {
 }
 
 static
-void lexer_pop(lexer_t* lexer) {
-    lexer_state_t* lexer_state;
+void lexer_pop(Lexer* lexer) {
+    LexerState* lexer_state;
     lexer->top = lexer_state = lexer_stack_pop(&lexer->lexer_stack);
     lexer->pos = lexer_state->pos;
     lexer->end = lexer_state->buffer.end;
@@ -365,8 +353,8 @@ void lexer_pop(lexer_t* lexer) {
 
 
 static
-void lexer_advance(lexer_t* lexer) {
-    lexer_state_t* lexer_state = lexer->top;
+void lexer_advance(Lexer* lexer) {
+    LexerState* lexer_state = lexer->top;
     if(!lexer_state) return;
     lexer_state->pos++;
 
@@ -393,8 +381,8 @@ void lexer_advance(lexer_t* lexer) {
 
 
 static
-token_t lexer_set_token_pos(lexer_t* lexer) {
-    token_t result = {
+Token lexer_set_token_pos(Lexer* lexer) {
+    Token result = {
 #ifdef TEXT_POS
         .text_pos    = lexer->text_pos,
 #endif
@@ -407,7 +395,7 @@ token_t lexer_set_token_pos(lexer_t* lexer) {
 
 
 static
-void lexer_get_token_number(lexer_t* lexer, int base, token_t* result) {
+void lexer_get_token_number(Lexer* lexer, int base, Token* result) {
     u64 num = 0;
     if(lexer->pos[0] >= '0' && lexer->pos[0] <= '9') {
         num = lexer->pos[0] - '0';
@@ -443,8 +431,8 @@ void lexer_get_token_number(lexer_t* lexer, int base, token_t* result) {
 }
 
 static
-token_t lexer_get_token(lexer_t* lexer) {
-    token_t result = { 0 };
+Token lexer_get_token(Lexer* lexer) {
+    Token result = { 0 };
     if(!lexer->top) {
         result.type = TOKEN_EOF;
         return result;
@@ -484,10 +472,10 @@ token_t lexer_get_token(lexer_t* lexer) {
                 result.text.length = lexer->pos - result.text.data;
             } else {
                 result.text.length = lexer->pos - result.text.data + 1;
-                identifier_t entry = {
+                Identifier entry = {
                     .name = result.text,
                 };
-                identifier_t* found = identifier_map_find(&identifier_map, entry);
+                Identifier* found = identifier_map_find(&identifier_map, entry);
                 if(found) {
                     result.type = TOKEN_IDENTIFIER;
                     result.ident_type = found->type;
@@ -612,11 +600,11 @@ token_t lexer_get_token(lexer_t* lexer) {
 
             result.text.length = lexer->pos - result.text.data + 1;
             
-            define_t define = {
+            Define define = {
                 .name = result.text,
             };
             lexer_advance(lexer);
-            define_t* found = define_map_find(&lexer->define_map, define);
+            Define* found = define_map_find(&lexer->define_map, define);
             if(found) {
                 lexer_push_buffer(lexer, found->buffer
 #ifdef TEXT_POS
@@ -681,9 +669,9 @@ token_t lexer_get_token(lexer_t* lexer) {
     return result;
 }
 
-void parser_init(parser_state_t* parser, wdc65816_rom_t* rom, arena_t* arena,
-                 path_t* file, path_t* working_directory) {
-    parser->token = (token_t){ 0 };
+void parser_init(ParserState* parser, WDC65816Rom* rom, Arena* arena,
+                 Path* file, Path* working_directory) {
+    parser->token = (Token){ 0 };
     lexer_init(&parser->lexer);
     label_map_init(&parser->label_map, 512);
     parser->arena = arena;
@@ -692,7 +680,7 @@ void parser_init(parser_state_t* parser, wdc65816_rom_t* rom, arena_t* arena,
     addr_stack_init(&parser->pc_stack, 256);
 }
 
-void parser_deinit(parser_state_t* parser) {
+void parser_deinit(ParserState* parser) {
     label_map_deinit(&parser->label_map);
     lexer_deinit(&parser->lexer);
     // TODO:
@@ -702,7 +690,7 @@ void parser_deinit(parser_state_t* parser) {
 
 
 static
-void parser_advance(parser_state_t* parser) {
+void parser_advance(ParserState* parser) {
     parser->token = lexer_get_token(&parser->lexer);
 #if 0
     printf("%s(%.*s)\n", token_names[parser->token.type],
@@ -766,16 +754,16 @@ typedef enum {
     /* Nullary operands */
     EXPR_NUM,
     EXPR_LABEL,
-} expr_type_t;
+} ExprType;
 
 typedef struct expr {
-    expr_type_t  type;
+    ExprType  type;
     struct expr* op1;
     struct expr* op2;
     u32          num;
-    string_t     name;
+    String     name;
     u8           bytes;
-} expr_t;
+} Expr;
 
 static u64 uadd   (u64 a, u64 b) {return a  + b;}
 static u64 usub   (u64 a, u64 b) {return a  - b;}
@@ -787,8 +775,8 @@ static u64 ubitand(u64 a, u64 b) {return a  & b;}
 static u64 ubitor (u64 a, u64 b) {return a  | b;}
 
 typedef struct {
-    token_type_t token_type;
-    expr_type_t expr_type;
+    TokenType token_type;
+    ExprType Exprype;
     u64 (*op)(u64, u64);
     int level;
     int optimize;
@@ -808,9 +796,9 @@ const bin_op_hierarchy_entry hierarchy[] = {
 };
 
 static
-expr_t parse_expr_(parser_state_t* parser, int level) {
-    expr_t op1 = { 0 };
-    expr_t op2 = { 0 };
+Expr parse_expr_(ParserState* parser, int level) {
+    Expr op1 = { 0 };
+    Expr op2 = { 0 };
     
     if(parser->token.type == TOKEN_LPAREN) {
         parser_advance(parser);
@@ -827,29 +815,29 @@ expr_t parse_expr_(parser_state_t* parser, int level) {
         } else {
             // we copy op1 into neg_expr and use op1 below
             // as the result of the negation
-            expr_t* neg_expr = arena_alloc_type(parser->arena, expr_t);
+            Expr* neg_expr = arena_alloc_type(parser->arena, Expr);
             *neg_expr = op1;
-            op1 = (expr_t) {
+            op1 = (Expr) {
                 .type = EXPR_NEG,
                 .op1  = neg_expr,
             };
         }
     } else if(parser->token.type == TOKEN_NUM) {
-        op1 = (expr_t){
+        op1 = (Expr){
             .type  = EXPR_NUM,
             .num   = parser->token.num,
             .bytes = parser->token.bytes,
         };
         parser_advance(parser);
     } else if(parser->token.type == TOKEN_LABEL) {
-        op1 = (expr_t){
+        op1 = (Expr){
             .type  = EXPR_LABEL,
             .name  = parser->token.text,
             .bytes = 3,
         };
         parser_advance(parser);
     } else {
-        return (expr_t){ 0 };
+        return (Expr){ 0 };
     }
 
 #define parse_binary_operator(expr_type) {                              \
@@ -860,9 +848,9 @@ expr_t parse_expr_(parser_state_t* parser, int level) {
             op1.bytes = max(op1.bytes, op2.bytes);                      \
             op1.num   = hierarchy[expr_type].op(op1.num, op2.num);      \
         } else {                                                        \
-            expr_t* ops = arena_alloc_array(parser->arena, 2, expr_t);  \
+            Expr* ops = arena_alloc_array(parser->arena, 2, Expr);  \
             ops[0] = op1; ops[1] = op2;                                 \
-            expr_t op1 = { .type  = expr_type, .op1   = ops + 0, .op2   = ops + 1, \
+            Expr op1 = { .type  = expr_type, .op1   = ops + 0, .op2   = ops + 1, \
                            .bytes = max(ops[0].bytes, ops[1].bytes)};   \
             if(hierarchy[expr_type].optimize && op2.type == EXPR_NUM) { \
                 u32 max_num = (1 << (op1.bytes * 8)) - 1;               \
@@ -890,12 +878,12 @@ expr_t parse_expr_(parser_state_t* parser, int level) {
 }
 
 static
-expr_t parse_expr(parser_state_t* parser) {
+Expr parse_expr(ParserState* parser) {
     return parse_expr_(parser, 0);
 }
 
 static
-void parse_statement(parser_state_t* parser) {
+void parse_statement(ParserState* parser) {
     u32* pc = addr_stack_top(&parser->pc_stack);
     switch(parser->token.type) {
     case TOKEN_IDENTIFIER: {
@@ -905,8 +893,8 @@ void parse_statement(parser_state_t* parser) {
                 parser_advance(parser);
                 parser_expect(parser, TOKEN_STRING);
 
-                string_t file_name = parser->token.text;
-                path_t* file = arena_alloc_type(parser->arena, path_t);
+                String file_name = parser->token.text;
+                Path* file = arena_alloc_type(parser->arena, Path);
                 path_init_from(file, parser->working_directory, file_name);
                 parser_advance(parser);
                 lexer_push_file(&parser->lexer, file, parser->arena);
@@ -918,8 +906,8 @@ void parse_statement(parser_state_t* parser) {
                 parser_advance(parser);
                 parser_expect(parser, TOKEN_STRING);
 
-                string_t file_name = parser->token.text;
-                path_t* file = arena_alloc_type(parser->arena, path_t);
+                String file_name = parser->token.text;
+                Path* file = arena_alloc_type(parser->arena, Path);
                 path_init_from(file, parser->working_directory, file_name);
 
                 parser_advance(parser);
@@ -928,7 +916,7 @@ void parse_statement(parser_state_t* parser) {
 
                 if(parser->token.type == TOKEN_ARROW) {
                     parser_advance(parser);
-                    expr_t expr = parse_expr(parser);
+                    Expr expr = parse_expr(parser);
                     if(expr.type != EXPR_NUM) {
                         error_at_pos(parser->token.text_pos);
                         fprintf(stderr, "Expression not fully computable.\n");
@@ -938,8 +926,8 @@ void parse_statement(parser_state_t* parser) {
                     include_somewhere_else = 1;
                 }
 
-                temp_t temp = temp_begin(parser->arena);
-                buffer_t buffer = path_open_file(file, parser->arena);
+                Temp temp = temp_begin(parser->arena);
+                Buffer buffer = path_open_file(file, parser->arena);
                 ulong file_size = path_get_file_size(file);
 
                 wdc65816_mapper_write_range(&parser->rom->read_mapper, addr,
@@ -959,7 +947,7 @@ void parse_statement(parser_state_t* parser) {
                 
             case IDENT_WARNPC: {
                 parser_advance(parser);
-                expr_t expr = parse_expr(parser);
+                Expr expr = parse_expr(parser);
                 parser_expect_expr(parser, expr);
                 if(expr.type != EXPR_NUM) {
                     error_at_pos(parser->token.text_pos);
@@ -979,7 +967,7 @@ void parse_statement(parser_state_t* parser) {
 
             case IDENT_ORG: {
                 parser_advance(parser);
-                expr_t expr = parse_expr(parser);
+                Expr expr = parse_expr(parser);
                 parser_expect_expr(parser, expr);
                 if(expr.type != EXPR_NUM) {
                     error_at_pos(parser->token.text_pos);
@@ -996,7 +984,7 @@ void parse_statement(parser_state_t* parser) {
             case IDENT_DD: {
                 int length = parser->token.ident_type - IDENT_DB + 1;
                 parser_advance(parser);
-                expr_t expr;
+                Expr expr;
                 if(parser->token.type == TOKEN_STRING) {
                     /* if(pc + length * parser->token.text.length > parser->size) { */
                     /*     error_at_pos(parser->token.text_pos); */
@@ -1075,7 +1063,7 @@ void parse_statement(parser_state_t* parser) {
 
             case IDENT_IF: {
                 parser_advance(parser);
-                expr_t expr = parse_expr(parser);
+                Expr expr = parse_expr(parser);
                 if(expr.type != EXPR_NUM) {
                     error_at_pos(parser->token.text_pos);
                     fprintf(stderr, "Expression not fully computable.\n");
@@ -1096,7 +1084,7 @@ void parse_statement(parser_state_t* parser) {
 
             case IDENT_FILL: {
                 parser_advance(parser);
-                expr_t expr = parse_expr(parser);
+                Expr expr = parse_expr(parser);
                 if(expr.type != EXPR_NUM) {
                     error_at_pos(parser->token.text_pos);
                     fprintf(stderr, "Expression not fully computable.\n");
@@ -1107,7 +1095,7 @@ void parse_statement(parser_state_t* parser) {
 
             case IDENT_FILLBYTE: {
                 parser_advance(parser);
-                expr_t expr = parse_expr(parser);
+                Expr expr = parse_expr(parser);
                 if(expr.type != EXPR_NUM) {
                     error_at_pos(parser->token.text_pos);
                     fprintf(stderr, "Expression not fully computable.\n");
@@ -1121,7 +1109,7 @@ void parse_statement(parser_state_t* parser) {
                 if(parser->token.type == TOKEN_IDENTIFIER && parser->token.ident_type == IDENT_OFF) {
                     parser_advance(parser);
                 } else {
-                    expr_t expr = parse_expr(parser);
+                    Expr expr = parse_expr(parser);
                     if(expr.type != EXPR_NUM) {
                         error_at_pos(parser->token.text_pos);
                         fprintf(stderr, "Expression not fully computable.\n");
@@ -1145,7 +1133,7 @@ void parse_statement(parser_state_t* parser) {
             }
                 
         } else {
-            token_t opcode = parser->token;
+            Token opcode = parser->token;
             parser_advance(parser);
             //short bytes = 0; // 0 = unsure
             short width_specifier = 0;
@@ -1154,11 +1142,11 @@ void parse_statement(parser_state_t* parser) {
             u8    op_byte = opcode.ident_type;
             //code[0] = opcode_addr_mode[op_byte][0];
             if(opcode.ident_type == IDENT_MVN || opcode.ident_type == IDENT_MVP) {
-                expr_t op1 = parse_expr(parser);
+                Expr op1 = parse_expr(parser);
                 parser_expect_expr(parser, op1);
                 parser_expect(parser, TOKEN_COMMA);
                 parser_advance(parser);
-                expr_t op2 = parse_expr(parser);
+                Expr op2 = parse_expr(parser);
                 parser_expect_expr(parser, op2);
             } else {
                 if(parser->token.type == TOKEN_WIDTH_SPECIFIER) {
@@ -1199,11 +1187,11 @@ void parse_statement(parser_state_t* parser) {
                         exit(1);
                     }
                     parser_advance(parser);
-                    expr_t expr = parse_expr(parser);
+                    Expr expr = parse_expr(parser);
                     parser_expect_expr(parser, expr);
                 } else if(parser->token.type == TOKEN_LPAREN) {
                     parser_advance(parser);
-                    expr_t expr = parse_expr(parser);
+                    Expr expr = parse_expr(parser);
                     parser_expect_expr(parser, expr);
                     if(parser->token.type == TOKEN_COMMA) {
                         parser_advance(parser);
@@ -1242,7 +1230,7 @@ void parse_statement(parser_state_t* parser) {
                         exit(1);
                     }
                 } else {
-                    expr_t expr = parse_expr(parser);
+                    Expr expr = parse_expr(parser);
                     if(expr.type != EXPR_NULL) {
                         if(parser->token.type == TOKEN_COMMA) {
                             parser_advance(parser);
@@ -1265,10 +1253,10 @@ void parse_statement(parser_state_t* parser) {
         break;
     }
     case TOKEN_DEFINE: {
-        token_t token = parser->token;
+        Token token = parser->token;
         // We do not want that the lexer state changes during definition of a
         // define.
-        lexer_state_t* lexer_state = parser->lexer.top;
+        LexerState* lexer_state = parser->lexer.top;
         parser_advance(parser);
         if(parser->token.type == TOKEN_EQUAL) {
             if(parser->lexer.top != lexer_state) {
@@ -1281,7 +1269,7 @@ void parse_statement(parser_state_t* parser) {
                   !(c[0] == '\r' && (void*)c + 1 < lexer_state->buffer.end && c[1] == '\n')) {
                 c++;
             }
-            define_t define = {
+            Define define = {
                 .name         = token.text,
                 .buffer.begin = lexer_state->pos,
                 .buffer.end   = c,
@@ -1326,7 +1314,7 @@ void parse_statement(parser_state_t* parser) {
 }
 
 
-void parse_asm(parser_state_t* parser) {
+void parse_asm(ParserState* parser) {
     parser_advance(parser);
     while(parser->token.type != TOKEN_EOF) {
         parse_statement(parser);

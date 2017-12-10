@@ -3,92 +3,91 @@
 
 #define TEXT_POS
 
-typedef int token_type_t;
-typedef int ident_type_t;
+typedef int TokenType;
+typedef int IdentType;
 
 typedef struct {
-    string_t   name;
-    buffer_t   buffer;
+    String  name;
+    Buffer  buffer;
 #ifdef TEXT_POS
-    text_pos_t text_pos;
+    TextPos text_pos;
 #endif
-} define_t;
+} Define;
 
-u32 define_equal(define_t e1, define_t e2);
-u32 define_hash(define_t e);
+u32 define_equal(Define e1, Define e2);
+u32 define_hash(Define e);
 
 typedef struct {
-    string_t   name;
-    u32        address;
+    String  name;
+    u32     address;
 #ifdef TEXT_POS
-    text_pos_t definition_pos;
+    TextPos definition_pos;
 #endif
-} label_t;
+} Label;
 
-u32 label_equal(label_t e1, label_t e2);
-u32 label_hash(label_t e);
-
-typedef struct {
-    string_t name;
-    ident_type_t type;
-} identifier_t;
-
-u32 identifier_hash(identifier_t e);
-u32 identifier_equal(identifier_t e1, identifier_t e2);
-
-define_hashmap(define_map, define_t, define_hash, define_equal);
-define_hashmap(label_map, label_t, label_hash, label_equal);
-define_hashmap(identifier_map, identifier_t, identifier_hash, identifier_equal);
+u32 label_equal(Label e1, Label e2);
+u32 label_hash(Label e);
 
 typedef struct {
-    token_type_t type;
+    String    name;
+    IdentType type;
+} Identifier;
+
+u32 identifier_hash(Identifier e);
+u32 identifier_equal(Identifier e1, Identifier e2);
+
+define_hashmap(DefineMap, define_map, Define, define_hash, define_equal);
+define_hashmap(LabelMap, label_map, Label, label_hash, label_equal);
+define_hashmap(IdentifierMap, identifier_map, Identifier, identifier_hash, identifier_equal);
+
+typedef struct {
+    TokenType type;
 #ifdef TEXT_POS
-    text_pos_t   text_pos;
+    TextPos   text_pos;
 #endif
-    string_t     text;
-    u64 num;
-    ident_type_t ident_type;
-    int bytes;
-} token_t;
+    String    text;
+    u64       num;
+    IdentType ident_type;
+    int       bytes;
+} Token;
 
 typedef struct {
-    buffer_t   buffer;
-    char*      pos;
-    int        allocated_buffer : 1;
+    Buffer   buffer;
+    char*    pos;
+    int      allocated_buffer : 1;
 #ifdef TEXT_POS
-    text_pos_t text_pos;
+    TextPos  text_pos;
 #endif
-} lexer_state_t; 
+} LexerState; 
 
-define_stack(lexer_stack, lexer_state_t);
+define_stack(LexerStack, lexer_stack, LexerState);
 
 typedef struct {
-    char* pos;
-    char* end;
-    lexer_state_t* top;
+    char*       pos;
+    char*       end;
+    LexerState* top;
 #ifdef TEXT_POS
-    text_pos_t text_pos;
+    TextPos     text_pos;
 #endif
-    define_map_t define_map;
-    lexer_stack_t lexer_stack;
-} lexer_t;
+    DefineMap   define_map;
+    LexerStack  lexer_stack;
+} Lexer;
 
-define_stack(addr_stack, u32);
+define_stack(AddrStack, addr_stack, u32);
 
 typedef struct {
-    addr_stack_t    pc_stack;
-    lexer_t         lexer;
-    token_t         token;
-    label_map_t     label_map;
-    pool_t          expr_pool;
-    wdc65816_rom_t* rom;
-    arena_t*        arena;
-    path_t*         working_directory;
-} parser_state_t;
+    AddrStack    pc_stack;
+    Lexer        lexer;
+    Token        token;
+    LabelMap     label_map;
+    WDC65816Rom* rom;
+    Arena*       arena;
+    Path*        working_directory;
+} ParserState;
 
 void parser_global_init();
 void parser_global_deinit();
-void parser_init(parser_state_t* parser, wdc65816_rom_t* rom, arena_t* arena,
-                 path_t* file, path_t* working_directory);
-void parser_deinit(parser_state_t* parser);
-void parse_asm(parser_state_t* parser);
+void parser_init(ParserState* parser, WDC65816Rom* rom, Arena* arena,
+                 Path* file, Path* working_directory);
+void parser_deinit(ParserState* parser);
+void parse_asm(ParserState* parser);
