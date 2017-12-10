@@ -3,7 +3,7 @@
 #include "memory.h"
 #include "table.h"
 
-void wdc65816_cpu_init(wdc65816_cpu_t* cpu, wdc65816_rom_t* rom, arena_t* arena) {
+void wdc65816_cpu_init(WDC65816Cpu* cpu, WDC65816Rom* rom, Arena* arena) {
     cpu->regs.p.b = 0x24;
     cpu->rom  = rom;
     cpu->ram  = arena_alloc_array(arena, 0x20000, u8);
@@ -20,7 +20,7 @@ void wdc65816_cpu_init(wdc65816_cpu_t* cpu, wdc65816_rom_t* rom, arena_t* arena)
     cpu->read_mapper  = rom->read_mapper;
     cpu->write_mapper = rom->write_mapper;
 
-    wdc65816_mapper_entry_t ram_entry1 = {
+    WDC65816MapperEntry ram_entry1 = {
         .bank_low  =   0x00,
         .bank_high =   0x3F,
         .addr_low  = 0x0000,
@@ -30,7 +30,7 @@ void wdc65816_cpu_init(wdc65816_cpu_t* cpu, wdc65816_rom_t* rom, arena_t* arena)
         .name      = L(".ram"),
     };
 
-    wdc65816_mapper_entry_t ram_entry2 = {
+    WDC65816MapperEntry ram_entry2 = {
         .bank_low  =   0x80,
         .bank_high =   0xBF,
         .addr_low  = 0x0000,
@@ -41,7 +41,7 @@ void wdc65816_cpu_init(wdc65816_cpu_t* cpu, wdc65816_rom_t* rom, arena_t* arena)
         .name      = L(".ram"),
     };
 
-    wdc65816_mapper_entry_t ram_entry3 = {
+    WDC65816MapperEntry ram_entry3 = {
         .bank_low  =   0x7E,
         .bank_high =   0x7F,
         .addr_low  = 0x0000,
@@ -65,13 +65,13 @@ void wdc65816_cpu_init(wdc65816_cpu_t* cpu, wdc65816_rom_t* rom, arena_t* arena)
     cpu->ptr   = cpu->read_mapper.ptr;
 }
 
-void wdc65816_cpu_free(wdc65816_cpu_t* cpu) {
+void wdc65816_cpu_free(WDC65816Cpu* cpu) {
     wdc65816_breakpoint_list_deinit(&cpu->breakpoints_exec);
     wdc65816_breakpoint_list_deinit(&cpu->breakpoints_read);
     wdc65816_breakpoint_list_deinit(&cpu->breakpoints_write);
 }
 
-void wdc65816_cpu_clear(wdc65816_cpu_t* cpu) {
+void wdc65816_cpu_clear(WDC65816Cpu* cpu) {
     cpu->regs.a.w = 0x0000;
     cpu->regs.x.w = 0x0000;
     cpu->regs.y.w = 0x0000;
@@ -90,51 +90,51 @@ void wdc65816_cpu_clear(wdc65816_cpu_t* cpu) {
 
 }
 
-void wdc65816_cpu_add_exec_bp(wdc65816_cpu_t* cpu, u32 addr) {
+void wdc65816_cpu_add_exec_bp(WDC65816Cpu* cpu, u32 addr) {
     wdc65816_breakpoint_list_add(&cpu->breakpoints_exec, addr);
 }
 
-void wdc65816_cpu_add_read_bp(wdc65816_cpu_t* cpu, u32 addr) {
+void wdc65816_cpu_add_read_bp(WDC65816Cpu* cpu, u32 addr) {
     wdc65816_breakpoint_list_add(&cpu->breakpoints_read, addr);
 }
 
-void wdc65816_cpu_add_write_bp(wdc65816_cpu_t* cpu, u32 addr) {
+void wdc65816_cpu_add_write_bp(WDC65816Cpu* cpu, u32 addr) {
     wdc65816_breakpoint_list_add(&cpu->breakpoints_write, addr);
 }
 
-void wdc65816_cpu_add_exec_bp_range(wdc65816_cpu_t* cpu, u32 addr_low, u32 addr_high) {
+void wdc65816_cpu_add_exec_bp_range(WDC65816Cpu* cpu, u32 addr_low, u32 addr_high) {
     wdc65816_breakpoint_list_add_range(&cpu->breakpoints_exec, addr_low, addr_high);
 }
 
-void wdc65816_cpu_add_read_bp_range(wdc65816_cpu_t* cpu, u32 addr_low, u32 addr_high) {
+void wdc65816_cpu_add_read_bp_range(WDC65816Cpu* cpu, u32 addr_low, u32 addr_high) {
     wdc65816_breakpoint_list_add_range(&cpu->breakpoints_read, addr_low, addr_high);
 }
 
-void wdc65816_cpu_add_write_bp_range(wdc65816_cpu_t* cpu, u32 addr_low, u32 addr_high) {
+void wdc65816_cpu_add_write_bp_range(WDC65816Cpu* cpu, u32 addr_low, u32 addr_high) {
     wdc65816_breakpoint_list_add_range(&cpu->breakpoints_write, addr_low, addr_high);
 }
 
 
-void wdc65816_cpu_clear_exec_bp(wdc65816_cpu_t* cpu) {
+void wdc65816_cpu_clear_exec_bp(WDC65816Cpu* cpu) {
     wdc65816_breakpoint_list_deinit(&cpu->breakpoints_exec);
 }
 
-void wdc65816_cpu_clear_read_bp(wdc65816_cpu_t* cpu) {
+void wdc65816_cpu_clear_read_bp(WDC65816Cpu* cpu) {
     wdc65816_breakpoint_list_deinit(&cpu->breakpoints_read);
 }
 
-void wdc65816_cpu_clear_write_bp(wdc65816_cpu_t* cpu) {
+void wdc65816_cpu_clear_write_bp(WDC65816Cpu* cpu) {
     wdc65816_breakpoint_list_deinit(&cpu->breakpoints_write);
 }
 
 
 
-void wdc65816_cpu_show_state(wdc65816_cpu_t* cpu, char* output) {
+void wdc65816_cpu_show_state(WDC65816Cpu* cpu, char* output) {
     wdc65816_cpu_disassemble_opcode(cpu, output, cpu->regs.pc.d);
 }
 
-void wdc65816_cpu_disassemble_opcode(wdc65816_cpu_t* cpu, char* output, u32 addr) {
-  static wdc65816_reg24_t pc;
+void wdc65816_cpu_disassemble_opcode(WDC65816Cpu* cpu, char* output, u32 addr) {
+  static WDC65816Reg24 pc;
   char t[256];
   char* s = output;
 

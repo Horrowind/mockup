@@ -4,7 +4,7 @@
 #include "cpu.h"
 
 void wdc65816_initialize_opcode_table();
-void wdc65816_update_table(wdc65816_cpu_t* cpu);
+void wdc65816_update_table(WDC65816Cpu* cpu);
 
 
 

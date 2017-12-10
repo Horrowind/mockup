@@ -1,3 +1,5 @@
+#define __STDC_LIMIT_MACROS
+#define __STDC_CONSTANT_MACROS
 #include <llvm-c/Analysis.h>
 #include <llvm-c/BitReader.h>
 #include <llvm-c/BitWriter.h>
@@ -10,19 +12,19 @@
 #include "mapper_helper.c"
 #include "mapper_bc.h"
 
-void wdc65816_mapper_add(wdc65816_mapper_t* mapper, wdc65816_mapper_entry_t* entry) {
+void wdc65816_mapper_add(WDC65816Mapper* mapper, WDC65816MapperEntry* entry) {
     if(mapper->num_entries >= 255) return;
     mapper->entries[mapper->num_entries] = *entry;
     mapper->num_entries++;
 }
 
 
-u8* wdc65816_mapper_read_range(wdc65816_mapper_t* mapper, u32 addr_low, u32 addr_high, u8* data) {
+u8* wdc65816_mapper_read_range(WDC65816Mapper* mapper, u32 addr_low, u32 addr_high, u8* data) {
     for(u32 full_addr = addr_low; full_addr < addr_high; full_addr++) {
         u8  bank = full_addr >> 16;
         u16 addr = full_addr & 0xFFFF;
         for(int i = 0; i < mapper->num_entries; i++) {
-            wdc65816_mapper_entry_t* entry = &mapper->entries[i];
+            WDC65816MapperEntry* entry = &mapper->entries[i];
             if(entry->bank_low <= bank && bank <= entry->bank_high
                && entry->addr_low <= addr && addr <= entry->addr_high) {
                 u32 offset = wdc65816_mapper_reduce(full_addr, entry->mask);
@@ -34,12 +36,12 @@ u8* wdc65816_mapper_read_range(wdc65816_mapper_t* mapper, u32 addr_low, u32 addr
     return 0;
 }
 
-u8* wdc65816_mapper_write_range(wdc65816_mapper_t* mapper, u32 addr_low, u32 addr_high, u8* data) {
+u8* wdc65816_mapper_write_range(WDC65816Mapper* mapper, u32 addr_low, u32 addr_high, u8* data) {
     for(u32 full_addr = addr_low; full_addr < addr_high; full_addr++) {
         u8  bank = full_addr >> 16;
         u16 addr = full_addr & 0xFFFF;
         for(int i = 0; i < mapper->num_entries; i++) {
-            wdc65816_mapper_entry_t* entry = &mapper->entries[i];
+            WDC65816MapperEntry* entry = &mapper->entries[i];
             if(entry->bank_low <= bank && bank <= entry->bank_high
                && entry->addr_low <= addr && addr <= entry->addr_high) {
                 u32 offset = wdc65816_mapper_reduce(full_addr, entry->mask);
@@ -54,17 +56,17 @@ u8* wdc65816_mapper_write_range(wdc65816_mapper_t* mapper, u32 addr_low, u32 add
 
 static
 u64 symbol_resolver(const char* name, void* ctx) {
-    wdc65816_mapper_t* mapper = ctx;
+    WDC65816Mapper* mapper = ctx;
     uint i;
     sscanf(name, "data%u", &i);
     if(i < mapper->num_entries) {
-        return (uint64_t)mapper->entries[i].data ? (uint64_t)mapper->entries[i].data : 1;
+        return (uptr)mapper->entries[i].data ? (uptr)mapper->entries[i].data : 1;
     }
     return 0;
 }
 
 
-void wdc65816_mapper_init_functions(wdc65816_mapper_t* mapper) {
+void wdc65816_mapper_init_functions(WDC65816Mapper* mapper) {
     LLVMInitializeNativeTarget();
     LLVMInitializeNativeAsmPrinter();
     LLVMLinkInMCJIT();
@@ -153,7 +155,7 @@ void wdc65816_mapper_init_functions(wdc65816_mapper_t* mapper) {
 
 
         for(int j = 0; j < mapper->num_entries; j++) {
-            wdc65816_mapper_entry_t* entry = &mapper->entries[j];
+            WDC65816MapperEntry* entry = &mapper->entries[j];
             LLVMPositionBuilderAtEnd(builder, if_statements[j]);
 
             LLVMBasicBlockRef if2 = LLVMAppendBasicBlockInContext(context, mapper_functions[i], "if2");
@@ -244,7 +246,6 @@ void wdc65816_mapper_init_functions(wdc65816_mapper_t* mapper) {
     }
     LLVMDisposeMessage(error);
 
-    //LLVMWriteBitcodeToFile(mapper_module, "mapper_module.bc");
     LLVMPassManagerRef pass_manager = LLVMCreatePassManager();
     LLVMPassManagerRef function_pass_manager = LLVMCreateFunctionPassManagerForModule(mapper_module);
     LLVMPassManagerBuilderRef pass_builder = LLVMPassManagerBuilderCreate();
@@ -253,6 +254,7 @@ void wdc65816_mapper_init_functions(wdc65816_mapper_t* mapper) {
     LLVMPassManagerBuilderPopulateModulePassManager(pass_builder, pass_manager);
     LLVMPassManagerBuilderPopulateFunctionPassManager(pass_builder, function_pass_manager);
     LLVMRunPassManager(pass_manager, mapper_module);
+    LLVMWriteBitcodeToFile(mapper_module, "mapper_module.bc");
 
     LLVMSharedModuleRef mapper_shared_module = LLVMOrcMakeSharedModule(mapper_module);
     char *def_triple = LLVMGetDefaultTargetTriple();   // E.g. "x86_64-linux-gnu"

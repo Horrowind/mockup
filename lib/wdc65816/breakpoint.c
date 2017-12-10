@@ -4,7 +4,7 @@
 #include "stdio.h"
 
 //TODO: Implement a better allocation strategy.
-void wdc65816_breakpoint_list_init(wdc65816_breakpoint_list_t* brk) {
+void wdc65816_breakpoint_list_init(WDC65816BreakpointList* brk) {
     brk->length = 0;
 
     /* brk->address[0].low = 1; */
@@ -22,7 +22,7 @@ void wdc65816_breakpoint_list_init(wdc65816_breakpoint_list_t* brk) {
 }
 
 
-b32 wdc65816_breakpoint_list_is_hit(wdc65816_breakpoint_list_t* brk, u32 address) {
+b32 wdc65816_breakpoint_list_is_hit(WDC65816BreakpointList* brk, u32 address) {
 //    for(int i = 0; i < BP_MAX_LENGTH; i++) {
     for(int i = 0; i < brk->length && brk->address[i].low <= address; i++) {
       if(brk->address[i].high >= address) return 1; 
@@ -36,7 +36,7 @@ b32 wdc65816_breakpoint_list_is_hit(wdc65816_breakpoint_list_t* brk, u32 address
     return 0;
 }
 
-void wdc65816_breakpoint_list_add(wdc65816_breakpoint_list_t* brk, u32 address) {
+void wdc65816_breakpoint_list_add(WDC65816BreakpointList* brk, u32 address) {
 //    brk->address = realloc(brk->address, (brk->length + 1) * sizeof(wdc65816_breakpoint_t));
     if(brk->length == 0) {
         brk->address[0].low = address;
@@ -61,7 +61,7 @@ void wdc65816_breakpoint_list_add(wdc65816_breakpoint_list_t* brk, u32 address) 
     }
 }
 
-void wdc65816_breakpoint_list_add_range(wdc65816_breakpoint_list_t* brk, u32 address_low, u32 address_high) {
+void wdc65816_breakpoint_list_add_range(WDC65816BreakpointList* brk, u32 address_low, u32 address_high) {
 //    brk->address = realloc(brk->address, (brk->length + 1) * sizeof(wdc65816_breakpoint_t));
     if(brk->length == 0) {
         brk->address[0].low = address_low;
@@ -86,7 +86,7 @@ void wdc65816_breakpoint_list_add_range(wdc65816_breakpoint_list_t* brk, u32 add
     }
 }
 
-void wdc65816_breakpoint_list_deinit(wdc65816_breakpoint_list_t* brk) {
+void wdc65816_breakpoint_list_deinit(WDC65816BreakpointList* brk) {
 //    free(brk->address);
 //    brk->address = NULL;
     brk->length = 0;

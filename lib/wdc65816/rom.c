@@ -1,8 +1,8 @@
 #include "rom.h"
 
 static
-void wdc65816_rom_parse_bml_map(bml_node_t* map_node, wdc65816_mapper_t* mapper, wdc65816_mapper_entry_t* entry) {
-    bml_node_t* node = map_node->child;
+void wdc65816_rom_parse_bml_map(BMLNode* map_node, WDC65816Mapper* mapper, WDC65816MapperEntry* entry) {
+    BMLNode* node = map_node->child;
     entry->low  = 0;
     entry->high = 0;
     entry->mask = 0;
@@ -17,8 +17,8 @@ void wdc65816_rom_parse_bml_map(bml_node_t* map_node, wdc65816_mapper_t* mapper,
                 }
             }
 
-            string_t banks = { .data = node->value.data, .length = delim - node->value.data };
-            string_t addrs = { .data = delim + 1,        .length = node->value.length - banks.length - 1};
+            String banks = { .data = node->value.data, .length = delim - node->value.data };
+            String addrs = { .data = delim + 1,        .length = node->value.length - banks.length - 1};
 
             string_split_foreach(banks, bank, ',') {
                 char* delim = bank.data;
@@ -29,8 +29,8 @@ void wdc65816_rom_parse_bml_map(bml_node_t* map_node, wdc65816_mapper_t* mapper,
                     }
                 }
 
-                string_t bank_low_str  = { .data = bank.data, .length = delim - bank.data };
-                string_t bank_high_str = { .data = delim + 1, .length = bank.length - bank_low_str.length + 1 };
+                String bank_low_str  = { .data = bank.data, .length = delim - bank.data };
+                String bank_high_str = { .data = delim + 1, .length = bank.length - bank_low_str.length + 1 };
                 entry->bank_low  = (u8)string_to_u64_base(bank_low_str, 16);
                 entry->bank_high = (u8)string_to_u64_base(bank_high_str, 16);
                 entry->bank_high = entry->bank_high ? entry->bank_high : entry->bank_low;
@@ -44,8 +44,8 @@ void wdc65816_rom_parse_bml_map(bml_node_t* map_node, wdc65816_mapper_t* mapper,
                         }
                     }
 
-                    string_t addr_low_str  = { .data = addr.data, .length = delim - addr.data };
-                    string_t addr_high_str = { .data = delim + 1, .length = addr.length - addr_low_str.length + 1 };
+                    String addr_low_str  = { .data = addr.data, .length = delim - addr.data };
+                    String addr_high_str = { .data = delim + 1, .length = addr.length - addr_low_str.length + 1 };
                     entry->addr_low  = (u16)string_to_u64_base(addr_low_str, 16);
                     entry->addr_high = (u16)string_to_u64_base(addr_high_str, 16);
                     entry->addr_high = entry->addr_high ? entry->addr_high : entry->addr_low;
@@ -63,14 +63,14 @@ void wdc65816_rom_parse_bml_map(bml_node_t* map_node, wdc65816_mapper_t* mapper,
 }
 
 static
-void wdc65816_rom_parse_memory(bml_node_t* node, wdc65816_mapper_t* mapper, vfs_t* vfs) {
-    wdc65816_mapper_entry_t entry = { 0 };
-    bml_node_t* node2 = node->child;
+void wdc65816_rom_parse_memory(BMLNode* node, WDC65816Mapper* mapper, VFS* vfs) {
+    WDC65816MapperEntry entry = { 0 };
+    BMLNode* node2 = node->child;
     while(node2) {
         if(string_equal(node2->name, L("name"))) {
             entry.name = node2->value;
-            vfs_entry_t dummy = { .name = entry.name };
-            vfs_entry_t* found = vfs_find(vfs, dummy);
+            VFSEntry dummy = { .name = entry.name };
+            VFSEntry* found = vfs_find(vfs, dummy);
             if(found) {
                 entry.data = found->buffer.begin;
                 entry.data_length = found->buffer.end - found->buffer.begin;
@@ -95,16 +95,16 @@ void wdc65816_rom_parse_memory(bml_node_t* node, wdc65816_mapper_t* mapper, vfs_
     }
 }
 
-void wdc65816_rom_init(wdc65816_rom_t* rom, vfs_t* vfs, arena_t* arena) {
-    vfs_entry_t dummy = {.name = L("manifest.bml")};
-    vfs_entry_t* manifest_entry = vfs_find(vfs, dummy);
-    buffer_t manifest = manifest_entry->buffer;
-    *rom = (wdc65816_rom_t) { 0 };
-    bml_node_t* node = bml_parse(manifest, arena);
+void wdc65816_rom_init(WDC65816Rom* rom, VFS* vfs, Arena* arena) {
+    VFSEntry dummy = {.name = L("manifest.bml")};
+    VFSEntry* manifest_entry = vfs_find(vfs, dummy);
+    Buffer manifest = manifest_entry->buffer;
+    *rom = (WDC65816Rom) { 0 };
+    BMLNode* node = bml_parse(manifest, arena);
     //bml_print_node(node, 0);
     while(node) {
         if(string_equal(node->name, L("board"))) {
-            bml_node_t* node2 = node->child;
+            BMLNode* node2 = node->child;
             while(node2) {
                 if(string_equal(node2->name, L("rom"))) {
                     wdc65816_rom_parse_memory(node2, &rom->read_mapper, vfs);
@@ -127,7 +127,7 @@ void wdc65816_rom_init(wdc65816_rom_t* rom, vfs_t* vfs, arena_t* arena) {
 }
 
 
-void wdc65816_rom_free(wdc65816_rom_t* rom) {
+void wdc65816_rom_free(WDC65816Rom* rom) {
     // TODO!!!
     /* free(rom->data); */
     /* free(rom->banks); */

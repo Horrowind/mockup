@@ -27,9 +27,9 @@ enum {
   OPTYPE_RELW,      //relw
 };
 
-u8 wdc65816_dreadb(wdc65816_cpu_t* cpu, u32 addr);
-u16 wdc65816_dreadw(wdc65816_cpu_t* cpu, u32 addr);
-u32 wdc65816_dreadl(wdc65816_cpu_t* cpu, u32 addr);
-u32 wdc65816_decode(wdc65816_cpu_t* cpu, u8 offset_type, u32 addr);
+u8 wdc65816_dreadb(WDC65816Cpu* cpu, u32 addr);
+u16 wdc65816_dreadw(WDC65816Cpu* cpu, u32 addr);
+u32 wdc65816_dreadl(WDC65816Cpu* cpu, u32 addr);
+u32 wdc65816_decode(WDC65816Cpu* cpu, u8 offset_type, u32 addr);
 
 #endif //MOCKUP_DISASSEMBLER_H

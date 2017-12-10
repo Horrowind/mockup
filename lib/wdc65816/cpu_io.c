@@ -2,7 +2,7 @@
 #include "cpu.h"
 
 
-u8 wdc65816_cpu_read(wdc65816_cpu_t* cpu, u32 addr) {
+u8 wdc65816_cpu_read(WDC65816Cpu* cpu, u32 addr) {
     if(wdc65816_breakpoint_list_is_hit(&cpu->breakpoints_read, addr) && !cpu->stop_execution) {
         cpu->stop_execution = 1;
         cpu->breakpoint_address = addr;
@@ -12,7 +12,7 @@ u8 wdc65816_cpu_read(wdc65816_cpu_t* cpu, u32 addr) {
     //return wdc65816_mapper_read(&cpu->write_mapper, addr);
 }
 
-void wdc65816_cpu_write(wdc65816_cpu_t* cpu, u32 addr, u8 data) {
+void wdc65816_cpu_write(WDC65816Cpu* cpu, u32 addr, u8 data) {
     if(wdc65816_breakpoint_list_is_hit(&cpu->breakpoints_write, addr) && !cpu->stop_execution) {
         cpu->stop_execution = 1;
         cpu->breakpoint_address = addr;
@@ -46,7 +46,7 @@ void wdc65816_cpu_write(wdc65816_cpu_t* cpu, u32 addr, u8 data) {
 /*     } */
 /* } */
 
-/* u8 wdc65816_cpu_read(wdc65816_cpu_t* cpu, u32 addr) { */
+/* u8 wdc65816_cpu_read(WDC65816Cpu* cpu, u32 addr) { */
 /*     if(wdc65816_breakpoint_list_is_hit(&cpu->breakpoints_read, addr) && !cpu->stop_execution) { */
 /*         cpu->stop_execution = 1; */
 /*         cpu->breakpoint_address = addr; */
@@ -77,7 +77,7 @@ void wdc65816_cpu_write(wdc65816_cpu_t* cpu, u32 addr, u8 data) {
 /*     } */
 /* } */
 
-/* void wdc65816_cpu_write(wdc65816_cpu_t* cpu, u32 addr, u8 data) { */
+/* void wdc65816_cpu_write(WDC65816Cpu* cpu, u32 addr, u8 data) { */
    
 /*     if(wdc65816_breakpoint_list_is_hit(&cpu->breakpoints_write, addr) && !cpu->stop_execution) { */
 /*         cpu->stop_execution = 1; */
@@ -118,12 +118,12 @@ void wdc65816_cpu_write(wdc65816_cpu_t* cpu, u32 addr, u8 data) {
 /* } */
 
 
-u16 wdc65816_cpu_read16(wdc65816_cpu_t* cpu, u32 addr) {
+u16 wdc65816_cpu_read16(WDC65816Cpu* cpu, u32 addr) {
     return wdc65816_cpu_read(cpu, addr)
         | (wdc65816_cpu_read(cpu, addr + 1) << 4);
 }
 
-u32 wdc65816_cpu_read24(wdc65816_cpu_t* cpu, u32 addr) {
+u32 wdc65816_cpu_read24(WDC65816Cpu* cpu, u32 addr) {
     return wdc65816_cpu_read(cpu, addr)
         | (wdc65816_cpu_read(cpu, addr + 1) << 8)
         | (wdc65816_cpu_read(cpu, addr + 2) << 16);

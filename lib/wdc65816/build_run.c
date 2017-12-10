@@ -1,3 +1,5 @@
+#define LLVM
+
 #include "opcode_misc.c"
 #include "opcode_pc.c"
 #include "opcode_read.c"
@@ -10,7 +12,10 @@
 #else
 #include "step_switch.c"
 #endif
-#else //need work
+#elif LLVM
+#include "dynarec.c"
+#else
+//need work
 #include "run.c"
 #include "run_jsl.c"
 #include "run_jsr.c"

@@ -9,13 +9,13 @@
 #define D 5
 
 #define wdc65816_op_adjust_imm_gen(name, num, adjust)                     \
-    void wdc65816_op_adjust_imm_##name##_b(wdc65816_cpu_t* cpu) {           \
+    void wdc65816_op_adjust_imm_##name##_b(WDC65816Cpu* cpu) {           \
         cpu->regs.r[num].l += adjust;                                   \
         cpu->regs.p.n = 1 && (cpu->regs.r[num].l & 0x80);               \
         cpu->regs.p.z = (cpu->regs.r[num].l == 0);                      \
     }                                                                   \
                                                                         \
-    void wdc65816_op_adjust_imm_##name##_w(wdc65816_cpu_t* cpu) {           \
+    void wdc65816_op_adjust_imm_##name##_w(WDC65816Cpu* cpu) {           \
         cpu->regs.r[num].w += adjust;                                   \
         cpu->regs.p.n = 1 && (cpu->regs.r[num].w & 0x8000);             \
         cpu->regs.p.z = (cpu->regs.r[num].w == 0);                      \
@@ -29,35 +29,35 @@ wdc65816_op_adjust_imm_gen(incy, Y, 1);
 wdc65816_op_adjust_imm_gen(decy, Y,-1);
 #undef wdc65816_op_adjust_imm_gen
 
-void wdc65816_op_asl_imm_b(wdc65816_cpu_t* cpu) {
+void wdc65816_op_asl_imm_b(WDC65816Cpu* cpu) {
     cpu->regs.p.c = 1 && (cpu->regs.a.l & 0x80);
     cpu->regs.a.l <<= 1;
     cpu->regs.p.n = 1 && (cpu->regs.a.l & 0x80);
     cpu->regs.p.z = (cpu->regs.a.l == 0);
 }
 
-void wdc65816_op_asl_imm_w(wdc65816_cpu_t* cpu) {
+void wdc65816_op_asl_imm_w(WDC65816Cpu* cpu) {
     cpu->regs.p.c = 1 && (cpu->regs.a.w & 0x8000);
     cpu->regs.a.w <<= 1;
     cpu->regs.p.n = 1 && (cpu->regs.a.w & 0x8000);
     cpu->regs.p.z = (cpu->regs.a.w == 0);
 }
 
-void wdc65816_op_lsr_imm_b(wdc65816_cpu_t* cpu) {
+void wdc65816_op_lsr_imm_b(WDC65816Cpu* cpu) {
     cpu->regs.p.c = 1 && (cpu->regs.a.l & 0x01);
     cpu->regs.a.l >>= 1;
     cpu->regs.p.n = 1 && (cpu->regs.a.l & 0x80);
     cpu->regs.p.z = (cpu->regs.a.l == 0);
 }
 
-void wdc65816_op_lsr_imm_w(wdc65816_cpu_t* cpu) {
+void wdc65816_op_lsr_imm_w(WDC65816Cpu* cpu) {
     cpu->regs.p.c = 1 && (cpu->regs.a.w & 0x0001);
     cpu->regs.a.w >>= 1;
     cpu->regs.p.n = 1 && (cpu->regs.a.w & 0x8000);
     cpu->regs.p.z = (cpu->regs.a.w == 0);
 }
 
-void wdc65816_op_rol_imm_b(wdc65816_cpu_t* cpu) {
+void wdc65816_op_rol_imm_b(WDC65816Cpu* cpu) {
     u8 carry = cpu->regs.p.c;
     cpu->regs.p.c = 1 && (cpu->regs.a.l & 0x80);
     cpu->regs.a.l = (cpu->regs.a.l << 1) | carry;
@@ -65,7 +65,7 @@ void wdc65816_op_rol_imm_b(wdc65816_cpu_t* cpu) {
     cpu->regs.p.z = (cpu->regs.a.l == 0);
 }
 
-void wdc65816_op_rol_imm_w(wdc65816_cpu_t* cpu) {
+void wdc65816_op_rol_imm_w(WDC65816Cpu* cpu) {
     u8 carry = cpu->regs.p.c;
     cpu->regs.p.c = 1 && (cpu->regs.a.w & 0x8000);
     cpu->regs.a.w = (cpu->regs.a.w << 1) | carry;
@@ -73,7 +73,7 @@ void wdc65816_op_rol_imm_w(wdc65816_cpu_t* cpu) {
     cpu->regs.p.z = (cpu->regs.a.w == 0);
 }
 
-void wdc65816_op_ror_imm_b(wdc65816_cpu_t* cpu) {
+void wdc65816_op_ror_imm_b(WDC65816Cpu* cpu) {
     u8 carry = cpu->regs.p.c;
     cpu->regs.p.c = 1 && (cpu->regs.a.l & 0x01);
     cpu->regs.a.l = (carry << 7) | (cpu->regs.a.l >> 1);
@@ -81,7 +81,7 @@ void wdc65816_op_ror_imm_b(wdc65816_cpu_t* cpu) {
     cpu->regs.p.z = (cpu->regs.a.l == 0);
 }
 
-void wdc65816_op_ror_imm_w(wdc65816_cpu_t* cpu) {
+void wdc65816_op_ror_imm_w(WDC65816Cpu* cpu) {
     u8 carry = cpu->regs.p.c;
     cpu->regs.p.c = 1 && (cpu->regs.a.w & 0x0001);
     cpu->regs.a.w = (carry << 15) | (cpu->regs.a.w >> 1);
@@ -90,7 +90,7 @@ void wdc65816_op_ror_imm_w(wdc65816_cpu_t* cpu) {
 }
 
 #define wdc65816_op_adjust_addr_gen(op)                                   \
-    void wdc65816_op_adjust_addr_##op##_b(wdc65816_cpu_t* cpu) {            \
+    void wdc65816_op_adjust_addr_##op##_b(WDC65816Cpu* cpu) {            \
         cpu->aa.l = wdc65816_op_readpc(cpu);                              \
         cpu->aa.h = wdc65816_op_readpc(cpu);                              \
         cpu->rd.l = wdc65816_op_readdbr(cpu, cpu->aa.w);                  \
@@ -98,7 +98,7 @@ void wdc65816_op_ror_imm_w(wdc65816_cpu_t* cpu) {
         wdc65816_op_writedbr(cpu, cpu->aa.w, cpu->rd.l);                  \
     }                                                                   \
                                                                         \
-    void wdc65816_op_adjust_addr_##op##_w(wdc65816_cpu_t* cpu) {            \
+    void wdc65816_op_adjust_addr_##op##_w(WDC65816Cpu* cpu) {            \
         cpu->aa.l = wdc65816_op_readpc(cpu);                              \
         cpu->aa.h = wdc65816_op_readpc(cpu);                              \
         cpu->rd.l = wdc65816_op_readdbr(cpu, cpu->aa.w + 0);              \
@@ -120,7 +120,7 @@ wdc65816_op_adjust_addr_gen(inc);
 #undef wdc65816_op_adjust_addr_gen
 
 #define wdc65816_op_adjust_addrx_gen(op)                                  \
-    void wdc65816_op_adjust_addrx_##op##_b(wdc65816_cpu_t* cpu) {           \
+    void wdc65816_op_adjust_addrx_##op##_b(WDC65816Cpu* cpu) {           \
         cpu->aa.l = wdc65816_op_readpc(cpu);                              \
         cpu->aa.h = wdc65816_op_readpc(cpu);                              \
         cpu->rd.l = wdc65816_op_readdbr(cpu, cpu->aa.w + cpu->regs.x.w);  \
@@ -128,7 +128,7 @@ wdc65816_op_adjust_addr_gen(inc);
         wdc65816_op_writedbr(cpu, cpu->aa.w + cpu->regs.x.w, cpu->rd.l);  \
     }                                                                   \
                                                                         \
-    void wdc65816_op_adjust_addrx_##op##_w(wdc65816_cpu_t* cpu) {           \
+    void wdc65816_op_adjust_addrx_##op##_w(WDC65816Cpu* cpu) {           \
         cpu->aa.l = wdc65816_op_readpc(cpu);                              \
         cpu->aa.h = wdc65816_op_readpc(cpu);                              \
         cpu->rd.l = wdc65816_op_readdbr(cpu, cpu->aa.w + cpu->regs.x.w + 0); \
@@ -147,14 +147,14 @@ wdc65816_op_adjust_addrx_gen(inc);
 #undef wdc65816_op_adjust_addrx_gen    
 
 #define wdc65816_op_adjust_dp_gen(op)                                     \
-    void wdc65816_op_adjust_dp_##op##_b(wdc65816_cpu_t* cpu) {              \
+    void wdc65816_op_adjust_dp_##op##_b(WDC65816Cpu* cpu) {              \
         cpu->dp = wdc65816_op_readpc(cpu);                                \
         cpu->rd.l = wdc65816_op_readdp(cpu, cpu->dp);                     \
         wdc65816_op_##op##_b(cpu);                                        \
         wdc65816_op_writedp(cpu, cpu->dp, cpu->rd.l);                     \
     }                                                                   \
                                                                         \
-    void wdc65816_op_adjust_dp_##op##_w(wdc65816_cpu_t* cpu) {              \
+    void wdc65816_op_adjust_dp_##op##_w(WDC65816Cpu* cpu) {              \
         cpu->dp = wdc65816_op_readpc(cpu);                                \
         cpu->rd.l = wdc65816_op_readdp(cpu, cpu->dp + 0);                 \
         cpu->rd.h = wdc65816_op_readdp(cpu, cpu->dp + 1);                 \
@@ -176,14 +176,14 @@ wdc65816_op_adjust_dp_gen(inc);
 
 
 #define wdc65816_op_adjust_dpx_gen(op)                                    \
-    void wdc65816_op_adjust_dpx_##op##_b(wdc65816_cpu_t* cpu) {             \
+    void wdc65816_op_adjust_dpx_##op##_b(WDC65816Cpu* cpu) {             \
         cpu->dp = wdc65816_op_readpc(cpu);                                \
         cpu->rd.l = wdc65816_op_readdp(cpu, cpu->dp + cpu->regs.x.w);     \
         wdc65816_op_##op##_b(cpu);                                        \
         wdc65816_op_writedp(cpu, cpu->dp + cpu->regs.x.w, cpu->rd.l);     \
     }                                                                   \
                                                                         \
-    void wdc65816_op_adjust_dpx_##op##_w(wdc65816_cpu_t* cpu) {             \
+    void wdc65816_op_adjust_dpx_##op##_w(WDC65816Cpu* cpu) {             \
         cpu->dp = wdc65816_op_readpc(cpu);                                \
         cpu->rd.l = wdc65816_op_readdp(cpu, cpu->dp + cpu->regs.x.w + 0); \
         cpu->rd.h = wdc65816_op_readdp(cpu, cpu->dp + cpu->regs.x.w + 1); \

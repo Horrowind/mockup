@@ -1,7 +1,7 @@
 #include "memory.h"
 #include "disassembler.h"
 
-u8 wdc65816_dreadb(wdc65816_cpu_t* cpu, u32 addr) {
+u8 wdc65816_dreadb(WDC65816Cpu* cpu, u32 addr) {
   if((addr & 0x40ffff) >= 0x2000 && (addr & 0x40ffff) <= 0x5fff) {
     //$[00-3f|80-bf]:[2000-5fff]
     //do not read MMIO registers within debugger
@@ -10,14 +10,14 @@ u8 wdc65816_dreadb(wdc65816_cpu_t* cpu, u32 addr) {
   return wdc65816_cpu_read(cpu, addr);
 }
 
-u16 wdc65816_dreadw(wdc65816_cpu_t* cpu, u32 addr) {
+u16 wdc65816_dreadw(WDC65816Cpu* cpu, u32 addr) {
   u16 r;
   r  = wdc65816_dreadb(cpu, (addr + 0) & 0xffffff) <<  0;
   r |= wdc65816_dreadb(cpu, (addr + 1) & 0xffffff) <<  8;
   return r;
 }
 
-u32 wdc65816_dreadl(wdc65816_cpu_t* cpu, u32 addr) {
+u32 wdc65816_dreadl(WDC65816Cpu* cpu, u32 addr) {
   u32 r;
   r  = wdc65816_dreadb(cpu, (addr + 0) & 0xffffff) <<  0;
   r |= wdc65816_dreadb(cpu, (addr + 1) & 0xffffff) <<  8;
@@ -25,7 +25,7 @@ u32 wdc65816_dreadl(wdc65816_cpu_t* cpu, u32 addr) {
   return r;
 }
 
-u32 wdc65816_decode(wdc65816_cpu_t* cpu, u8 offset_type, u32 addr) {
+u32 wdc65816_decode(WDC65816Cpu* cpu, u8 offset_type, u32 addr) {
   u32 r = 0;
 
   switch(offset_type) {

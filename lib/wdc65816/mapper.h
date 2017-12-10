@@ -3,9 +3,9 @@
 
 #include "base/base.h"
 
-typedef u8 (*wdc65816_read_function_t)(u32 addr);
-typedef void (*wdc65816_write_function_t)(u32 addr, u8 data);
-typedef u8* (*wdc65816_ptr_function_t)(u32 addr);
+typedef u8 (*WDC65816ReadFunction)(u32 addr);
+typedef void (*WDC65816WriteFunction)(u32 addr, u8 data);
+typedef u8* (*WDC65816PtrFunction)(u32 addr);
 
 typedef struct {
     union {
@@ -29,19 +29,19 @@ typedef struct {
     u32 size;
     u8* data;
     int data_length;
-    string_t name;
-} wdc65816_mapper_entry_t;
+    String name;
+} WDC65816MapperEntry;
 
 typedef struct {
     u8 num_entries;
-    wdc65816_mapper_entry_t entries[256];
-    wdc65816_read_function_t  read;
-    wdc65816_write_function_t write;
-    wdc65816_ptr_function_t   ptr;
-} wdc65816_mapper_t;
+    WDC65816MapperEntry   entries[256];
+    WDC65816ReadFunction  read;
+    WDC65816WriteFunction write;
+    WDC65816PtrFunction   ptr;
+} WDC65816Mapper;
 
-void wdc65816_mapper_add(wdc65816_mapper_t* mapper, wdc65816_mapper_entry_t* entry);
-void wdc65816_mapper_init_functions(wdc65816_mapper_t* mapper);
-u8* wdc65816_mapper_read_range(wdc65816_mapper_t* mapper, u32 addr_low, u32 addr_high, u8* data);
-u8* wdc65816_mapper_write_range(wdc65816_mapper_t* mapper, u32 addr_low, u32 addr_high, u8* data);
+void wdc65816_mapper_add(WDC65816Mapper* mapper, WDC65816MapperEntry* entry);
+void wdc65816_mapper_init_functions(WDC65816Mapper* mapper);
+u8* wdc65816_mapper_read_range(WDC65816Mapper* mapper, u32 addr_low, u32 addr_high, u8* data);
+u8* wdc65816_mapper_write_range(WDC65816Mapper* mapper, u32 addr_low, u32 addr_high, u8* data);
 #endif //R65816_MAPPER_H
