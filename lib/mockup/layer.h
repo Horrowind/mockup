@@ -8,13 +8,13 @@ typedef struct {
     int height;
     int width;
     u16* data;
-} layer16_t;
+} Layer16;
 
-void layer16_init(layer16_t* layer);
-void layer16_deinit(layer16_t* layer);
+void layer16_init(Layer16* layer);
+void layer16_deinit(Layer16* layer);
 
 
-/*void layer16_render_line(layer16_t layer, int num_line, u8* line) {
+/*void layer16_render_line(Layer16 layer, int num_line, u8* line) {
     int gy = num_line>>4;
     int by = num_line%16;
     for(int i = 0; i < layer->width * 16; i++) {

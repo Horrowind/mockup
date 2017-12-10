@@ -6,10 +6,10 @@
 
 
 //TODO: Remove magic numbers.
-void gfx_store_init(gfx_store_t* gfx_store, wdc65816_rom_t* rom) {
+void gfx_store_init(GFXStore* gfx_store, WDC65816Rom* rom) {
 
     int sum_length = 0;
-    gfx_store->pages = malloc(0x34 * sizeof(gfx_page_t));
+    gfx_store->pages = malloc(0x34 * sizeof(GFXPage));
     gfx_store->num_pages = 0x34;
 
     for(int i = 0; i < 0x32; i++) {
@@ -45,7 +45,7 @@ void gfx_store_init(gfx_store_t* gfx_store, wdc65816_rom_t* rom) {
     decode_lz2(rom->ptr(addr_gfx33_sfc), gfx_store->pages[0x33].data);
 }
 
-void gfx_store_deinit(gfx_store_t* gfx_store) {
+void gfx_store_deinit(GFXStore* gfx_store) {
     free(gfx_store->pages[0].data);
     free(gfx_store->pages);
 }

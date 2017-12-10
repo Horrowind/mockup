@@ -6,15 +6,15 @@
 typedef struct {
     int length;
     u8* data;
-} gfx_page_t;
+} GFXPage;
 
 typedef struct {
     int num_pages;
-    gfx_page_t* pages;
-} gfx_store_t;
+    GFXPage* pages;
+} GFXStore;
 
-void gfx_store_init(gfx_store_t* gfx_store, wdc65816_rom_t* rom);
-void gfx_store_deinit(gfx_store_t* gfx_store);
+void gfx_store_init(GFXStore* gfx_store, WDC65816Rom* rom);
+void gfx_store_deinit(GFXStore* gfx_store);
 
 
 #endif //MOCKUP_GFX_STORE_H

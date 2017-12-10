@@ -19,8 +19,8 @@
 /*     return tile_new; */
 /* } */
 
-tile8_t tile8_from_3bpp(u8* data) {
-    tile8_t tile;
+Tile8 tile8_from_3bpp(u8* data) {
+    Tile8 tile;
     for(int k = 0; k < 8; k++) {
         unsigned char bp1, bp2, bp3;
         bp1 = data[2 * k];
@@ -38,8 +38,8 @@ tile8_t tile8_from_3bpp(u8* data) {
     return tile;
 }
 
-tile8_t tile8_from_4bpp(u8* data) {
-    tile8_t tile;
+Tile8 tile8_from_4bpp(u8* data) {
+    Tile8 tile;
     for(int k = 0; k < 8; k++) {
         unsigned char bp1, bp2, bp3, bp4;
         bp1 = data[2 * k];
@@ -59,7 +59,7 @@ tile8_t tile8_from_4bpp(u8* data) {
     return tile;
 }
 
-/*     tile8_t tile_new; */
+/*     Tile8 tile_new; */
 /*     int itx = flip.X ? -1 : 1; */
 /*     int ity = flip.Y ? -1 : 1; */
         
@@ -75,8 +75,8 @@ tile8_t tile8_from_4bpp(u8* data) {
 /*     } */
 /*     return tile_new; */
 
-tile16_t tile16_from_tile8(tile8_t* t[4], tile_properties_t properties[4]) {
-    tile16_t tile;
+Tile16 tile16_from_tile8(Tile8* t[4], TileProperties properties[4]) {
+    Tile16 tile;
     for(int i = 0; i < 4; i++) {
         tile.tile8s[i] = t[i];
         tile.properties[i] = properties[i];
@@ -84,7 +84,7 @@ tile16_t tile16_from_tile8(tile8_t* t[4], tile_properties_t properties[4]) {
     return tile;
 }
 
-void tile16_pc_init(tile16_pc_t* tile16_pc, tile16_t* tile16) {
+void tile16_pc_init(Tile16PC* tile16_pc, Tile16* tile16) {
     for(int k = 0; k < 2; k++) {
         for(int l = 0; l < 2; l++) {
             int pos = k*2 +l;
@@ -104,7 +104,7 @@ void tile16_pc_init(tile16_pc_t* tile16_pc, tile16_t* tile16) {
     }
 }
 
-void map16_pc_init(map16_pc_t* map16_pc, map16_t* map16_snes) {
+void map16_pc_init(Map16PC* map16_pc, Map16* map16_snes) {
     map16_pc->length = map16_snes->length;
     map16_pc->tiles = malloc(map16_pc->length * 256 * sizeof(u32));
     for(int i = 0; i < map16_pc->length; i++) {
@@ -112,6 +112,6 @@ void map16_pc_init(map16_pc_t* map16_pc, map16_t* map16_snes) {
     }
 }
 
-void map16_pc_deinit(map16_pc_t* map16_pc) {
+void map16_pc_deinit(Map16PC* map16_pc) {
     free(map16_pc->tiles);
 }

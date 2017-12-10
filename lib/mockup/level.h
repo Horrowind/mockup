@@ -17,7 +17,7 @@ typedef struct {
     u16 y;
     u16 tile;
     u16 is_top;
-} object_tile_t;
+} ObjectTile;
 
 typedef struct {
     u16 x;
@@ -33,16 +33,16 @@ typedef struct {
     union {
         u16* tiles;
         struct {
-            object_tile_t* object_tiles;
-            int            object_tiles_length;
+            ObjectTile* object_tiles;
+            int         object_tiles_length;
         };
     };
-} object_pc_t;
+} ObjectPC;
 
 typedef struct {
-    object_pc_t* objects;
+    ObjectPC* objects;
     u16 length;
-} object_list_pc_t;
+} ObjectListPC;
 
 
 #ifdef SPRITES
@@ -54,7 +54,7 @@ typedef struct {
     u8 x          : 4;
     u8 screen2    : 4;
     u8 number;
-} sprite_t;
+} Sprite;
 
 typedef struct {
     int x;
@@ -64,7 +64,7 @@ typedef struct {
     
     u8 palette;
     u16 tile_num;
-} sprite_tile_t;
+} SpriteTile;
 
 typedef struct {
     u8 entry_009E;
@@ -115,28 +115,22 @@ typedef struct {
     u8 entry_187B;
     u8 entry_190F;
     u8 entry_1FE2;
-} sprite_table_entries_t;
+} SpriteTableEntries;
 
 typedef struct {
     int x, y;
     u8 number;
     u8 extra_bits;
     int num_tiles;
-    sprite_tile_t* tiles;
-    sprite_table_entries_t table_entries;
-} sprite_pc_t;
+    SpriteTile* tiles;
+    SpriteTableEntries table_entries;
+} SpritePC;
 
 typedef struct {
     int length;
-    sprite_pc_t* data;   
-} sprite_list_pc_t;
+    SpritePC* data;   
+} SpriteListPC;
 #endif
-
-typedef struct {
-    u8* layer1_objects_data;
-    int layer1_objects_length;
-} level_save_locations_t;
-
 
 typedef struct {
     u8 screens         : 5;
@@ -156,19 +150,19 @@ typedef struct {
     u8 tile_set        : 4;
     u8 vert_scroll     : 2;
     u8 item_memory     : 2;
-} level_header_t;
+} LevelHeader;
 
 typedef struct {
-    level_header_t header;
-    object_list_pc_t layer1_objects;
+    LevelHeader  header;
+    ObjectListPC layer1_objects;
 #ifdef SPRITES
-    sprite_list_pc_t sprites;
-    tileset_t sprite_tileset;
-    map8_t    sprite_map8;
+    SpriteListPC sprites;
+    Tileset      sprite_tileset;
+    Map8         sprite_map8;
 #endif
     union {
-        object_list_pc_t layer2_objects;
-        layer16_t        layer2_background;
+        ObjectListPC layer2_objects;
+        Layer16      layer2_background;
     };
     u8 has_layer2_bg      : 1;
     u8 has_layer2_objects : 1;
@@ -177,33 +171,33 @@ typedef struct {
 
     u32  background_color;
     
-    palette_t palette;
-    tileset_t tileset;
-    map8_t    map8;
-    map16_t   map16_fg;
-    map16_t   map16_bg;
-    int       num_level;
-    int       height;
-    int       width;
+    Palette palette;
+    Tileset tileset;
+    Map8    map8;
+    Map16   map16_fg;
+    Map16   map16_bg;
+    int     num_level;
+    int     height;
+    int     width;
 
 
-    wdc65816_rom_t* rom;
+    WDC65816Rom* rom;
 
-} level_pc_t;
+} LevelPC;
 
 
-void level_init(level_pc_t* l, wdc65816_rom_t* rom, int num_level, gfx_store_t* gfx_store);
-void level_init_by_address(level_pc_t* l, wdc65816_rom_t* rom, int num_level, gfx_store_t* gfx_store,
+void level_init(LevelPC* l, WDC65816Rom* rom, int num_level, GFXStore* gfx_store);
+void level_init_by_address(LevelPC* l, WDC65816Rom* rom, int num_level, GFXStore* gfx_store,
                            u32 level_layer1_data_addr_sfc,
                            u32 level_layer2_data_addr_sfc,
                            u32 level_sprite_data_addr_sfc);
 
-void level_deinit(level_pc_t* l);
+void level_deinit(LevelPC* l);
 
-int level_object_list_pc_to_level_data(object_list_pc_t* object_list, u8* output_data, int max_length);
-void level_move_object(level_pc_t* l, int index, u16 x, u16 y, gfx_store_t* gfx_store);
+int  level_ObjectListPCo_level_data(ObjectListPC* object_list, u8* output_data, int max_length);
+void level_move_object(LevelPC* l, int index, u16 x, u16 y, GFXStore* gfx_store);
 
-void level_animate(level_pc_t* l, u8 frame, gfx_store_t* gfx_store);
+void level_animate(LevelPC* l, u8 frame, GFXStore* gfx_store);
 
 
 #endif //MOCKUP_LEVEL

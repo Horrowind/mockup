@@ -5,12 +5,12 @@
 
 typedef struct {
     u16 data[256];
-} palette_t;
+} Palette;
 
 typedef struct {
     u32 data[256];
-} palette_pc_t;
+} PalettePC;
 
-void palette_to_pc(palette_t* palette, palette_pc_t* palette_pc);
+void palette_to_pc(Palette* palette, PalettePC* palette_pc);
 
 #endif //MOCKUP_PALETTE_H

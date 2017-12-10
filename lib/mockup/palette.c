@@ -1,6 +1,6 @@
 #include "palette.h"
 
-void palette_to_pc(palette_t* palette, palette_pc_t* palette_pc) {
+void palette_to_pc(Palette* palette, PalettePC* palette_pc) {
     for(int i = 0; i < 256; i++) {
         u16 snes = palette->data[i];
         int r = ((snes & 0x001F) << 3); r |= (r >> 5);

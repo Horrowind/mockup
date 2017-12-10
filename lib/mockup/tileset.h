@@ -6,12 +6,12 @@
 #include "gfx_store.h"
 
 typedef struct {
-    gfx_page_t* fg1;
-    gfx_page_t* bg1;
-    gfx_page_t* fg2;
-    gfx_page_t* fg3;
-} tileset_t;
+    GFXPage* fg1;
+    GFXPage* bg1;
+    GFXPage* fg2;
+    GFXPage* fg3;
+} Tileset;
 
-void tileset_init(tileset_t* tileset, gfx_store_t* gfx_store, u8 fg1, u8 fg2, u8 bg1, u8 fg3);
-void tileset_init_level(tileset_t* tileset, wdc65816_rom_t* rom, int num_level, gfx_store_t* gfx_store);
+void tileset_init(Tileset* tileset, GFXStore* gfx_store, u8 fg1, u8 fg2, u8 bg1, u8 fg3);
+void tileset_init_level(Tileset* tileset, WDC65816Rom* rom, int num_level, GFXStore* gfx_store);
 #endif //MOCKUP_TILESET_H
