@@ -7,7 +7,6 @@
 #include "gfx_store.h"
 #include "layer.h"
 #include "level.h"
-#include "overworld.h"
 #include "palette.h"
 #include "tiles.h"
 #include "tileset.h"

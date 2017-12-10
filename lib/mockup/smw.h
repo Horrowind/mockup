@@ -3,20 +3,16 @@
 
 #include "wdc65816/wdc65816.h"
 
-#include "freespace.h"
 #include "gfx_store.h"
 #include "level.h"
-#include "overworld.h"
 
 typedef struct {
-    LevelPC    levels[512];
-    GFXStore   gfx_pages;
-    overworld_t   overworld;
+    LevelPC      levels[512];
+    GFXStore     gfx_pages;
     WDC65816Rom* rom;
-    freespace_manager_t freespace_manager;
     WDC65816Cpu  cpu;
-    Arena       arena;
-    Arena       temp_arena;
+    Arena        arena;
+    Arena        temp_arena;
 } SMW;
 
 void smw_init(SMW* smw, WDC65816Rom* rom, Arena* arena);

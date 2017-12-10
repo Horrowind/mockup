@@ -139,11 +139,11 @@ typedef enum {
     LZ2_COMMAND_UNUSED1,
     LZ2_COMMAND_UNUSED2,
     LZ2_COMMAND_LONG_CMD    
-} lz2_commands_t;
+} LZ2Commands;
 
 void encode_lz2(u8* data_begin, u8* data_end, u8* output) {
     for(u8* data_read = data_begin; data_read < data_end;) {
-//        lz2_commands_t best_cmd;
+//        LZ2Commands best_cmd;
         uint best_length = 0xFFFFFFFF;
 //        uint best_cost = 0xFFFFFFFF;
 
