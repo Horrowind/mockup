@@ -40,20 +40,20 @@ int show_palette_window = 1,
 int next_level;
 int prev_level;
 
-smw_t          smw;
-wdc65816_rom_t   rom;
-palette_pc_t   palette;
-map16_pc_t     map16_fg, map16_bg;
+SMW          smw;
+WDC65816Rom    rom;
+PalettePC   palette;
+Map16PC     map16_fg, map16_bg;
 
-uint32_t       map8_pixel_data[128*256*16];
-uint32_t       sprite_map8_pixel_data[128*256*16];
-uint32_t       map16_fg_pixel_data[256*512];
-uint32_t       map16_bg_pixel_data[256*512];
-uint16_t*      level_layer1_object_data = NULL;
-uint16_t*      level_layer2_object_data = NULL;
+u32       map8_pixel_data[128*256*16];
+u32       sprite_map8_pixel_data[128*256*16];
+u32       map16_fg_pixel_data[256*512];
+u32       map16_bg_pixel_data[256*512];
+u16*      level_layer1_object_data = NULL;
+u16*      level_layer2_object_data = NULL;
 
-uint16_t selected_index_x;
-uint16_t selected_index_y;
+u16 selected_index_x;
+u16 selected_index_y;
 
 int hot_index = INT_MAX;
 int selected_index = INT_MAX;
@@ -67,19 +67,19 @@ int map8_palette = 0;
 
 typedef struct {
     struct nk_image nk_image_handle;
-    unsigned char* data;
+    uchar* data;
     int size_x;
     int size_y;
-} image_t;
+} Image;
 
-image_t palette_img;
-image_t map8_img[16];
-image_t sprite_map8_img[16];
-image_t map16_fg_img;
-image_t map16_bg_img;
+Image palette_img;
+Image map8_img[16];
+Image sprite_map8_img[16];
+Image map16_fg_img;
+Image map16_bg_img;
 
-image_t image_init(int size_x, int size_y, unsigned char* data) {
-    image_t result;
+Image image_init(int size_x, int size_y, uchar* data) {
+    Image result;
     GLuint texture;
     result.size_x = size_x;
     result.size_y = size_y;
@@ -93,19 +93,19 @@ image_t image_init(int size_x, int size_y, unsigned char* data) {
     return result;
 }
 
-void update_image(image_t image) {
+void update_image(Image image) {
     glBindTexture(GL_TEXTURE_2D, image.nk_image_handle.handle.id);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, image.size_x, image.size_y, GL_RGBA, GL_UNSIGNED_BYTE, image.data);
 }
 
 void gl_init_textures() {
-    palette_img = image_init(16, 16, (unsigned char*) palette.data);
+    palette_img = image_init(16, 16, (uchar*) palette.data);
     for(int p = 0; p < 16; p++) {
-        map8_img[p]  = image_init(128, 256, (unsigned char*) &map8_pixel_data[p * 128 * 256]);
-        sprite_map8_img[p]  = image_init(128, 256, (unsigned char*) &sprite_map8_pixel_data[p * 128 * 256]);
+        map8_img[p]  = image_init(128, 256, (uchar*) &map8_pixel_data[p * 128 * 256]);
+        sprite_map8_img[p]  = image_init(128, 256, (uchar*) &sprite_map8_pixel_data[p * 128 * 256]);
     }
-    map16_fg_img  = image_init(256, 512, (unsigned char*) map16_fg_pixel_data);
-    map16_bg_img  = image_init(256, 512, (unsigned char*) map16_bg_pixel_data);
+    map16_fg_img  = image_init(256, 512, (uchar*) map16_fg_pixel_data);
+    map16_bg_img  = image_init(256, 512, (uchar*) map16_bg_pixel_data);
 }
 
 
@@ -131,7 +131,7 @@ void render() {
 
     glfwGetWindowSize(win, &fb_width, &fb_height);
 
-    level_pc_t* level = smw.levels + current_level;
+    LevelPC* level = smw.levels + current_level;
     
     /* Update */
     for(int i = 0; i < 1; i++) {
@@ -180,10 +180,10 @@ void render() {
     }
 
     // Level objects
-    level_layer1_object_data = (uint16_t*)realloc(level_layer1_object_data,
-                                                  level->width * level->height * sizeof(uint16_t));
-    level_layer2_object_data = (uint16_t*)realloc(level_layer2_object_data,
-                                                  level->width * level->height * sizeof(uint16_t));
+    level_layer1_object_data = (u16*)realloc(level_layer1_object_data,
+                                                  level->width * level->height * sizeof(u16));
+    level_layer2_object_data = (u16*)realloc(level_layer2_object_data,
+                                                  level->width * level->height * sizeof(u16));
 
     for(int i = 0; i < level->width * level->height; i++) {
         level_layer1_object_data[i] = 0x25;
@@ -191,7 +191,7 @@ void render() {
     }
     
     for(int i = 0; i < level->layer1_objects.length; i++) {
-        object_pc_t* obj = level->layer1_objects.objects + i;
+        ObjectPC* obj = level->layer1_objects.objects + i;
         if(!obj->tiles) continue;
         int obj_width = obj->bb_xmax - obj->bb_xmin + 1;
         int obj_height = obj->bb_ymax - obj->bb_ymin + 1;
@@ -210,7 +210,7 @@ void render() {
 
     if(level->has_layer2_objects) {
         for(int i = 0; i < level->layer2_objects.length; i++) {
-            object_pc_t* obj = level->layer2_objects.objects + i;
+            ObjectPC* obj = level->layer2_objects.objects + i;
             if(!obj->tiles) continue;
             int obj_width = obj->bb_xmax - obj->bb_xmin + 1;
             int obj_height = obj->bb_ymax - obj->bb_ymin + 1;
@@ -398,7 +398,7 @@ void render() {
                     if(level->has_layer2_bg) {
                         for(int j = 0; j < height; j++) {
                             for(int i = 0; i < width; i++) {
-                                uint16_t tile_num;
+                                u16 tile_num;
                                 if(level->is_vertical_level) {
                                     tile_num = level->layer2_background.data[((i & 0x10) * 27) + ((j % 27) * 16) + (i & 0x0F)];
                                 } else {
@@ -417,7 +417,7 @@ void render() {
                     } else if(level->has_layer2_objects) {
                         for(int j = 0; j < height; j++) {
                             for(int i = 0; i < width; i++) {
-                                uint16_t tile_num = level_layer2_object_data[j * width + i];
+                                u16 tile_num = level_layer2_object_data[j * width + i];
                                 int tile_x = tile_num & 0x00F;
                                 int tile_y = (tile_num & 0xFF0) >> 4;
                                 struct nk_image tile_img = nk_subimage_handle(
@@ -434,7 +434,7 @@ void render() {
                 if(show_layer1) {
                     for(int j = 0; j < height; j++) {
                         for(int i = 0; i < width; i++) {
-                            uint16_t tile_num = level_layer1_object_data[j * width + i];
+                            u16 tile_num = level_layer1_object_data[j * width + i];
                             int tile_x = tile_num & 0x00F;
                             int tile_y = (tile_num & 0xFF0) >> 4;
                             struct nk_image tile_img = nk_subimage_handle(
@@ -451,8 +451,8 @@ void render() {
                     for(int i = 0; i < level->sprites.length; i++) {
                         int num_tiles = level->sprites.data[i].num_tiles;
                         for(int j = 0; j < num_tiles; j++) {
-                            sprite_tile_t* tile = &level->sprites.data[i].tiles[j];
-                            uint16_t tile_num = tile->tile_num;
+                            SpriteTile* tile = &level->sprites.data[i].tiles[j];
+                            u16 tile_num = tile->tile_num;
                             int tile_x = tile_num & 0x00F;
                             int tile_y = (tile_num & 0xFF0) >> 4;
                             struct nk_rect tile_rect;
@@ -614,7 +614,7 @@ void render() {
                 
                 
                 for(int i = 0; i < level->sprites.length; i++) {
-                    sprite_table_entries_t* entries = &level->sprites.data[i].table_entries;
+                    SpriteTableEntries* entries = &level->sprites.data[i].table_entries;
                     nk_layout_row_begin(ctx, NK_STATIC, 20, 50);
                     nk_layout_row_push(ctx, 20);
                     nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%i", i);
@@ -766,15 +766,15 @@ int main(int argc, char** argv)
     background = nk_rgb(190,205,255);
 
 
-    arena_t arena = arena_create(MB(256));
-    string_t path_name = (argc > 2) ? string_from_c_string(argv[2]) : L("SuperMarioWorld.sfc");
-    path_t path;
+    Arena arena = arena_create(MB(256));
+    String path_name = (argc > 2) ? string_from_c_string(argv[2]) : L("SuperMarioWorld.sfc");
+    Path path;
     path_init(&path, path_name);
-    vfs_t vfs;
+    VFS vfs;
     vfs_init(&vfs, 4);
     vfs_add_dir(&vfs, &path, &arena);
     
-    wdc65816_rom_t rom;
+    WDC65816Rom rom;
     wdc65816_rom_init(&rom, &vfs, &arena);
 
     smw_init(&smw, &rom, &arena);
