@@ -36,7 +36,7 @@
 #define opA_flags(id, name) opA(id, name)
 #define opE_flags(id, name) opE(id, name)
 
-void wdc65816_cpu_step(WDC65816Cpu* cpu) {
+void wdc65816_cpu_step(Wdc65816Cpu* cpu) {
 #ifdef DEBUG_PRINT_CPU_STATE
     if(cpu->debug) {
         char output[256];

@@ -1,5 +1,7 @@
-#ifndef LIBMOCKUP_REGISTERS_H
-#define LIBMOCKUP_REGISTERS_H
+#ifndef WDC65816_REGISTERS_H
+#define WDC65816_REGISTERS_H
+
+#include "base/base.h"
 
 typedef struct {
   union {
@@ -7,7 +9,7 @@ typedef struct {
     struct { u16 w, wh; };
     struct { u8  l, h, b, bh; };
   };
-} WDC65816Reg24;
+} Wdc65816Reg24;
 
 typedef struct {
     union {
@@ -16,13 +18,13 @@ typedef struct {
             u8 l, h;
         };
     };
-} WDC65816Reg16;
+} Wdc65816Reg16;
 typedef struct {
-    WDC65816Reg24 pc;
+    Wdc65816Reg24 pc;
     union {
-        WDC65816Reg16 r[6];
+        Wdc65816Reg16 r[6];
         struct {
-            WDC65816Reg16 a, x, y, z, s, d;
+            Wdc65816Reg16 a, x, y, z, s, d;
         };
     };
     u8 db;
@@ -34,7 +36,7 @@ typedef struct {
         struct { u8 c:1, z:1, i:1, d:1, x:1, m:1, v:1, n:1; };
         u8 b;
     } p;
-} WDC65816Regs;
+} Wdc65816Regs;
 
 
-#endif //LIBMOCKUP_REGISTERS_H
+#endif //WDC65816_REGISTERS_H

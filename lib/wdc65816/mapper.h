@@ -1,11 +1,7 @@
-#ifndef R65816_MAPPER_H
-#define R65816_MAPPER_H
+#ifndef WDC65816_MAPPER_H
+#define WDC65816_MAPPER_H
 
 #include "base/base.h"
-
-typedef u8 (*WDC65816ReadFunction)(u32 addr);
-typedef void (*WDC65816WriteFunction)(u32 addr, u8 data);
-typedef u8* (*WDC65816PtrFunction)(u32 addr);
 
 typedef struct {
     union {
@@ -30,18 +26,20 @@ typedef struct {
     u8* data;
     int data_length;
     String name;
-} WDC65816MapperEntry;
+} Wdc65816MapperEntry;
 
 typedef struct {
-    u8 num_entries;
-    WDC65816MapperEntry   entries[256];
-    WDC65816ReadFunction  read;
-    WDC65816WriteFunction write;
-    WDC65816PtrFunction   ptr;
-} WDC65816Mapper;
+    u8                  num_entries;
+    Wdc65816MapperEntry entries[256];
+    u8**                data;
+} Wdc65816Mapper;
 
-void wdc65816_mapper_add(WDC65816Mapper* mapper, WDC65816MapperEntry* entry);
-void wdc65816_mapper_init_functions(WDC65816Mapper* mapper);
-u8* wdc65816_mapper_read_range(WDC65816Mapper* mapper, u32 addr_low, u32 addr_high, u8* data);
-u8* wdc65816_mapper_write_range(WDC65816Mapper* mapper, u32 addr_low, u32 addr_high, u8* data);
-#endif //R65816_MAPPER_H
+void wdc65816_mapper_init(Wdc65816Mapper* mapper, Arena* arena);
+void wdc65816_mapper_update(Wdc65816Mapper* mapper);
+u8   wdc65816_mapper_read(Wdc65816Mapper* mapper, u32 addr);
+void wdc65816_mapper_write(Wdc65816Mapper* mapper, u32 addr, u8 data);
+u8*  wdc65816_mapper_ptr(Wdc65816Mapper* mapper, u32 addr);
+void wdc65816_mapper_add(Wdc65816Mapper* mapper, Wdc65816MapperEntry* entry);
+u8*  wdc65816_mapper_read_range(Wdc65816Mapper* mapper, u32 addr_low, u32 addr_high, u8* data);
+u8*  wdc65816_mapper_write_range(Wdc65816Mapper* mapper, u32 addr_low, u32 addr_high, u8* data);
+#endif //WDC65816_MAPPER_H

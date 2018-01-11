@@ -2,7 +2,7 @@
 
 #include "algorithms.h"
 
-void wdc65816_op_adc_b(WDC65816Cpu* cpu) {
+void wdc65816_op_adc_b(Wdc65816Cpu* cpu) {
     int result;
     if(!cpu->regs.p.d) {
         result = cpu->regs.a.l + cpu->rd.l + cpu->regs.p.c;
@@ -22,7 +22,7 @@ void wdc65816_op_adc_b(WDC65816Cpu* cpu) {
     cpu->regs.a.l = result;
 }
 
-void wdc65816_op_adc_w(WDC65816Cpu* cpu) {
+void wdc65816_op_adc_w(Wdc65816Cpu* cpu) {
     int result;
 
     if(!cpu->regs.p.d) {
@@ -49,133 +49,133 @@ void wdc65816_op_adc_w(WDC65816Cpu* cpu) {
     cpu->regs.a.w = result;
 }
 
-void wdc65816_op_and_b(WDC65816Cpu* cpu) {
+void wdc65816_op_and_b(Wdc65816Cpu* cpu) {
     cpu->regs.a.l &= cpu->rd.l;
     cpu->regs.p.n = 1 && (cpu->regs.a.l & 0x80);
     cpu->regs.p.z = cpu->regs.a.l == 0;
 }
 
-void wdc65816_op_and_w(WDC65816Cpu* cpu) {
+void wdc65816_op_and_w(Wdc65816Cpu* cpu) {
     cpu->regs.a.w &= cpu->rd.w;
     cpu->regs.p.n = 1 && (cpu->regs.a.w & 0x8000);
     cpu->regs.p.z = cpu->regs.a.w == 0;
 }
 
-void wdc65816_op_bit_b(WDC65816Cpu* cpu) {
+void wdc65816_op_bit_b(Wdc65816Cpu* cpu) {
     cpu->regs.p.n = 1 && (cpu->rd.l & 0x80);
     cpu->regs.p.v = 1 && (cpu->rd.l & 0x40);
     cpu->regs.p.z = (cpu->rd.l & cpu->regs.a.l) == 0;
 }
 
-void wdc65816_op_bit_w(WDC65816Cpu* cpu) {
+void wdc65816_op_bit_w(Wdc65816Cpu* cpu) {
     cpu->regs.p.n = 1 && (cpu->rd.w & 0x8000);
     cpu->regs.p.v = 1 && (cpu->rd.w & 0x4000);
     cpu->regs.p.z = (cpu->rd.w & cpu->regs.a.w) == 0;
 }
 
-void wdc65816_op_cmp_b(WDC65816Cpu* cpu) {
+void wdc65816_op_cmp_b(Wdc65816Cpu* cpu) {
     int r = cpu->regs.a.l - cpu->rd.l;
     cpu->regs.p.n = 1 && (r & 0x80);
     cpu->regs.p.z = (u8)r == 0;
     cpu->regs.p.c = r >= 0;
 }
 
-void wdc65816_op_cmp_w(WDC65816Cpu* cpu) {
+void wdc65816_op_cmp_w(Wdc65816Cpu* cpu) {
     int r = cpu->regs.a.w - cpu->rd.w;
     cpu->regs.p.n = 1 && (r & 0x8000);
     cpu->regs.p.z = (u8)r == 0;
     cpu->regs.p.c = r >= 0;
 }
 
-void wdc65816_op_cpx_b(WDC65816Cpu* cpu) {
+void wdc65816_op_cpx_b(Wdc65816Cpu* cpu) {
     int r = cpu->regs.x.l - cpu->rd.l;
     cpu->regs.p.n = 1 && (r & 0x80);
     cpu->regs.p.z = (u8)r == 0;
     cpu->regs.p.c = r >= 0;
 }
 
-void wdc65816_op_cpx_w(WDC65816Cpu* cpu) {
+void wdc65816_op_cpx_w(Wdc65816Cpu* cpu) {
     int r = cpu->regs.x.w - cpu->rd.w;
     cpu->regs.p.n = 1 && (r & 0x8000);
     cpu->regs.p.z = (u8)r == 0;
     cpu->regs.p.c = r >= 0;
 }
 
-void wdc65816_op_cpy_b(WDC65816Cpu* cpu) {
+void wdc65816_op_cpy_b(Wdc65816Cpu* cpu) {
     int r = cpu->regs.y.l - cpu->rd.l;
     cpu->regs.p.n = 1 && (r & 0x80);
     cpu->regs.p.z = (u8)r == 0;
     cpu->regs.p.c = r >= 0;
 }
 
-void wdc65816_op_cpy_w(WDC65816Cpu* cpu) {
+void wdc65816_op_cpy_w(Wdc65816Cpu* cpu) {
     int r = cpu->regs.y.w - cpu->rd.w;
     cpu->regs.p.n = 1 && (r & 0x8000);
     cpu->regs.p.z = (u16)r == 0;
     cpu->regs.p.c = r >= 0;
 }
 
-void wdc65816_op_eor_b(WDC65816Cpu* cpu) {
+void wdc65816_op_eor_b(Wdc65816Cpu* cpu) {
     cpu->regs.a.l ^= cpu->rd.l;
     cpu->regs.p.n = 1 && (cpu->regs.a.l & 0x80);
     cpu->regs.p.z = cpu->regs.a.l == 0;
 }
 
-void wdc65816_op_eor_w(WDC65816Cpu* cpu) {
+void wdc65816_op_eor_w(Wdc65816Cpu* cpu) {
     cpu->regs.a.w ^= cpu->rd.w;
     cpu->regs.p.n = 1 && (cpu->regs.a.w & 0x8000);
     cpu->regs.p.z = cpu->regs.a.w == 0;
 }
 
-void wdc65816_op_lda_b(WDC65816Cpu* cpu) {
+void wdc65816_op_lda_b(Wdc65816Cpu* cpu) {
     cpu->regs.a.l = cpu->rd.l;
     cpu->regs.p.n = 1 && (cpu->regs.a.l & 0x80);
     cpu->regs.p.z = cpu->regs.a.l == 0;
 }
 
-void wdc65816_op_lda_w(WDC65816Cpu* cpu) {
+void wdc65816_op_lda_w(Wdc65816Cpu* cpu) {
     cpu->regs.a.w = cpu->rd.w;
     cpu->regs.p.n = 1 && (cpu->regs.a.w & 0x8000);
     cpu->regs.p.z = cpu->regs.a.w == 0;
 }
 
-void wdc65816_op_ldx_b(WDC65816Cpu* cpu) {
+void wdc65816_op_ldx_b(Wdc65816Cpu* cpu) {
     cpu->regs.x.l = cpu->rd.l;
     cpu->regs.p.n = 1 && (cpu->regs.x.l & 0x80);
     cpu->regs.p.z = cpu->regs.x.l == 0;
 }
 
-void wdc65816_op_ldx_w(WDC65816Cpu* cpu) {
+void wdc65816_op_ldx_w(Wdc65816Cpu* cpu) {
     cpu->regs.x.w = cpu->rd.w;
     cpu->regs.p.n = 1 && (cpu->regs.x.w & 0x8000);
     cpu->regs.p.z = cpu->regs.x.w == 0;
 }
 
-void wdc65816_op_ldy_b(WDC65816Cpu* cpu) {
+void wdc65816_op_ldy_b(Wdc65816Cpu* cpu) {
     cpu->regs.y.l = cpu->rd.l;
     cpu->regs.p.n = 1 && (cpu->regs.y.l & 0x80);
     cpu->regs.p.z = cpu->regs.y.l == 0;
 }
 
-void wdc65816_op_ldy_w(WDC65816Cpu* cpu) {
+void wdc65816_op_ldy_w(Wdc65816Cpu* cpu) {
     cpu->regs.y.w = cpu->rd.w;
     cpu->regs.p.n = 1 && (cpu->regs.y.w & 0x8000);
     cpu->regs.p.z = cpu->regs.y.w == 0;
 }
 
-void wdc65816_op_ora_b(WDC65816Cpu* cpu) {
+void wdc65816_op_ora_b(Wdc65816Cpu* cpu) {
     cpu->regs.a.l |= cpu->rd.l;
     cpu->regs.p.n = 1 && (cpu->regs.a.l & 0x80);
     cpu->regs.p.z = cpu->regs.a.l == 0;
 }
 
-void wdc65816_op_ora_w(WDC65816Cpu* cpu) {
+void wdc65816_op_ora_w(Wdc65816Cpu* cpu) {
     cpu->regs.a.w |= cpu->rd.w;
     cpu->regs.p.n = 1 && (cpu->regs.a.w & 0x8000);
     cpu->regs.p.z = cpu->regs.a.w == 0;
 }
 
-void wdc65816_op_sbc_b(WDC65816Cpu* cpu) {
+void wdc65816_op_sbc_b(Wdc65816Cpu* cpu) {
     int result;
     cpu->rd.l ^= 0xff;
 
@@ -197,7 +197,7 @@ void wdc65816_op_sbc_b(WDC65816Cpu* cpu) {
     cpu->regs.a.l = result;
 }
 
-void wdc65816_op_sbc_w(WDC65816Cpu* cpu) {
+void wdc65816_op_sbc_w(Wdc65816Cpu* cpu) {
     int result;
     cpu->rd.w ^= 0xffff;
 
@@ -225,38 +225,38 @@ void wdc65816_op_sbc_w(WDC65816Cpu* cpu) {
     cpu->regs.a.w = result;
 }
 
-void wdc65816_op_inc_b(WDC65816Cpu* cpu) {
+void wdc65816_op_inc_b(Wdc65816Cpu* cpu) {
     cpu->rd.l++;
     cpu->regs.p.n = 1 && (cpu->rd.l & 0x80);
     cpu->regs.p.z = (cpu->rd.l == 0);
 }
 
-void wdc65816_op_inc_w(WDC65816Cpu* cpu) {
+void wdc65816_op_inc_w(Wdc65816Cpu* cpu) {
     cpu->rd.w++;
     cpu->regs.p.n = 1 && (cpu->rd.w & 0x8000);
     cpu->regs.p.z = (cpu->rd.w == 0);
 }
 
-void wdc65816_op_dec_b(WDC65816Cpu* cpu) {
+void wdc65816_op_dec_b(Wdc65816Cpu* cpu) {
     cpu->rd.l--;
     cpu->regs.p.n = 1 && (cpu->rd.l & 0x80);
     cpu->regs.p.z = cpu->rd.l == 0;
 }
 
-void wdc65816_op_dec_w(WDC65816Cpu* cpu) {
+void wdc65816_op_dec_w(Wdc65816Cpu* cpu) {
     cpu->rd.w--;
     cpu->regs.p.n = 1 && (cpu->rd.w & 0x8000);
     cpu->regs.p.z = cpu->rd.w == 0;
 }
 
-void wdc65816_op_asl_b(WDC65816Cpu* cpu) {
+void wdc65816_op_asl_b(Wdc65816Cpu* cpu) {
     cpu->regs.p.c = 1 && (cpu->rd.l & 0x80);
     cpu->rd.l = cpu->rd.l << 1;
     cpu->regs.p.n = 1 && (cpu->rd.l & 0x80);
     cpu->regs.p.z = cpu->rd.l == 0;
 }
 
-void wdc65816_op_asl_w(WDC65816Cpu* cpu) {
+void wdc65816_op_asl_w(Wdc65816Cpu* cpu) {
     printf("%x %x %x\n", cpu->regs.p.c, cpu->regs.p.n, cpu->regs.p.z);
     cpu->regs.p.c = 1 && (cpu->rd.w & 0x8000);
     cpu->rd.l = cpu->rd.l << 1;
@@ -265,21 +265,21 @@ void wdc65816_op_asl_w(WDC65816Cpu* cpu) {
     printf("%x %x %x\n", cpu->regs.p.c, cpu->regs.p.n, cpu->regs.p.z);
 }
 
-void wdc65816_op_lsr_b(WDC65816Cpu* cpu) {
+void wdc65816_op_lsr_b(Wdc65816Cpu* cpu) {
     cpu->regs.p.c = 1 && (cpu->rd.l & 1);
     cpu->rd.l >>= 1;
     cpu->regs.p.n = 1 && (cpu->rd.l & 0x80);
     cpu->regs.p.z = cpu->rd.l == 0;
 }
 
-void wdc65816_op_lsr_w(WDC65816Cpu* cpu) {
+void wdc65816_op_lsr_w(Wdc65816Cpu* cpu) {
     cpu->regs.p.c = 1 && (cpu->rd.w & 1);
     cpu->rd.w >>= 1;
     cpu->regs.p.n = 1 && (cpu->rd.w & 0x8000);
     cpu->regs.p.z = cpu->rd.w == 0;
 }
 
-void wdc65816_op_rol_b(WDC65816Cpu* cpu) {
+void wdc65816_op_rol_b(Wdc65816Cpu* cpu) {
     unsigned carry = (unsigned)cpu->regs.p.c;
     cpu->regs.p.c = 1 && (cpu->rd.l & 0x80);
     cpu->rd.l = (cpu->rd.l << 1) | carry;
@@ -287,7 +287,7 @@ void wdc65816_op_rol_b(WDC65816Cpu* cpu) {
     cpu->regs.p.z = cpu->rd.l == 0;
 }
 
-void wdc65816_op_rol_w(WDC65816Cpu* cpu) {
+void wdc65816_op_rol_w(Wdc65816Cpu* cpu) {
     unsigned carry = (unsigned)cpu->regs.p.c;
     cpu->regs.p.c = 1 && (cpu->rd.w & 0x8000);
     cpu->rd.w = (cpu->rd.w << 1) | carry;
@@ -295,7 +295,7 @@ void wdc65816_op_rol_w(WDC65816Cpu* cpu) {
     cpu->regs.p.z = cpu->rd.w == 0;
 }
 
-void wdc65816_op_ror_b(WDC65816Cpu* cpu) {
+void wdc65816_op_ror_b(Wdc65816Cpu* cpu) {
     unsigned carry = (unsigned)cpu->regs.p.c << 7;
     cpu->regs.p.c = 1 && (cpu->rd.l & 1);
     cpu->rd.l = carry | (cpu->rd.l >> 1);
@@ -303,7 +303,7 @@ void wdc65816_op_ror_b(WDC65816Cpu* cpu) {
     cpu->regs.p.z = cpu->rd.l == 0;
 }
 
-void wdc65816_op_ror_w(WDC65816Cpu* cpu) {
+void wdc65816_op_ror_w(Wdc65816Cpu* cpu) {
     unsigned carry = (unsigned)cpu->regs.p.c << 15;
     cpu->regs.p.c = 1 && (cpu->rd.w & 1);
     cpu->rd.w = carry | (cpu->rd.w >> 1);
@@ -311,22 +311,22 @@ void wdc65816_op_ror_w(WDC65816Cpu* cpu) {
     cpu->regs.p.z = cpu->rd.w == 0;
 }
 
-void wdc65816_op_trb_b(WDC65816Cpu* cpu) {
+void wdc65816_op_trb_b(Wdc65816Cpu* cpu) {
     cpu->regs.p.z = (cpu->rd.l & cpu->regs.a.l) == 0;
     cpu->rd.l &= ~cpu->regs.a.l;
 }
 
-void wdc65816_op_trb_w(WDC65816Cpu* cpu) {
+void wdc65816_op_trb_w(Wdc65816Cpu* cpu) {
     cpu->regs.p.z = (cpu->rd.w & cpu->regs.a.w) == 0;
     cpu->rd.w &= ~cpu->regs.a.w;
 }
 
-void wdc65816_op_tsb_b(WDC65816Cpu* cpu) {
+void wdc65816_op_tsb_b(Wdc65816Cpu* cpu) {
     cpu->regs.p.z = (cpu->rd.l & cpu->regs.a.l) == 0;
     cpu->rd.l |= cpu->regs.a.l;
 }
 
-void wdc65816_op_tsb_w(WDC65816Cpu* cpu) {
+void wdc65816_op_tsb_w(Wdc65816Cpu* cpu) {
     cpu->regs.p.z = (cpu->rd.w & cpu->regs.a.w) == 0;
     cpu->rd.w |= cpu->regs.a.w;
 }

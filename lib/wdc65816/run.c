@@ -5,24 +5,24 @@
 
 #define jump_flags()                                        \
     if(cpu->regs.e) {                                       \
-        goto *jump_table_EM[wdc65816_op_readpc(cpu)];         \
+        goto *jump_table_EM[wdc65816_op_readpc(cpu)];       \
     } else if(cpu->regs.p.m) {                              \
         if(cpu->regs.p.x) {                                 \
-            goto *jump_table_MX[wdc65816_op_readpc(cpu)];     \
+            goto *jump_table_MX[wdc65816_op_readpc(cpu)];   \
         } else {                                            \
-            goto *jump_table_Mx[wdc65816_op_readpc(cpu)];     \
+            goto *jump_table_Mx[wdc65816_op_readpc(cpu)];   \
         }                                                   \
     } else {                                                \
         if(cpu->regs.p.x) {                                 \
-            goto *jump_table_mX[wdc65816_op_readpc(cpu)];     \
+            goto *jump_table_mX[wdc65816_op_readpc(cpu)];   \
         } else {                                            \
-            goto *jump_table_mx[wdc65816_op_readpc(cpu)];     \
+            goto *jump_table_mx[wdc65816_op_readpc(cpu)];   \
         }                                                   \
     }
 
 #ifdef DEBUG_PRINT_CPU_STATE
 #define opcode(funname)                                                 \
-    wdc65816_cpu_disassemble_opcode(cpu, output, cpu->regs.pc.d);         \
+    wdc65816_cpu_disassemble_opcode(cpu, output, cpu->regs.pc.d);       \
     printf("%s\n", output);                                             \
     funname(cpu);                                                       \
     cpu->stop_execution |= wdc65816_breakpoint_list_is_hit(&cpu->breakpoints_exec, cpu->regs.pc.d); \
@@ -34,8 +34,8 @@
     if(cpu->stop_execution) return;                                     
 #endif //DEBUG_65816
 
-#define opA(id, name)                               \
-    EM_##id:                                        \
+#define opA(id, name)                                 \
+    EM_##id:                                          \
         opcode(wdc65816_op_##name);                   \
         goto *jump_table_EM[wdc65816_op_readpc(cpu)]; \
     MX_##id:                                        \

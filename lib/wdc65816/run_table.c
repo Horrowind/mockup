@@ -10,12 +10,12 @@
 #include "opcode_read.h"
 #include "opcode_write.h"
 
-void wdc65816_cpu_run_from(WDC65816Cpu* cpu, u32 address) {
+void wdc65816_cpu_run_from(Wdc65816Cpu* cpu, u32 address) {
     cpu->regs.pc.d = address;
     wdc65816_cpu_run(cpu);
 }
 
-void wdc65816_cpu_run(WDC65816Cpu* cpu) {
+void wdc65816_cpu_run(Wdc65816Cpu* cpu) {
     cpu->stop_execution = 0;
     while(!cpu->stop_execution) {
         wdc65816_cpu_step(cpu);
@@ -23,7 +23,7 @@ void wdc65816_cpu_run(WDC65816Cpu* cpu) {
     }
 }
 
-void wdc65816_cpu_run_jsr(WDC65816Cpu* cpu, u32 address) {
+void wdc65816_cpu_run_jsr(Wdc65816Cpu* cpu, u32 address) {
     cpu->stop_execution = 0;
     cpu->regs.pc.d = address;
     cpu->regs.s.w = 0x1FF;
@@ -33,7 +33,7 @@ void wdc65816_cpu_run_jsr(WDC65816Cpu* cpu, u32 address) {
     }
 }
 
-void wdc65816_cpu_run_jsl(WDC65816Cpu* cpu, u32 address) {
+void wdc65816_cpu_run_jsl(Wdc65816Cpu* cpu, u32 address) {
     cpu->stop_execution = 0;
     cpu->regs.pc.d = address;
     cpu->regs.s.w = 0x1FF;
@@ -52,7 +52,7 @@ enum {
     table_mx = 1024,  //16-bit accumulator, 16-bit index
 };
 
-void (*op_table[])(struct WDC65816Cpu*) = {
+void (*op_table[])(struct Wdc65816Cpu*) = {
 #define opA(id, name)                           \
     [table_EM + id] = &wdc65816_op_##name,        \
     [table_MX + id] = &wdc65816_op_##name,        \
@@ -90,7 +90,7 @@ void (*op_table[])(struct WDC65816Cpu*) = {
 
 };
 
-void wdc65816_update_table(WDC65816Cpu* cpu) {
+void wdc65816_update_table(Wdc65816Cpu* cpu) {
     enum {
         table_EM =    0,  // 8-bit accumulator,  8-bit index (emulation mode)
         table_MX =  256,  // 8-bit accumulator,  8-bit index

@@ -1,25 +1,25 @@
-#ifndef R65816_MEMORY_H
-#define R65816_MEMORY_H
+#ifndef WDC65816_MEMORY_H
+#define WDC65816_MEMORY_H
 
 #include "cpu.h"
 
-u8 wdc65816_op_readpc(WDC65816Cpu* cpu);
-u8 wdc65816_op_readstack(WDC65816Cpu* cpu);
-u8 wdc65816_op_readstackn(WDC65816Cpu* cpu);
-u8 wdc65816_op_readaddr(WDC65816Cpu* cpu, u32 addr);
-u8 wdc65816_op_readlong(WDC65816Cpu* cpu, u32 addr);
-u8 wdc65816_op_readdbr(WDC65816Cpu* cpu, u32 addr);
-u8 wdc65816_op_readpbr(WDC65816Cpu* cpu, u32 addr);
-u8 wdc65816_op_readdp(WDC65816Cpu* cpu, u32 addr);
-u8 wdc65816_op_readsp(WDC65816Cpu* cpu, u32 addr);
-void wdc65816_op_writestack(WDC65816Cpu* cpu, u8 data);
-void wdc65816_op_writestackn(WDC65816Cpu* cpu, u8 data);
-void wdc65816_op_writeaddr(WDC65816Cpu* cpu, u32 addr, u8 data);
-void wdc65816_op_writelong(WDC65816Cpu* cpu, u32 addr, u8 data);
-void wdc65816_op_writedbr(WDC65816Cpu* cpu, u32 addr, u8 data);
-void wdc65816_op_writepbr(WDC65816Cpu* cpu, u32 addr, u8 data);
-void wdc65816_op_writedp(WDC65816Cpu* cpu, u32 addr, u8 data);
-void wdc65816_op_writesp(WDC65816Cpu* cpu, u32 addr, u8 data);
+u8 wdc65816_op_readpc(Wdc65816Cpu* cpu);
+u8 wdc65816_op_readstack(Wdc65816Cpu* cpu);
+u8 wdc65816_op_readstackn(Wdc65816Cpu* cpu);
+u8 wdc65816_op_readaddr(Wdc65816Cpu* cpu, u32 addr);
+u8 wdc65816_op_readlong(Wdc65816Cpu* cpu, u32 addr);
+u8 wdc65816_op_readdbr(Wdc65816Cpu* cpu, u32 addr);
+u8 wdc65816_op_readpbr(Wdc65816Cpu* cpu, u32 addr);
+u8 wdc65816_op_readdp(Wdc65816Cpu* cpu, u32 addr);
+u8 wdc65816_op_readsp(Wdc65816Cpu* cpu, u32 addr);
+void wdc65816_op_writestack(Wdc65816Cpu* cpu, u8 data);
+void wdc65816_op_writestackn(Wdc65816Cpu* cpu, u8 data);
+void wdc65816_op_writeaddr(Wdc65816Cpu* cpu, u32 addr, u8 data);
+void wdc65816_op_writelong(Wdc65816Cpu* cpu, u32 addr, u8 data);
+void wdc65816_op_writedbr(Wdc65816Cpu* cpu, u32 addr, u8 data);
+void wdc65816_op_writepbr(Wdc65816Cpu* cpu, u32 addr, u8 data);
+void wdc65816_op_writedp(Wdc65816Cpu* cpu, u32 addr, u8 data);
+void wdc65816_op_writesp(Wdc65816Cpu* cpu, u32 addr, u8 data);
 
 
-#endif //R65816_MEMORY_H
+#endif //WDC65816_MEMORY_H

@@ -1,5 +1,5 @@
-#ifndef LIBR65816_BREAKPOINT_H
-#define LIBR65816_BREAKPOINT_H
+#ifndef WDC65816_BREAKPOINT_H
+#define WDC65816_BREAKPOINT_H
 
 #include "base/base.h"
 
@@ -8,19 +8,19 @@
 typedef struct {
     u32 low;
     u32 high;
-} WDC65816Breakpoint;
+} Wdc65816Breakpoint;
 
 typedef struct {
     int length;
-    WDC65816Breakpoint address[BP_MAX_LENGTH];
+    Wdc65816Breakpoint address[BP_MAX_LENGTH];
 //    wdc65816_breakpoint_t* address;
-} WDC65816BreakpointList;
+} Wdc65816BreakpointList;
 
 
-void wdc65816_breakpoint_list_init(WDC65816BreakpointList* brk);
-b32 wdc65816_breakpoint_list_is_hit(WDC65816BreakpointList* brk, u32 address);
-void wdc65816_breakpoint_list_add(WDC65816BreakpointList* brk, u32 address);
-void wdc65816_breakpoint_list_add_range(WDC65816BreakpointList* brk, u32 address_low, u32 address_high);
-void wdc65816_breakpoint_list_deinit(WDC65816BreakpointList* brk);
+void wdc65816_breakpoint_list_init(Wdc65816BreakpointList* brk);
+b32 wdc65816_breakpoint_list_is_hit(Wdc65816BreakpointList* brk, u32 address);
+void wdc65816_breakpoint_list_add(Wdc65816BreakpointList* brk, u32 address);
+void wdc65816_breakpoint_list_add_range(Wdc65816BreakpointList* brk, u32 address_low, u32 address_high);
+void wdc65816_breakpoint_list_deinit(Wdc65816BreakpointList* brk);
 
-#endif //LIBR65816_BREAKPOINT_H
+#endif //WDC65816_BREAKPOINT_H

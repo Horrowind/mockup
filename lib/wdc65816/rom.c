@@ -1,7 +1,7 @@
 #include "rom.h"
 
 static
-void wdc65816_rom_parse_bml_map(BMLNode* map_node, WDC65816Mapper* mapper, WDC65816MapperEntry* entry) {
+void wdc65816_rom_parse_bml_map(BMLNode* map_node, Wdc65816Mapper* mapper, Wdc65816MapperEntry* entry) {
     BMLNode* node = map_node->child;
     entry->low  = 0;
     entry->high = 0;
@@ -63,8 +63,8 @@ void wdc65816_rom_parse_bml_map(BMLNode* map_node, WDC65816Mapper* mapper, WDC65
 }
 
 static
-void wdc65816_rom_parse_memory(BMLNode* node, WDC65816Mapper* mapper, VFS* vfs) {
-    WDC65816MapperEntry entry = { 0 };
+void wdc65816_rom_parse_memory(BMLNode* node, Wdc65816Mapper* mapper, VFS* vfs) {
+    Wdc65816MapperEntry entry = { 0 };
     BMLNode* node2 = node->child;
     while(node2) {
         if(string_equal(node2->name, L("name"))) {
@@ -95,13 +95,15 @@ void wdc65816_rom_parse_memory(BMLNode* node, WDC65816Mapper* mapper, VFS* vfs) 
     }
 }
 
-void wdc65816_rom_init(WDC65816Rom* rom, VFS* vfs, Arena* arena) {
+void wdc65816_rom_init(Wdc65816Rom* rom, VFS* vfs, Arena* arena) {
     VFSEntry dummy = {.name = L("manifest.bml")};
     VFSEntry* manifest_entry = vfs_find(vfs, dummy);
     Buffer manifest = manifest_entry->buffer;
-    *rom = (WDC65816Rom) { 0 };
+    *rom = (Wdc65816Rom) { 0 };
     BMLNode* node = bml_parse(manifest, arena);
     //bml_print_node(node, 0);
+    wdc65816_mapper_init(&rom->read_mapper, arena);
+    wdc65816_mapper_init(&rom->write_mapper, arena);
     while(node) {
         if(string_equal(node->name, L("board"))) {
             BMLNode* node2 = node->child;
@@ -120,14 +122,12 @@ void wdc65816_rom_init(WDC65816Rom* rom, VFS* vfs, Arena* arena) {
         node = node->next;
     }
 
-    wdc65816_mapper_init_functions(&rom->read_mapper);
-    rom->read  = rom->read_mapper.read;
-    rom->write = rom->read_mapper.write;
-    rom->ptr   = rom->read_mapper.ptr;
+    wdc65816_mapper_update(&rom->read_mapper);
+    wdc65816_mapper_update(&rom->write_mapper);
 }
 
 
-void wdc65816_rom_free(WDC65816Rom* rom) {
+void wdc65816_rom_free(Wdc65816Rom* rom) {
     // TODO!!!
     /* free(rom->data); */
     /* free(rom->banks); */
