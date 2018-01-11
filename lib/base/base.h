@@ -8,19 +8,21 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#include <dirent.h>
-#include <fcntl.h>
-#include <libgen.h>
-#include <errno.h>
-#include <signal.h>
-
-
 #if defined(__EMSCRIPTEN__)
 #define WASM
 #elif defined(__MINGW32__)
 #define WINDOWS
 #else
 #define LINUX
+#endif
+
+#if defined(LINUX) || defined(WASM)
+#include <dirent.h>
+#include <fcntl.h>
+#elif defined(WINDOWS)
+#define UNICODE
+#define _UNICODE
+#include <windows.h>
 #endif
 
 typedef int8_t i8;
@@ -46,7 +48,7 @@ typedef uintptr_t      uptr;
 
 
 #ifndef NDEBUG
-#define assert(x) if(!(x)) {*(int *)0 = 0;}
+#define assert(x) if(!(x)) {__builtin_trap();}
 #else
 #define assert(x)
 #endif
@@ -56,7 +58,7 @@ typedef uintptr_t      uptr;
 #define CODE_LOCATION STR(__FILE__) ": " STR(__LINE__) " in " STR(__PRETTY_FUNCTION__)
 #define invalid_code_path assert(!"Invalid code path at "   \
                                  CODE_LOCATION)
-#define invalid_default_case default: {invalid_code_path;} break
+#define invalid_default_case default: invalid_code_path; break
 
 
 #define KB(x) (x * 1024ull)
@@ -69,14 +71,18 @@ typedef uintptr_t      uptr;
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define debug_break raise(SIGINT)
-#define PAGE_SIZE 4096
 
-struct {
+typedef struct  {
     uint page_size;
     uint is_initialized : 1;
-} global;
+} Global;
+extern Global global;
 
 void global_init();
+
+void* page_alloc(ulong num_pages);
+void* page_realloc(void* pages, ulong old_num_pages, ulong new_num_pages);
+void  page_free(void* pages, ulong num_pages);
 
 typedef struct {
     void* begin;
@@ -95,6 +101,17 @@ Arena   arena_subarena(Arena* a, ulong size);
 void*   arena_alloc(Arena* a, ulong size, ulong align);
 #define arena_alloc_type(a,type) ((type*)arena_alloc((a), sizeof(type), alignof(type)))
 #define arena_alloc_array(a,n,type) (type*)arena_alloc((a), (n)*sizeof(type), alignof(type))
+
+typedef struct FreeList {
+    struct FreeList* next;
+    struct FreeList* prev;
+    void* ptr;
+    ulong num_pages;
+} FreeList;
+
+void  free_list_init(FreeList* free_list_sentinel);
+void* free_list_alloc(FreeList* free_list_sentinel, ulong size);
+void  free_list_add(FreeList* free_list_sentinel, void* ptr, ulong num_pages);
 
 typedef struct {
     Arena* arena;
@@ -117,27 +134,41 @@ u64 string_to_u64(String s);
 u64 string_to_u64_base(String s, int base);
 
 #define string_split_foreach(s, t, c)                                   \
-    String t = { .data = (s).data };                                  \
+    String t = { .data = (s).data };                                    \
     for(char* macro_c_ = (s).data; macro_c_ <= (s).data + (s).length;   \
         t.data = (*macro_c_ == c) ? macro_c_ + 1 : t.data,              \
             macro_c_++, t.length = macro_c_ - t.data)                   \
         if(*macro_c_ == c || macro_c_ == (s).data + (s).length)         \
 
 
+#if defined(WASM)
+#include <sys/stat.h>
+#endif
+
+
 typedef struct {
     uint has_stats : 1;
     uint invalid   : 1;
-#ifdef LINUX
+#if defined(LINUX) || defined(WASM)
     int fd_;
     struct stat st_buf_;
+#elif defined(WINDOWS)
+    HANDLE handle_;
+    PWSTR  path_name_;
+    WIN32_FILE_ATTRIBUTE_DATA data_;
 #endif
 } Path;
 
 typedef struct {
     Path path;
     Path* dir_path;
-#ifdef LINUX
+#if defined(LINUX) || defined(WASM)
     DIR* dp_;
+#elif defined(WINDOWS)
+    HANDLE handle_;
+    WIN32_FIND_DATA find_file_data_;
+    int first_iteration : 1;
+    int last_iteration  : 1;
 #endif
 } DirIter;
 
@@ -154,18 +185,11 @@ void       path_navigate(Path* path, String name);
 void       path_navigate_c(Path* path, char* name);
 ulong      path_get_file_size(Path* path);
 int        path_is_directory(Path* path);
-String   path_get_name(Path* path, Arena* arena); //TODO
-String   path_get_base_name(Path* path, Arena* arena); //TODO
-DirIter dir_iter_begin(Path* path);
+String     path_get_name(Path* path, Arena* arena); //TODO
+String     path_get_base_name(Path* path, Arena* arena); //TODO
+DirIter    dir_iter_begin(Path* path);
 int        dir_iter_next(DirIter* dir_iter);
 void       dir_iter_end(DirIter* dir_iter);
-
-/* void  pool_init(pool_t* pool, page_list_t* free_list); */
-/* void* pool_alloc(pool_t* pool,ulong bytes, ulong align); */
-/* void  pool_empty(pool_t* pool); */
-/* void  pool_deinit(pool_t* pool); */
-/* #define pool_alloc_type(a,type) ((type*)pool_alloc(a, (int)sizeof(type), alignof(type))) */
-/* #define pool_alloc_array(a,n,type) (type*)pool_alloc(a, (n)*sizeof(type), alignof(type)) */
 
 typedef struct {
     String file_name;
@@ -173,8 +197,6 @@ typedef struct {
     int      line_pos;
     char*    line_start;
 } TextPos;
-
-
 
 #ifdef NDEBUG
 #define error_at_pos(text_pos) error_at_pos2(text_pos)
@@ -274,8 +296,8 @@ void bml_print_node(BMLNode* node, int indent);
         u16 fill;                                                       \
         u16 capacity;                                                   \
     } name;                                                             \
-    extern void prefix##_init(name* s, int size);                       \
-    extern void prefix##_deinit(name* s);                               \
+    extern void prefix##_init(name* s, FreeList* sentinel, int size);   \
+    extern void prefix##_deinit(name* s, FreeList* sentinel);           \
     extern type* prefix##_push(name* s, type data);                     \
     extern void prefix##_reserve(name* s);                              \
     extern type* prefix##_pop(name* s);                                 \
@@ -283,21 +305,33 @@ void bml_print_node(BMLNode* node, int indent);
     extern b32 prefix##_is_empty(name* s);
 
 #define implement_stack(name, prefix, type)                             \
-    inline void prefix##_init(name* s, int size) {                      \
-        s->data = malloc(size * sizeof(type));                          \
+    inline void prefix##_init(name* s, FreeList* sentinel, int size) {  \
+        if(!global.is_initialized) global_init();                       \
+        ulong num_pages = (size * sizeof(type) + global.page_size - 1) / \
+            global.page_size;                                           \
+        s->data = free_list_alloc(sentinel, num_pages);                 \
         s->fill = 0;                                                    \
         s->capacity = size;                                             \
     }                                                                   \
                                                                         \
-    inline void prefix##_deinit(name* s) {                              \
-        free(s->data);                                                  \
+    inline void prefix##_deinit(name* s, FreeList* sentinel) {          \
+        ulong num_pages = (s->capacity * sizeof(type) +                 \
+                           global.page_size - 1) /                      \
+                           global.page_size;                            \
+        free_list_add(sentinel, s->data, num_pages);                    \
     }                                                                   \
                                                                         \
     inline type* prefix##_push(name* s, type data) {                    \
         if(s->fill == s->capacity) {                                    \
+            ulong old_num_pages = (s->capacity * sizeof(type) +         \
+                                   global.page_size - 1) /              \
+                                   global.page_size;                    \
             s->capacity *= 2;                                           \
+            ulong new_num_pages = (s->capacity * sizeof(type) +         \
+                                   global.page_size - 1) /              \
+                                   global.page_size;                    \
             /*TODO: One should check for null here...        */         \
-            s->data = realloc(s->data, s->capacity * sizeof(type));     \
+            s->data = page_realloc(s->data, old_num_pages, new_num_pages); \
         }                                                               \
         s->data[s->fill] = data;                                        \
         s->fill++;                                                      \
@@ -479,34 +513,81 @@ void vfs_add_dir(VFS* vfs, Path* path, Arena* arena);
 #ifndef BASE_IMPLEMENTATION_GUARD
 #define BASE_IMPLEMENTATION_GUARD
 
-#ifdef LINUX
+Global global = { 0 };
+
+#if defined(LINUX) || defined(WASM)
+#if defined(LINUX)
+#define __USE_GNU
+#else
+#define _GNU_SOURCE
+#endif
+#include <unistd.h>
+#include <libgen.h>
+#include <errno.h>
+#include <signal.h>
 #include <sys/mman.h>
-void* page_alloc(uint num_pages) {
-    return mmap(NULL, PAGE_SIZE * num_pages, PROT_READ | PROT_WRITE,
+
+void global_init() {
+    global.page_size = sysconf(_SC_PAGESIZE);
+    global.is_initialized = 1;
+}
+
+void* page_alloc(ulong num_pages) {
+    if(!global.is_initialized) global_init();
+    return mmap(NULL, global.page_size * num_pages, PROT_READ | PROT_WRITE,
                 MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
 }
 
-void page_free(void* page, uint num_pages) {
-    munmap(page, num_pages * PAGE_SIZE);
-}
-#elif defined(WINDOWS)
-#include <windows.h>
-void* page_alloc(uint num_pages) {
-    return VirtualAlloc(0, PAGE_SIZE * num_pages,
-                        MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+void* page_realloc(void* pages, ulong old_num_pages, ulong new_num_pages) {
+    if(!global.is_initialized) global_init();
+    return mremap(pages, global.page_size * old_num_pages,
+                  global.page_size * new_num_pages, MREMAP_MAYMOVE);
 }
 
-void page_free(void* page, uint num_pages) {
-    VirtualFree(page, num_pages * PAGE_SIZE, MEM_RELEASE);
+
+void page_free(void* page, ulong num_pages) {
+    if(!global.is_initialized) global_init();
+    munmap(page, num_pages * global.page_size);
 }
+#elif defined(WINDOWS)
+#include "shlwapi.h"
+
+void global_init() {
+    SYSTEM_INFO system_info;
+    GetSystemInfo(&system_info);
+    global.page_size = system_info.dwPageSize;
+    assert(0);
+}
+
+
+void* page_alloc(ulong num_pages) {
+    if(!global.is_initialized) global_init();
+
+    return malloc(global.page_size * num_pages);
+    /* return VirtualAlloc(0, global.page_size * num_pages, */
+    /*                     MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE); */
+}
+
+void page_free(void* page, ulong num_pages) {
+    if(!global.is_initialized) global_init();
+    free(page);
+//    VirtualFree(page, num_pages * global.page_size, MEM_RELEASE);
+}
+void* page_realloc(void* pages, ulong old_num_pages, ulong new_num_pages) {
+    if(!global.is_initialized) global_init();
+    return realloc(pages, global.page_size * new_num_pages);
+}
+
 #endif
 
 
 
 Arena arena_create(ulong size) {
-    Buffer buffer;
-    buffer.begin = page_alloc((size + PAGE_SIZE - 1) / PAGE_SIZE);
-    buffer.end   = buffer.begin + size;
+    if(!global.is_initialized) global_init();
+    Buffer buffer = {
+        .begin = page_alloc((size + global.page_size - 1) / global.page_size),
+        .end   = (void*)((char*)buffer.begin + size)
+    };
     return (Arena){
         .buffer = buffer,
         .current = buffer.begin
@@ -528,17 +609,11 @@ void* arena_alloc(Arena* a, ulong size, ulong align) {
     assert(a && a->current >= a->buffer.begin && a->current <= a->buffer.end);
     if (!a) return 0;
     align = align == 0 ? 0 : align - 1;
-    void* result = ((void*)(((iptr)(a->current + align)&~align)));
-    assert(result + size < a->buffer.end);
-    if(result + size >= a->buffer.end) return NULL;
-    /* { */
-    /*     long num_pages = (sizeof(page_list_t) + size + align + PAGE_SIZE - 1) / PAGE_SIZE; */
-    /*     void* page = (page_list_t*)page_list_alloc(a->free_list, num_pages); */
-    /*     page_list_add(&a->used_list_sentinel, page, num_pages); */
-    /*     result = page + sizeof(page_list_t); */
-    /*     a->buffer.end = result + num_pages * PAGE_SIZE; */
-    /* } */
-    a->current = result + size;
+    void* result = ((void*)(((iptr)((char*)a->current + align)&~align)));
+    void* end = (void*)((char*)result + size); 
+    assert(end < a->buffer.end);
+    if(end >= a->buffer.end) return NULL;
+    a->current = end;
     return result;
 }
 
@@ -551,6 +626,44 @@ Arena arena_subarena(Arena* a, ulong size) {
     };
     return result;
 }
+
+void free_list_init(FreeList* free_list_sentinel) {
+    free_list_sentinel->next = free_list_sentinel;
+    free_list_sentinel->prev = free_list_sentinel;
+}
+
+void* free_list_alloc(FreeList* free_list_sentinel, ulong num_pages) {
+    if(!global.is_initialized) global_init();
+    void* result = NULL;
+    for(FreeList* entry = free_list_sentinel->next;
+        entry != free_list_sentinel;
+        entry = entry->next) {
+        if(num_pages < entry->num_pages) {
+            result = entry->ptr + num_pages * global.page_size;
+            entry->num_pages -= num_pages;
+            break;
+        } else if(num_pages == entry->num_pages) {
+            result = entry->ptr;
+            entry->prev->next = entry->next;
+            entry->next->prev = entry->prev;
+            break;
+        }
+    }
+    if(!result) result = page_alloc(num_pages);
+    return result;
+}
+
+void free_list_add(FreeList* free_list_sentinel, void* ptr, ulong num_pages) {
+    FreeList* entry = ptr;
+    entry->ptr = ptr;
+    entry->num_pages = num_pages;
+    entry->prev = free_list_sentinel;
+    entry->next = free_list_sentinel->next;
+    entry->prev->next = entry;
+    entry->next->prev = entry;
+}
+
+
 
 Temp temp_begin(Arena* a) {
     return (Temp) {
@@ -623,7 +736,7 @@ String string_from_c_string(char* buf) {
     return s;
 }
 
-#ifdef LINUX
+#if defined(LINUX) || defined(WASM)
 #include <unistd.h>
 #include <sys/stat.h>
 
@@ -740,12 +853,13 @@ String path_get_name(Path* path, Arena* arena) {
     if(sb.st_size == 0) supposed_file_name_length = PATH_MAX;
     String result;
     result.data   = arena_alloc_array(arena, supposed_file_name_length, char);
-    result.length = readlink(proc_path_name, result.data,
+    int length = readlink(proc_path_name, result.data,
                              supposed_file_name_length);
-    if(result.length == -1) {
+    if(length == -1) {
         perror("readlink");
         exit(1);
     }
+    result.length = length;
     return result;
 }
 
@@ -812,7 +926,7 @@ DirIter dir_iter_begin(Path* path) {
     result.dp_ = fdopendir(path->fd_);
 
     if(!result.dp_) {
-        fprintf(stderr, strerror(errno));
+        fprintf(stderr, "%s\n", strerror(errno));
         exit(1);
     }
     result.dir_path = path;
@@ -823,6 +937,261 @@ void dir_iter_end(DirIter* dir_iter) {
     path_close(&dir_iter->path);
     closedir(dir_iter->dp_);
 }
+#elif defined(WINDOWS)
+#include <pathcch.h>
+
+static
+LPWSTR utf8_to_wchar(String str) {
+    int length = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
+                                     str.data, str.length, NULL, 0);
+    LPWSTR result = LocalAlloc(LMEM_FIXED, length * sizeof(wchar_t));
+    MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
+                        str.data, str.length, result, length);
+    return result;
+}
+
+static
+LPWSTR utf8_to_wchar_c(char* str) {
+    int length = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
+                                     str, -1, NULL, 0);
+    LPWSTR result = LocalAlloc(LMEM_FIXED, length * sizeof(wchar_t));
+    MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
+                        str, -1, result, length);
+    return result;
+}
+
+
+char* wchar_to_utf8_c(LPWSTR str) {
+    int length = WideCharToMultiByte(CP_UTF8, WC_NO_BEST_FIT_CHARS,
+                                    str, -1, NULL, 0, NULL, NULL);
+    char* result = LocalAlloc(LMEM_FIXED, length);
+    WideCharToMultiByte(CP_UTF8, WC_NO_BEST_FIT_CHARS,
+                        str, -1, result, length, NULL, NULL);
+    return result;
+}
+
+static
+String wchar_to_utf8(LPWSTR str) {
+    int length = WideCharToMultiByte(CP_UTF8, WC_NO_BEST_FIT_CHARS,
+                                    str, -1, NULL, 0, NULL, NULL);
+    String result = {
+        .data = LocalAlloc(LMEM_FIXED, length),
+        .length = length - 1
+    };
+    WideCharToMultiByte(CP_UTF8, WC_NO_BEST_FIT_CHARS,
+                        str, -1, result.data, length, NULL, NULL);
+    return result;
+}
+
+
+void path_init_c(Path* path, char* name) {
+    LPWSTR wname = utf8_to_wchar_c(name);
+    DWORD path_name_length = GetFullPathNameW(wname, 0, NULL, NULL);
+    path->path_name_ = LocalAlloc(LMEM_FIXED, path_name_length);
+    GetFullPathNameW(wname, path_name_length, path->path_name_, NULL);
+    LocalFree(wname);
+    path->handle_ = CreateFileW(path->path_name_, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+    path->has_stats = 0;
+    path->invalid = 0;
+}
+
+void path_init(Path* path, String name) {
+    char name_c[PATH_MAX];
+    if(name.length >= PATH_MAX - 1) {
+        fprintf(stderr, "File name \"%.*s\" is to long.\n", name.length, name.data);
+    }
+    strncpy(name_c, name.data, name.length);
+    name_c[name.length] = '\0';
+    path_init_c(path, name_c);
+}
+
+void path_init_from_c(Path* path, Path* dir, char* name) {
+    LPWSTR wname = utf8_to_wchar_c(name);
+    if(PathIsRelative(wname)) {
+        int path_length = lstrlenW(wname) + lstrlenW(dir->path_name_) + 1;
+        path->path_name_ = LocalAlloc(LMEM_FIXED, path_length * sizeof(wchar_t));
+        lstrcpyW(path->path_name_, dir->path_name_);
+        lstrcatW(path->path_name_, wname);
+        LocalFree(wname);
+    } else {
+        path->path_name_ = wname;
+    }
+    path->handle_ = CreateFileW(path->path_name_, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+    path->has_stats = 0;
+    path->invalid = 0;
+}
+
+
+void path_init_from(Path* path, Path* dir, String name) {
+    LPWSTR wname = utf8_to_wchar(name);
+    if(PathIsRelative(wname)) {
+        int path_length = lstrlenW(wname) + lstrlenW(dir->path_name_) + 1;
+        path->path_name_ = LocalAlloc(LMEM_FIXED, path_length * sizeof(wchar_t));
+        lstrcpyW(path->path_name_, dir->path_name_);
+        lstrcatW(path->path_name_, wname);
+        LocalFree(wname);
+    } else {
+        path->path_name_ = wname;
+    }
+    path->handle_ = CreateFileW(path->path_name_, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+    path->has_stats = 0;
+    path->invalid = 0;
+}
+
+
+void path_init_working_directory(Path* path) {
+    DWORD path_name_length = GetCurrentDirectoryW(0, NULL);
+    path->path_name_ = LocalAlloc(LMEM_FIXED, path_name_length);
+    GetCurrentDirectoryW(path_name_length, path->path_name_);
+    path->handle_ = CreateFileW(path->path_name_, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+    path->has_stats = 0;
+    path->invalid = 0;
+}
+
+void path_load_stats(Path* path) {
+    if(!path->has_stats) {
+        GetFileAttributesExW(path->path_name_, GetFileExInfoStandard, &path->data_);
+        path->has_stats = 1;
+    }
+}
+
+void path_copy(Path* orig, Path* copy) {
+    *copy = (Path){ 0 };
+    copy->handle_ = CreateFileW(orig->path_name_, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+    int path_length = lstrlenW(orig->path_name_) + 1;
+    copy->path_name_ = LocalAlloc(LMEM_FIXED, path_length * sizeof(wchar_t));
+    lstrcpyW(copy->path_name_, orig->path_name_);
+    if(orig->has_stats) path_load_stats(copy);
+}
+
+Buffer path_open_file_aligned(Path* path, Arena* arena, int alignment) {
+    ulong file_size = path_get_file_size(path);
+    Buffer result = { 0 };
+    result.begin = arena_alloc(arena, file_size, alignment);
+    result.end = result.begin + file_size;
+    ReadFile(path->handle_, result.begin, file_size, NULL, NULL);
+    return result;
+}
+
+Buffer path_open_file(Path* path, Arena* arena) {
+    return path_open_file_aligned(path, arena, 1);
+}
+
+void path_close(Path* path) {
+    if(!path->invalid) {
+        CloseHandle(path->handle_);
+        LocalFree(path->path_name_);
+        path->invalid = 1;
+    }
+}
+
+/* TODO
+void path_navigate_c(Path* path, char* name) {
+    int new_fd = openat(path->fd_, name, O_RDONLY);
+    path_close(path);
+    path->fd_ = new_fd;
+    path->has_stats = 0;
+    path->invalid = 0;
+}
+*/
+
+/* TODO?!
+void path_navigate(Path* path, String name) {
+    char name_c[PATH_MAX];
+    if(name.length >= PATH_MAX - 1) {
+        fprintf(stderr, "File name \"%.*s\" is to long.\n", name.length, name.data);
+    }
+    strncpy(name_c, name.data, name.length);
+    name_c[name.length] = '\0';
+    path_navigate_c(path, name_c);
+}
+*/
+
+int path_is_directory(Path* path) {
+    path_load_stats(path);
+    return path->data_.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY;
+}
+
+ulong path_get_file_size(Path* path) {
+    path_load_stats(path);
+    LARGE_INTEGER file_size_win;
+    file_size_win.LowPart  = path->data_.nFileSizeLow;
+    file_size_win.HighPart = path->data_.nFileSizeHigh;
+    return file_size_win.QuadPart;
+}
+
+String path_get_name(Path* path, Arena* arena) {
+    int path_name_length = WideCharToMultiByte(
+        CP_UTF8, WC_NO_BEST_FIT_CHARS,
+        path->path_name_, -1, NULL, 0, NULL, NULL);
+    String result;
+    result.data   = arena_alloc_array(arena, path_name_length, char);
+    result.length = path_name_length;
+    WideCharToMultiByte(CP_UTF8, WC_NO_BEST_FIT_CHARS,
+                        path->path_name_, -1, result.data,
+                        path_name_length, NULL, NULL);
+    return result;
+}
+
+String path_get_base_name(Path* path, Arena* arena) {
+    DWORD path_name_size = GetFullPathName(path->path_name_, 0, NULL, NULL);
+    wchar_t* base_name_win;
+    wchar_t* path_name_win = arena_alloc_array(arena, path_name_size, wchar_t);
+    GetFullPathName(path->path_name_, path_name_size, path_name_win, &base_name_win);
+    String base_name = wchar_to_utf8(base_name_win);
+    String result;
+    result.data = arena_alloc_array(arena, base_name.length, char);
+    for(int i = 0; i < result.length; i++) {
+        result.data[i] = base_name.data[i];
+    }
+    LocalFree(base_name.data);
+    return result;
+    
+}
+
+int dir_iter_next(DirIter* dir_iter) {
+    if(dir_iter->last_iteration) {
+        return 1;
+    }
+    if(!dir_iter->first_iteration) {
+        path_close(&dir_iter->path);
+        dir_iter->last_iteration = 0;
+    }
+    dir_iter->handle_ =
+        CreateFileW(dir_iter->find_file_data_.cFileName,
+                    GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+    
+    BOOL error =  FindNextFile(dir_iter->handle_, &dir_iter->find_file_data_);
+    if(!error) {
+        if(GetLastError() == ERROR_NO_MORE_FILES) {
+            dir_iter->last_iteration = 1;
+        } else {
+            fprintf(stderr, "Error occured\n");
+            exit(1);
+        }
+    }
+    return 0;
+}
+
+DirIter dir_iter_begin(Path* path) {
+    DirIter result = { 0 };
+    int path_length = lstrlenW(path->path_name_) + 3;
+    PWSTR search_name = LocalAlloc(LMEM_FIXED, path_length * sizeof(wchar_t));
+    lstrcpyW(search_name, path->path_name_);
+    lstrcatW(search_name, L"\\*");
+    result.handle_ = FindFirstFile(search_name, &result.find_file_data_);
+    //TODO: Error
+    result.dir_path = path;
+    result.last_iteration = 1;
+    result.last_iteration = 0;
+    return result;
+}
+
+void dir_iter_end(DirIter* dir_iter) {
+    path_close(&dir_iter->path);
+    FindClose(dir_iter->handle_);
+}
+
 #endif
 
 implement_hashmap(StringMap, string_map, String, SuperFastHash, string_equal);
@@ -931,10 +1300,10 @@ typedef struct {
     TextPos text_pos;
     Arena*  arena;
     int     had_new_line;
-} bml_parser_state_t;
+} BMLParserState;
 
 
-void bml_parser_advance(bml_parser_state_t* parser) {
+void bml_parser_advance(BMLParserState* parser) {
     parser->pos++;
     parser->text_pos.line_pos++;
     if(parser->had_new_line) {
@@ -948,7 +1317,7 @@ int bml_is_valid_char(char p)  {  //A-Z, a-z, 0-9, -.
 }
 
 
-void bml_parse_name(BMLNode* node, bml_parser_state_t* parser) {
+void bml_parse_name(BMLNode* node, BMLParserState* parser) {
     char* begin = parser->pos;
     while(bml_is_valid_char(parser->pos[0])) bml_parser_advance(parser);
     if(parser->pos == begin) {
@@ -962,7 +1331,7 @@ void bml_parse_name(BMLNode* node, bml_parser_state_t* parser) {
     };
 }
 
-void bml_parse_data(BMLNode* node, bml_parser_state_t* parser) {
+void bml_parse_data(BMLNode* node, BMLParserState* parser) {
     char* begin = NULL, *end = NULL;
     if(parser->pos[0] == '=' && parser->pos[1] == '"') {
         bml_parser_advance(parser);
@@ -1039,7 +1408,7 @@ void bml_parse_data(BMLNode* node, bml_parser_state_t* parser) {
     };
 }
 
-void bml_parse_attributes(BMLNode* node, bml_parser_state_t* parser) {
+void bml_parse_attributes(BMLNode* node, BMLParserState* parser) {
     BMLNode** next_node_ptr = &node->child;
     while(1) {
         if(!parser->pos[0]) break;
@@ -1080,7 +1449,7 @@ void bml_parse_attributes(BMLNode* node, bml_parser_state_t* parser) {
     }
 }
 
-int bml_parse_indent(bml_parser_state_t* parser) {
+int bml_parse_indent(BMLParserState* parser) {
     int result = 0;
     while(parser->pos[0] == ' ' || parser->pos[0] == '\t') {
         result++;
@@ -1089,7 +1458,7 @@ int bml_parse_indent(bml_parser_state_t* parser) {
     return result;
 }
 
-BMLNode* bml_parse_node(bml_parser_state_t* parser, int* indent) {
+BMLNode* bml_parse_node(BMLParserState* parser, int* indent) {
     if(parser->pos[0] == '\0') {
         return NULL;
     }
@@ -1181,7 +1550,7 @@ BMLNode* bml_parse_node(bml_parser_state_t* parser, int* indent) {
 }
 
 BMLNode* bml_parse(Buffer buffer, Arena* arena) {
-    bml_parser_state_t parser = { 0 };
+    BMLParserState parser = { 0 };
     parser.buffer = buffer;
     parser.pos    = (char*)buffer.begin;
     parser.text_pos.line_number = 1;
