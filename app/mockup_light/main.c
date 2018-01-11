@@ -1,16 +1,7 @@
 #include "mockup/smw.h"
 
-char* strncpy2(char *dest, const char *src, size_t n) {
-    size_t i;
-    for (i = 0; i < n && src[i] != '\0'; i++) dest[i] = src[i];
-    for ( ; i <= n; i++)                      dest[i] = '\0';
-
-    return dest;
-}
-
-
 int main(int argc, char** argv) {
-    Arena arena = arena_create(MB(128));
+    Arena arena = arena_create(MB(1024));
 
     String path_name = (argc > 1) ? string_from_c_string(argv[1]) : L("SuperMarioWorld.sfc");
     Path path;
@@ -19,7 +10,7 @@ int main(int argc, char** argv) {
     vfs_init(&vfs, 4);
     vfs_add_dir(&vfs, &path, &arena);
     
-    WDC65816Rom rom;
+    Wdc65816Rom rom;
     wdc65816_rom_init(&rom, &vfs, &arena);
 
     SMW smw;

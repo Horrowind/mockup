@@ -5,6 +5,7 @@
 #define NK_INCLUDE_FONT_BAKING
 #define NK_INCLUDE_DEFAULT_FONT
 #define NK_INCLUDE_STANDARD_VARARGS
+#define NK_VSNPRINTF(s,n,f,a) nk_vsnprintf(s,n,f,a)
 #include "nuklear/nuklear.h"
 #include "nuklear/nuklear_glfw_gl3.h"
 
@@ -40,8 +41,8 @@ int show_palette_window = 1,
 int next_level;
 int prev_level;
 
-SMW          smw;
-WDC65816Rom    rom;
+SMW         smw;
+Wdc65816Rom rom;
 PalettePC   palette;
 Map16PC     map16_fg, map16_bg;
 
@@ -766,7 +767,7 @@ int main(int argc, char** argv)
     background = nk_rgb(190,205,255);
 
 
-    Arena arena = arena_create(MB(256));
+    Arena arena = arena_create(MB(1024));
     String path_name = (argc > 2) ? string_from_c_string(argv[2]) : L("SuperMarioWorld.sfc");
     Path path;
     path_init(&path, path_name);
@@ -774,7 +775,7 @@ int main(int argc, char** argv)
     vfs_init(&vfs, 4);
     vfs_add_dir(&vfs, &path, &arena);
     
-    WDC65816Rom rom;
+    Wdc65816Rom rom;
     wdc65816_rom_init(&rom, &vfs, &arena);
 
     smw_init(&smw, &rom, &arena);
