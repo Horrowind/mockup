@@ -6,7 +6,7 @@ void smw_init(SMW* smw, Wdc65816Rom* rom, Arena* arena) {
     smw->arena = arena_subarena(arena, MB(96));
     smw->temp_arena = arena_subarena(arena, MB(16));
     smw->rom = rom;
-    smw->cpu = (Wdc65816Cpu){.regs.p.b = 0x24, .debug = 1};
+    smw->cpu = (Wdc65816Cpu){.regs.p.b = 0x24};
     wdc65816_cpu_init(&smw->cpu, rom, arena);
     gfx_store_init(&smw->gfx_pages, rom);
 }
@@ -20,7 +20,7 @@ void smw_init_all(SMW* smw, Wdc65816Rom* rom, Arena* arena) {
     for(int i = 0; i < 512; i++) {
         memset(&smw->levels[i].header, 0, 5);
         smw_level_load(smw, i);
-        printf("Loaded level %i\n", i);
+        printf("Loaded level %03x\n", i);
     }
 }
 
@@ -382,7 +382,6 @@ void smw_level_load(SMW* smw, u16 level_num) {
             
             ObjectPC*   object = NULL;
             ObjectTile* tile   = NULL;
-            //cpu->debug = 1;
             wdc65816_cpu_run(cpu); // start level loading routine
             while(cpu->regs.pc.d != 0x0583D2) {
                 if(cpu->regs.pc.d == level_load_objects_routine_new_object_sfc) {
