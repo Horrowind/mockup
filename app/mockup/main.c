@@ -501,7 +501,7 @@ void render() {
 
 
 #ifdef SPRITES
-            if(nk_begin(ctx, "Sprites", nk_rect(0, 0, 1200, 00),
+            if(nk_begin(ctx, "Sprites", nk_rect(0, 0, 1200, 905),
                         NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|NK_WINDOW_BORDER|
                         NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE)) {
                 
