@@ -16,6 +16,6 @@ int main(int argc, char** argv) {
     SMW smw;
     smw_init_all(&smw, &rom, &arena);
     smw_deinit(&smw);
-    wdc65816_rom_free(&rom);
+    wdc65816_rom_deinit(&rom);
     return 0;
 }
