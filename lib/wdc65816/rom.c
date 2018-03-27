@@ -102,8 +102,8 @@ void wdc65816_rom_init(Wdc65816Rom* rom, VFS* vfs, Arena* arena) {
     *rom = (Wdc65816Rom) { 0 };
     BMLNode* node = bml_parse(manifest, arena);
     //bml_print_node(node, 0);
-    wdc65816_mapper_init(&rom->read_mapper, arena);
-    wdc65816_mapper_init(&rom->write_mapper, arena);
+    wdc65816_mapper_init(&rom->read_mapper);
+    wdc65816_mapper_init(&rom->write_mapper);
     while(node) {
         if(string_equal(node->name, L("board"))) {
             BMLNode* node2 = node->child;
@@ -127,7 +127,8 @@ void wdc65816_rom_init(Wdc65816Rom* rom, VFS* vfs, Arena* arena) {
 }
 
 
-void wdc65816_rom_free(Wdc65816Rom* rom) {
+void wdc65816_rom_deinit(Wdc65816Rom* rom) {
+    wdc65816_mapper_deinit(&rom->write_mapper);
     // TODO!!!
     /* free(rom->data); */
     /* free(rom->banks); */

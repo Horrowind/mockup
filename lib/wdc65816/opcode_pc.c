@@ -2,15 +2,14 @@
 #include "memory.h"
 #include "table.h"
 
-#define wdc65816_op_branch_gen(name, bit, val)                        \
-    void wdc65816_op_branch_##name(Wdc65816Cpu* cpu) {      \
-        /*if((bool)(cpu->regs.p & bit) != val) { */                 \
-        if((1 && (cpu->regs.p.b & bit)) != val) {                   \
-            cpu->rd.l = wdc65816_op_readpc(cpu);                      \
-        } else {                                                    \
-            cpu->rd.l = wdc65816_op_readpc(cpu);                      \
-            cpu->regs.pc.w = cpu->regs.pc.d + (i8)cpu->rd.l;        \
-        }                                                           \
+#define wdc65816_op_branch_gen(name, bit, val)                  \
+    void wdc65816_op_branch_##name(Wdc65816Cpu* cpu) {          \
+        if((1 && (cpu->regs.p.b & bit)) != val) {               \
+            cpu->rd.l = wdc65816_op_readpc(cpu);                \
+        } else {                                                \
+            cpu->rd.l = wdc65816_op_readpc(cpu);                \
+            cpu->regs.pc.w = cpu->regs.pc.d + (i8)cpu->rd.l;    \
+        }                                                       \
     }
 
 wdc65816_op_branch_gen(bpl, 0x80, 0);
@@ -22,13 +21,13 @@ wdc65816_op_branch_gen(bcs, 0x01, 1);
 //wdc65816_op_branch_gen(bne, 0x02, 0);
 wdc65816_op_branch_gen(beq, 0x02, 1);
 #undef wdc65816_op_branch_gen
-void wdc65816_op_branch_bne(Wdc65816Cpu* cpu) {      \
-    if((1 && (cpu->regs.p.b & 0x02)) != 0) {                        \
-        cpu->rd.l = wdc65816_op_readpc(cpu);                          \
-    } else {                                                        \
-        cpu->rd.l = wdc65816_op_readpc(cpu);                          \
-        cpu->regs.pc.w = cpu->regs.pc.d + (i8)cpu->rd.l;            \
-    }                                                               \
+void wdc65816_op_branch_bne(Wdc65816Cpu* cpu) {                 \
+    if((1 && (cpu->regs.p.b & 0x02)) != 0) {                    \
+        cpu->rd.l = wdc65816_op_readpc(cpu);                    \
+    } else {                                                    \
+        cpu->rd.l = wdc65816_op_readpc(cpu);                    \
+        cpu->regs.pc.w = cpu->regs.pc.d + (i8)cpu->rd.l;        \
+    }                                                           \
 }
 
 /* void wdc65816_op_branch_beq(Wdc65816Cpu* cpu) {               \ */

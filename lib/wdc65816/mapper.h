@@ -34,7 +34,8 @@ typedef struct {
     u8**                data;
 } Wdc65816Mapper;
 
-void wdc65816_mapper_init(Wdc65816Mapper* mapper, Arena* arena);
+void wdc65816_mapper_init(Wdc65816Mapper* mapper);
+void wdc65816_mapper_deinit(Wdc65816Mapper* mapper);
 void wdc65816_mapper_update(Wdc65816Mapper* mapper);
 u8   wdc65816_mapper_read(Wdc65816Mapper* mapper, u32 addr);
 void wdc65816_mapper_write(Wdc65816Mapper* mapper, u32 addr, u8 data);

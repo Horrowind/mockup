@@ -61,8 +61,8 @@ void wdc65816_cpu_init(Wdc65816Cpu* cpu, Wdc65816Rom* rom, Arena* arena) {
     };
 
     
-    wdc65816_mapper_init(&cpu->read_mapper, arena);
-    wdc65816_mapper_init(&cpu->write_mapper, arena);
+    wdc65816_mapper_init(&cpu->read_mapper);
+    wdc65816_mapper_init(&cpu->write_mapper);
     wdc65816_mapper_add(&cpu->read_mapper,  &ram_entry1);
     wdc65816_mapper_add(&cpu->read_mapper,  &ram_entry2);
     wdc65816_mapper_add(&cpu->read_mapper,  &ram_entry3);

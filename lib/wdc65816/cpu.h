@@ -1,8 +1,6 @@
 #ifndef WDC65816_CPU_H
 #define WDC65816_CPU_H
 
-#define DEBUG_PRINT_CPU_STATE
-
 #include "base/base.h"
 
 #include "breakpoint.h"

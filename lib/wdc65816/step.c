@@ -4,28 +4,28 @@
 #include "table.h"
 
 
-#define opA(id, name)                               \
+#define opA(id, name)                                 \
     EM_##id: wdc65816_op_##name(cpu); return;         \
     MX_##id: wdc65816_op_##name(cpu); return;         \
     Mx_##id: wdc65816_op_##name(cpu); return;         \
     mX_##id: wdc65816_op_##name(cpu); return;         \
     mx_##id: wdc65816_op_##name(cpu); return;
 
-#define opE(id, name)                               \
+#define opE(id, name)                                 \
     EM_##id: wdc65816_op_##name##_e(cpu); return;     \
     MX_##id: wdc65816_op_##name##_n(cpu); return;     \
     Mx_##id: wdc65816_op_##name##_n(cpu); return;     \
     mX_##id: wdc65816_op_##name##_n(cpu); return;     \
     mx_##id: wdc65816_op_##name##_n(cpu); return;
 
-#define opM(id, name)                               \
+#define opM(id, name)                                 \
     EM_##id: wdc65816_op_##name##_b(cpu); return;     \
     MX_##id: wdc65816_op_##name##_b(cpu); return;     \
     Mx_##id: wdc65816_op_##name##_b(cpu); return;     \
     mX_##id: wdc65816_op_##name##_w(cpu); return;     \
     mx_##id: wdc65816_op_##name##_w(cpu); return;
 
-#define opX(id, name)                               \
+#define opX(id, name)                                 \
     EM_##id: wdc65816_op_##name##_b(cpu); return;     \
     MX_##id: wdc65816_op_##name##_b(cpu); return;     \
     Mx_##id: wdc65816_op_##name##_w(cpu); return;     \

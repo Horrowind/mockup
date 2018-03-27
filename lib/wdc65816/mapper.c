@@ -69,11 +69,17 @@ u8* wdc65816_mapper_write_range(Wdc65816Mapper* mapper, u32 addr_low, u32 addr_h
     return 0;
 }
 
-void wdc65816_mapper_init(Wdc65816Mapper* mapper, Arena* arena) {
-    mapper->data = arena_alloc_array(arena, 1 << 24, u8*);
-    for(int i = 0; i < (1 << 24); i++) mapper->data[i] = NULL;
+void wdc65816_mapper_init(Wdc65816Mapper* mapper) {
+    *mapper = (Wdc65816Mapper){ 0 };
+    global_init();
+    mapper->data = page_alloc((sizeof(u8*) << 24) / global.page_size);
     mapper->num_entries = 0;
 }
+
+void wdc65816_mapper_deinit(Wdc65816Mapper* mapper) {
+    page_free(mapper->data, (sizeof(u8*) << 24) / global.page_size);
+}
+
 
 void wdc65816_mapper_update(Wdc65816Mapper* mapper) {
     for(int i = 0; i < mapper->num_entries; i++) {

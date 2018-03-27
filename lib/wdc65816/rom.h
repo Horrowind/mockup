@@ -12,7 +12,7 @@ typedef struct {
 } Wdc65816Rom;
 
 void wdc65816_rom_init(Wdc65816Rom* rom, VFS* vfs, Arena* arena);
-void wdc65816_rom_free(Wdc65816Rom* rom);
+void wdc65816_rom_deinit(Wdc65816Rom* rom);
 void wdc65816_map(Wdc65816Mapper* mapper, Wdc65816MapperEntry* entry);
 void wdc65816_rom_save(Wdc65816Rom* rom, char* path);
 void wdc65816_rom_save_headered(Wdc65816Rom* rom, char* path, u8* header, int headersize);
