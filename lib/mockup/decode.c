@@ -3,7 +3,6 @@
 void decode_rle1(const u8* data, u8* output) {
     u8 cmd, length;
     int pos = 0;
-    u8* tmp = output;
     while((cmd = data[pos]) != 0xFF || data[pos + 1] != 0xFF) {
         length = cmd & 0b01111111;
         if(cmd & 0x80) {
@@ -16,7 +15,6 @@ void decode_rle1(const u8* data, u8* output) {
             pos += length + 2;
         }
     }
-    output = tmp;
 }
 
 int decode_rle1_get_size(const u8* data) {
@@ -142,6 +140,7 @@ typedef enum {
 } LZ2Commands;
 
 void encode_lz2(u8* data_begin, u8* data_end, u8* output) {
+#if 0
     for(u8* data_read = data_begin; data_read < data_end;) {
 //        LZ2Commands best_cmd;
         uint best_length = 0xFFFFFFFF;
@@ -187,5 +186,6 @@ void encode_lz2(u8* data_begin, u8* data_end, u8* output) {
 /*             } */
 /*         } */
     }
+#endif
 }
         
