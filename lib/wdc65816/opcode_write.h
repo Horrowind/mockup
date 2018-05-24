@@ -1,4 +1,4 @@
-#ifndef WDC65186_CPU_WRITE_H
+#ifndef WDC65816_CPU_WRITE_H
 #define WDC65816_CPU_WRITE_H
 #include "cpu.h"
 

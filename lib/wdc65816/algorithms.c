@@ -257,12 +257,10 @@ void wdc65816_op_asl_b(Wdc65816Cpu* cpu) {
 }
 
 void wdc65816_op_asl_w(Wdc65816Cpu* cpu) {
-    printf("%x %x %x\n", cpu->regs.p.c, cpu->regs.p.n, cpu->regs.p.z);
     cpu->regs.p.c = 1 && (cpu->rd.w & 0x8000);
     cpu->rd.l = cpu->rd.l << 1;
     cpu->regs.p.n = 1 && (cpu->rd.w & 0x8000);
     cpu->regs.p.z = cpu->rd.w == 0;
-    printf("%x %x %x\n", cpu->regs.p.c, cpu->regs.p.n, cpu->regs.p.z);
 }
 
 void wdc65816_op_lsr_b(Wdc65816Cpu* cpu) {

@@ -64,7 +64,7 @@ void wdc65816_rom_parse_bml_map(BMLNode* map_node, Wdc65816Mapper* mapper, Wdc65
 
 static
 void wdc65816_rom_parse_memory(BMLNode* node, Wdc65816Mapper* mapper, VFS* vfs) {
-    Wdc65816MapperEntry entry = { 0 };
+    Wdc65816MapperEntry entry = { };
     BMLNode* node2 = node->child;
     while(node2) {
         if(string_equal(node2->name, L("name"))) {
@@ -99,7 +99,7 @@ void wdc65816_rom_init(Wdc65816Rom* rom, VFS* vfs, Arena* arena) {
     VFSEntry dummy = {.name = L("manifest.bml")};
     VFSEntry* manifest_entry = vfs_find(vfs, dummy);
     Buffer manifest = manifest_entry->buffer;
-    *rom = (Wdc65816Rom) { 0 };
+    *rom = (Wdc65816Rom) { };
     BMLNode* node = bml_parse(manifest, arena);
     //bml_print_node(node, 0);
     wdc65816_mapper_init(&rom->read_mapper);

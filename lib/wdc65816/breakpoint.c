@@ -1,7 +1,6 @@
 #include "stdlib.h"
 
 #include "breakpoint.h"
-#include "stdio.h"
 
 //TODO: Implement a better allocation strategy.
 void wdc65816_breakpoint_list_init(Wdc65816BreakpointList* brk) {
