@@ -20,7 +20,7 @@ build/%/libwdc65816_run.o:
 	$(CC) $(CFLAGS) -Ilib/ -o $@ -c lib/wdc65816/build_run.c
 
 build/%/libnuts.o:
-	$(CC) $(CFLAGS) -Ilib/ -o $@ -c lib/nuts/nuts2.c
+	$(CC) $(CFLAGS) -Ilib/ -o $@ -c lib/nuts/nuts.c
 
 build/%/libmockup.o:
 	$(CC) $(CFLAGS) -Ilib/ -o $@ -c lib/mockup/build.c
@@ -36,9 +36,6 @@ build/%/lmockup.o:
 
 build/%/imockup.o:
 	$(CC) $(CFLAGS) -Ilib/ -o $@ -c app/mockup/main.c
-
-build/%/nuts.o:
-	$(CC) $(CFLAGS) -Ilib/ -o $@ -c app/nuts/main.c
 
 build/%/nuts-fmt.o:
 	$(CC) $(CFLAGS) -Ilib/ -o $@ -c app/nuts-fmt/main.c
