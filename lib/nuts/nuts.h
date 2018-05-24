@@ -1,9 +1,9 @@
+#include "wdc65816/registers.h"
 #include "wdc65816/rom.h"
 #include "base/base.h"
 
 #define TEXT_POS
 
-typedef int TokenType;
 typedef int IdentType;
 
 typedef struct {
@@ -41,7 +41,7 @@ define_hashmap(LabelMap, label_map, Label, label_hash, label_equal);
 define_hashmap(IdentifierMap, identifier_map, Identifier, identifier_hash, identifier_equal);
 
 typedef struct {
-    TokenType type;
+    int       type;
 #ifdef TEXT_POS
     TextPos   text_pos;
 #endif
@@ -71,23 +71,40 @@ typedef struct {
 #endif
     DefineMap   define_map;
     LexerStack  lexer_stack;
+    FreeList*   free_list;
 } Lexer;
 
-define_stack(AddrStack, addr_stack, u32);
+typedef struct {
+    Wdc65816Reg24 min;
+    Wdc65816Reg24 max;
+} Interval;
+
+define_stack(AddrStack, addr_stack, Interval);
+
+typedef struct Statement Statement;
+typedef struct {
+    Statement* stmts;
+    uint length;
+} StatementBlock;
 
 typedef struct {
-    AddrStack    pc_stack;
-    Lexer        lexer;
-    Token        token;
-    LabelMap     label_map;
-    WDC65816Rom* rom;
-    Arena*       arena;
-    Path*        working_directory;
+    AddrStack      pc_stack;
+    Interval*      pc;                     //Short-hand for addr_stack_top(pc_stack)
+    Lexer          lexer;
+    Token          token;
+    LabelMap       label_map;
+    Wdc65816Rom*   rom;
+    Arena*         arena;
+    Arena          statement_arena;
+    Path*          working_directory;
+
+    u8             fill_byte;
+    uint           bank_crossed : 1;
 } ParserState;
 
 void parser_global_init();
 void parser_global_deinit();
-void parser_init(ParserState* parser, WDC65816Rom* rom, Arena* arena,
-                 Path* file, Path* working_directory);
+void parser_init(ParserState* parser, Wdc65816Rom* rom, Arena* arena,
+                 FreeList* free_list, Path* file, Path* working_directory);
 void parser_deinit(ParserState* parser);
-void parse_asm(ParserState* parser);
+StatementBlock parse_asm(ParserState* parser);
