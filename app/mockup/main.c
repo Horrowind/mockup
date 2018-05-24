@@ -56,8 +56,8 @@ u16*      level_layer2_object_data = NULL;
 u16 selected_index_x;
 u16 selected_index_y;
 
-int hot_index = INT_MAX;
-int selected_index = INT_MAX;
+int hot_index = 99999999;
+int selected_index = 99999999;
 
 uint8_t frame_num = 0;
 int current_level = 0x105;
@@ -122,7 +122,7 @@ void gl_update_textures() {
 
 
 
-void render() {
+void render(Arena* arena) {
     /* Input */
     int fb_width = 0;
     int fb_height = 0;
@@ -167,8 +167,8 @@ void render() {
     #endif
     
     // Map16
-    map16_pc_init(&map16_fg, &level->map16_fg);
-    map16_pc_init(&map16_bg, &level->map16_bg);
+    map16_pc_init(&map16_fg, &level->map16_fg, arena);
+    map16_pc_init(&map16_bg, &level->map16_bg, arena);
     for(int i = 0; i < 2; i++) {
         for(int k = 0; k < 512; k++) {
             for(int j = 0; j < 256; j++) {
@@ -791,7 +791,7 @@ int main(int argc, char** argv)
 #else
     while (!glfwWindowShouldClose(win))
     {
-        render();
+        render(&arena);
     }
 #endif
    
