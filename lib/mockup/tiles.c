@@ -104,9 +104,9 @@ void tile16_pc_init(Tile16PC* tile16_pc, Tile16* tile16) {
     }
 }
 
-void map16_pc_init(Map16PC* map16_pc, Map16* map16_snes) {
+void map16_pc_init(Map16PC* map16_pc, Map16* map16_snes, Arena* arena) {
     map16_pc->length = map16_snes->length;
-    map16_pc->tiles = malloc(map16_pc->length * 256 * sizeof(u32));
+    map16_pc->tiles = malloc(map16_pc->length * 256 * sizeof(Tile16PC));
     for(int i = 0; i < map16_pc->length; i++) {
         tile16_pc_init(&map16_pc->tiles[i], &map16_snes->tiles[i]);
     }

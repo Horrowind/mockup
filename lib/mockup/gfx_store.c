@@ -1,15 +1,12 @@
-#include "stdlib.h"
-#include "stdio.h"
-
 #include "decode.h"
 #include "gfx_store.h"
 
 
 //TODO: Remove magic numbers.
-void gfx_store_init(GFXStore* gfx_store, Wdc65816Rom* rom) {
+void gfx_store_init(GFXStore* gfx_store, Wdc65816Rom* rom, Arena* arena) {
 
     int sum_length = 0;
-    gfx_store->pages = malloc(0x34 * sizeof(GFXPage));
+    gfx_store->pages = arena_alloc_array(arena, 0x34, GFXPage);
     gfx_store->num_pages = 0x34;
 
     for(int i = 0; i < 0x32; i++) {
@@ -24,7 +21,7 @@ void gfx_store_init(GFXStore* gfx_store, Wdc65816Rom* rom) {
         sum_length += gfx_store->pages[i].length;
     }
 
-    gfx_store->pages[0].data = malloc(sum_length + 23808 + 12288);
+    gfx_store->pages[0].data = arena_alloc_array(arena, sum_length + 23808 + 12288, u8);
     sum_length = 0;
     
     for(int i = 0; i < 0x32; i++) {
@@ -50,6 +47,5 @@ void gfx_store_init(GFXStore* gfx_store, Wdc65816Rom* rom) {
 }
 
 void gfx_store_deinit(GFXStore* gfx_store) {
-    free(gfx_store->pages[0].data);
-    free(gfx_store->pages);
+
 }

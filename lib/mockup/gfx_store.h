@@ -13,7 +13,7 @@ typedef struct {
     GFXPage* pages;
 } GFXStore;
 
-void gfx_store_init(GFXStore* gfx_store, Wdc65816Rom* rom);
+void gfx_store_init(GFXStore* gfx_store, Wdc65816Rom* rom, Arena* arena);
 void gfx_store_deinit(GFXStore* gfx_store);
 
 

@@ -8,7 +8,7 @@ void smw_init(SMW* smw, Wdc65816Rom* rom, Arena* arena) {
     smw->rom = rom;
     smw->cpu = (Wdc65816Cpu){.regs.p.b = 0x24};
     wdc65816_cpu_init(&smw->cpu, rom, arena);
-    gfx_store_init(&smw->gfx_pages, rom);
+    gfx_store_init(&smw->gfx_pages, rom, arena);
 }
 
 void smw_deinit(SMW* smw) {
@@ -1036,7 +1036,7 @@ void smw_level_add_layer1_object(SMW* smw, u16 level_num, uint object_index, Obj
     ObjectPC* new_objects = arena_alloc_array(&smw->arena, object_list->length + 1, ObjectPC);
     memcpy(new_objects + object_index + 1, old_objects,
            (object_list->length - object_index) * sizeof(ObjectPC));
-    free(old_objects);
+    //free(old_objects);
     object_list->objects = new_objects;
     object_list->objects[object_index] = object;
     object_list->length++;

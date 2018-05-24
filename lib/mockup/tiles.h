@@ -50,6 +50,6 @@ Tile8 tile8_from_4bpp(u8* data);
 
 Tile16 tile16_from_tile8(Tile8* tiles[4], TileProperties poperties[4]);
 
-void map16_pc_init(Map16PC* map16_pc, Map16* map16);
+void map16_pc_init(Map16PC* map16_pc, Map16* map16, Arena* arena);
 void map16_pc_deinit(Map16PC* map16);
 #endif //MOCKUP_TILES_HPP
