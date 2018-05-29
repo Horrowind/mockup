@@ -37,19 +37,22 @@ build/%/lmockup.o:
 build/%/imockup.o:
 	$(CC) $(CFLAGS) -Ilib/ -o $@ -c app/mockup/main.c
 
+build/%/nuts.o:
+	$(CC) $(CFLAGS) -Ilib/ -o $@ -c app/nuts/main.c
+
 build/%/nuts-fmt.o:
 	$(CC) $(CFLAGS) -Ilib/ -o $@ -c app/nuts-fmt/main.c
 
-build/%/lmockup:  build/%/libbase.o build/%/libwdc65816.o build/%/libwdc65816_run.o build/%/libmockup.o build/%/lmockup.o
+build/%/lmockup:    build/%/libbase.o build/%/libwdc65816.o build/%/libwdc65816_run.o build/%/libmockup.o build/%/lmockup.o
 	$(CC) $(LFLAGS) -o $@$(EXT) $^ $(LIBS)
 
-build/%/imockup:  build/%/libbase.o build/%/libwdc65816.o build/%/libwdc65816_run.o build/%/libmockup.o build/%/imockup.o build/%/libnuklear.o
+build/%/imockup:    build/%/libbase.o build/%/libwdc65816.o build/%/libwdc65816_run.o build/%/libmockup.o build/%/imockup.o build/%/libnuklear.o
 	$(CC) $(LFLAGS) -o $@$(EXT) $^ $(GLLIBS) $(LIBS) 
 
-build/%/imockup_js:  build/%/libbase.o build/%/libwdc65816.o build/%/libwdc65816_run.o build/%/libmockup.o build/%/imockup.o build/%/libnuklear_js.o
+build/%/imockup_js: build/%/libbase.o build/%/libwdc65816.o build/%/libwdc65816_run.o build/%/libmockup.o build/%/imockup.o build/%/libnuklear_js.o
 	$(CC) $(LFLAGS) -o $@$(EXT) $^ $(GLLIBS) $(LIBS) 
 
-build/%/nuts:     build/%/libbase.o build/%/libwdc65816.o build/%/libwdc65816_run.o build/%/libnuts.o build/%/nuts.o
+build/%/nuts:       build/%/libbase.o build/%/libwdc65816.o build/%/libwdc65816_run.o build/%/libnuts.o build/%/nuts.o
 	$(CC) $(LFLAGS) -o $@$(EXT) $^ $(LIBS)
 
 -include build/linux/*.d
@@ -83,14 +86,14 @@ linux_release:   GLLIBS   = -lGLEW -lGL -lglfw
 
 STATIC_ANALYSIS           = scan-build-6.0 --status-bugs gcc
 static_analysis: CC       = $(STATIC_ANALYSIS)
-static_analysis: CFLAGS   = -g -Wall -Werror -Wunused-result -MMD -MP
+static_analysis: CFLAGS   = -g -Wall -Werror -Wunused-result -MMD -MP -DLINUX
 static_analysis: GLLIBS   = -lGLEW -lGL -lglfw
 
 $(TARGETS): %: build/%/ build/%/lmockup build/%/imockup build/%/nuts
 all: windows wasm linux
 
 # TODO: add release modes for windows and wasm
-all_release: windows_release wasm_release linux_release
+release: linux_release #windows_release wasm_release 
 
 
 clean:

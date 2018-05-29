@@ -1,5 +1,5 @@
 #include <time.h>
-#include "nuts/nuts2.h"
+#include "nuts/nuts.h"
 
 struct timespec timespec_add(struct timespec start, struct timespec end) {
 	struct timespec tmp;
@@ -63,7 +63,7 @@ int main(int argc, char** argv) {
     struct timespec parse_time = { 0 };
     struct timespec all_start;
     struct timespec all_end;
-    struct timespec all_time = { 0 };
+    struct timespec all_time;
     
 
     clock_gettime(CLOCK_REALTIME, &all_start);
