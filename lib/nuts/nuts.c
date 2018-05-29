@@ -1,4 +1,4 @@
-#include "nuts2.h"
+#include "nuts.h"
 
 typedef enum {
     PARSE_MODE_DIRECT,
@@ -1260,7 +1260,6 @@ Result static_eval_expr(Expr* expr, Value* value,
 
         value->i = -val1.i;
         value->type = VALUE_INT;
-        value->width = val1.width;
         break;
     }
 
