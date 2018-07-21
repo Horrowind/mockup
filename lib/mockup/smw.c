@@ -2,20 +2,23 @@
 #include "addresses.h"
 #include "misc.h"
 
-void smw_init(SMW* smw, Wdc65816Rom* rom, Arena* arena) {
+void smw_init(SMW* smw, Wdc65816MapperBuilder* rom, Arena* arena) {
     smw->arena = arena_subarena(arena, MB(96));
     smw->temp_arena = arena_subarena(arena, MB(16));
-    smw->rom = rom;
+    
     smw->cpu = (Wdc65816Cpu){.regs.p.b = 0x24};
-    wdc65816_cpu_init(&smw->cpu, rom, arena);
-    gfx_store_init(&smw->gfx_pages, rom, arena);
+
+    u8* work_buffer = arena_alloc_array(arena, wdc65816_cpu_get_work_buffer_size(), u8);
+    
+    wdc65816_cpu_init(&smw->cpu, rom, work_buffer);
+    gfx_store_init(&smw->gfx_pages, &smw->cpu.read_mapper, arena);
 }
 
 void smw_deinit(SMW* smw) {
-    gfx_store_deinit(&smw->gfx_pages);
+    (void)smw;
 }
 
-void smw_init_all(SMW* smw, Wdc65816Rom* rom, Arena* arena) {
+void smw_init_all(SMW* smw, Wdc65816MapperBuilder* rom, Arena* arena) {
     smw_init(smw, rom, arena);
     for(int i = 0; i < 512; i++) {
         memset(&smw->levels[i].header, 0, 5);
@@ -140,7 +143,7 @@ void smw_set_sprite_table_entries(u8* ram, SpriteTableEntries entries, int sprit
 
 
 void smw_level_load(SMW* smw, u16 level_num) {
-    Wdc65816Rom* rom = smw->rom;
+    Wdc65816Mapper* rom = &smw->cpu.read_mapper;
     GFXStore gfx_pages = smw->gfx_pages;
     LevelPC* l = &smw->levels[level_num];
     Arena*    arena = &smw->arena; 
@@ -188,7 +191,7 @@ void smw_level_load(SMW* smw, u16 level_num) {
 
 
     u8 header[5];
-    wdc65816_mapper_read_range(&rom->read_mapper, level_layer1_data_addr_sfc,
+    wdc65816_mapper_read_range(rom, level_layer1_data_addr_sfc,
                                level_layer1_data_addr_sfc + 5, header);
     int needs_full_reload = memcmp(&(l->header), header, 5);
     if(needs_full_reload) {
@@ -405,10 +408,10 @@ void smw_level_load(SMW* smw, u16 level_num) {
                         object = arena_alloc_type(arena, ObjectPC);
                         *object = (ObjectPC){ 0 };
                         // TODO: which one is correct?
-                        object->x = (cpu->ram[level_current_screen_ram] << 4) | (cpu->ram[0x57] & 0x0F);
-                        object->y = ((cpu->ram[0x57] & 0xF0) >> 4) | (cpu->ram[0x0A] << 4);
-                        //object->x = (cpu->ram[0x0B] & 0x0F)  | (cpu->ram[0x1928] << 4);
-                        //object->y = cpu->ram[0x0A] & 0x1F;
+                        //object->x = (cpu->ram[level_current_screen_ram] << 4) | (cpu->ram[0x57] & 0x0F);
+                        //object->y = ((cpu->ram[0x57] & 0xF0) >> 4) | (cpu->ram[0x0A] << 4);
+                        object->x = (cpu->ram[0x0B] & 0x0F)  | (cpu->ram[0x1928] << 4);
+                        object->y = cpu->ram[0x0A] & 0x1F;
                         object->num = num;
                         object->settings = settings;
                         object->tiles = NULL;
@@ -443,7 +446,9 @@ void smw_level_load(SMW* smw, u16 level_num) {
                         ? (cpu->breakpoint_data << 8)
                         : cpu->breakpoint_data;
                 }
+                cpu->debug = 0;
                 wdc65816_cpu_run(cpu);
+                cpu->debug = 0;
             }
             // Finalize the last object
             if(tiles_length > 0 && objects_length > 0) {
@@ -873,7 +878,7 @@ void smw_level_load(SMW* smw, u16 level_num) {
 
 void smw_level_animate(SMW* smw, u16 level_num, u8 frame) {
 
-    Wdc65816Rom* rom = smw->rom;
+    Wdc65816Mapper* rom = &smw->cpu.read_mapper;
     GFXStore gfx_pages = smw->gfx_pages;
     LevelPC* l = &smw->levels[level_num];
 
@@ -892,9 +897,9 @@ void smw_level_animate(SMW* smw, u16 level_num, u8 frame) {
     l->palette.data[pos] = tmp_color | (cpu->sreg[0x0122] << 8);
 
     wdc65816_cpu_clear(cpu);
-    cpu->ram[0x65] = wdc65816_mapper_read(&rom->read_mapper, 0x05E000 + 3 * level_num);
-    cpu->ram[0x66] = wdc65816_mapper_read(&rom->read_mapper, 0x05E001 + 3 * level_num);
-    cpu->ram[0x67] = wdc65816_mapper_read(&rom->read_mapper, 0x05E002 + 3 * level_num);
+    cpu->ram[0x65] = wdc65816_mapper_read(rom, 0x05E000 + 3 * level_num);
+    cpu->ram[0x66] = wdc65816_mapper_read(rom, 0x05E001 + 3 * level_num);
+    cpu->ram[0x67] = wdc65816_mapper_read(rom, 0x05E002 + 3 * level_num);
     wdc65816_cpu_add_exec_bp(cpu, 0x0583B8);
     wdc65816_cpu_run_from(cpu, 0x0583AC);
     cpu->ram[0x0014] = frame;
@@ -934,24 +939,22 @@ void smw_level_animate(SMW* smw, u16 level_num, u8 frame) {
     }
 }
 
-#if 0
-int smw_level_serialize_fast(SMW* smw, u16 level_num) {
-    Arena* temp_arena = &smw->temp_arena;
-    Temp temp = temp_begin(temp_arena);
+Buffer smw_level_serialize_fast(SMW* smw, u16 level_num) {
     uint length = smw->levels[level_num].layer1_objects.length;
-    void* level_data = arena_alloc(temp_arena, 0, 0);
-    LevelHeader* level_header = arena_alloc_type(temp_arena, LevelHeader);
+    u8* level_data = arena_alloc(&smw->arena, 0, 0);
+    LevelHeader* level_header = arena_alloc_type(&smw->arena, LevelHeader);
     *level_header = smw->levels[level_num].header;
     int prev_screen = 0;
     for(int i = 0; i < length; i++) {
         ObjectPC* object = &smw->levels[level_num].layer1_objects.objects[i];
-
+        printf("Object: { x: %4i, y: %4i, num: %02x, settings: %02x}\n",
+               object->x, object->y, object->num, object->settings);
         assert(!(object->y & (0xFFE0))); 
         assert(!(object->num & (0xFFC0))); 
 
         u8* data;
         int screen = object->x / 16;
-        data = arena_alloc_array(temp_arena, 3, u8);
+        data = arena_alloc_array(&smw->arena, 3, u8);
         if(prev_screen == screen) {
             data[0] =  (object->num >> 4) << 5;
         } else if(prev_screen + 1 == screen) {
@@ -960,7 +963,7 @@ int smw_level_serialize_fast(SMW* smw, u16 level_num) {
             data[0] = screen;
             data[1] = 0; // We can savely set this to zero. 
             data[2] = 1;
-            data = arena_alloc_array(temp_arena, 3, u8);
+            data = arena_alloc_array(&smw->arena, 3, u8);
             data[0] = (object->num >> 4) << 5;
         }
         data[0] |= object->y;
@@ -972,8 +975,12 @@ int smw_level_serialize_fast(SMW* smw, u16 level_num) {
         prev_screen = screen;
     }
     
-    *(u8*)arena_alloc_array(temp_arena, 1, u8) = 0xFF;
+    *(u8*)arena_alloc_array(&smw->arena, 1, u8) = 0xFF;
+    int level_data_length = arena_alloc_array(&smw->arena, 0, u8) - level_data;
+    return buffer(level_data, level_data_length);
+}
 
+#if 0
     /* u8* data = pool.data; */
     /* u8 output, output2, output3; */
     /* uint screen = 0; */
@@ -1004,7 +1011,7 @@ int smw_level_serialize_fast(SMW* smw, u16 level_num) {
     /* printf("\n"); */
 
     int level_data_length = arena_alloc(temp_arena, 0, 0) - level_data;
-    
+
     u32 freespace_addr_pc = freespace_manager_request(&smw->freespace_manager,
                                                       level_data_length);
     int result = 0;
@@ -1017,9 +1024,8 @@ int smw_level_serialize_fast(SMW* smw, u16 level_num) {
         rom_data[level_layer1_data_table_pc + 0 + 3 * level_num] = (freespace_addr_sfc & 0x0000FF) >>  0;
         result = 1;
     }
-    temp_end(temp);
-    return result;
 }
+#endif
 
 void smw_level_remove_layer1_object(SMW* smw, u16 level_num, uint object_index) {
     LevelPC* l = &smw->levels[level_num];
@@ -1028,7 +1034,6 @@ void smw_level_remove_layer1_object(SMW* smw, u16 level_num, uint object_index) 
     }
     l->layer1_objects.length--;
 }
-#endif
 
 void smw_level_add_layer1_object(SMW* smw, u16 level_num, uint object_index, ObjectPC object) {
     ObjectListPC* object_list = &smw->levels[level_num].layer1_objects;

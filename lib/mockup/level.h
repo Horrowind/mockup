@@ -180,13 +180,13 @@ typedef struct {
     int     width;
 
 
-    Wdc65816Rom* rom;
+    Wdc65816MapperBuilder* rom;
 
 } LevelPC;
 
 
-void level_init(LevelPC* l, Wdc65816Rom* rom, int num_level, GFXStore* gfx_store);
-void level_init_by_address(LevelPC* l, Wdc65816Rom* rom, int num_level, GFXStore* gfx_store,
+void level_init(LevelPC* l, Wdc65816MapperBuilder* rom, int num_level, GFXStore* gfx_store);
+void level_init_by_address(LevelPC* l, Wdc65816MapperBuilder* rom, int num_level, GFXStore* gfx_store,
                            u32 level_layer1_data_addr_sfc,
                            u32 level_layer2_data_addr_sfc,
                            u32 level_sprite_data_addr_sfc);

@@ -13,5 +13,5 @@ typedef struct {
 } Tileset;
 
 void tileset_init(Tileset* tileset, GFXStore* gfx_store, u8 fg1, u8 fg2, u8 bg1, u8 fg3);
-void tileset_init_level(Tileset* tileset, Wdc65816Rom* rom, int num_level, GFXStore* gfx_store);
+void tileset_init_level(Tileset* tileset, Wdc65816MapperBuilder* rom, int num_level, GFXStore* gfx_store);
 #endif //MOCKUP_TILESET_H

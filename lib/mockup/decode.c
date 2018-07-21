@@ -139,8 +139,8 @@ typedef enum {
     LZ2_COMMAND_LONG_CMD    
 } LZ2Commands;
 
-void encode_lz2(u8* data_begin, u8* data_end, u8* output) {
 #if 0
+void encode_lz2(u8* data_begin, u8* data_end, u8* output) {
     for(u8* data_read = data_begin; data_read < data_end;) {
 //        LZ2Commands best_cmd;
         uint best_length = 0xFFFFFFFF;
@@ -186,6 +186,6 @@ void encode_lz2(u8* data_begin, u8* data_end, u8* output) {
 /*             } */
 /*         } */
     }
-#endif
 }
+#endif
         
