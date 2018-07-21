@@ -19,33 +19,21 @@ typedef enum {
 } OpcodeParseMode;
 
 typedef struct {
-    u8 opcode;
-    union {
-        struct {
-            u8 mode : 2;
-            u8 w1   : 2;
-            u8 w2   : 2;
-            u8 w3   : 2;
-        };
-        u8 is_valid;
-    };
-} OpMode;
-
-typedef struct {
     u8 byte;
-    u8 mode          : 7;
-    u8 optimize_bank : 1;
+    u8 mode;
 } OpcodeAssembleData;
 
 typedef enum {
+    ASSEMBLE_MODE_ERROR,
     ASSEMBLE_MODE_0,
     ASSEMBLE_MODE_1,
     ASSEMBLE_MODE_2,
     ASSEMBLE_MODE_3,
-    ASSEMBLE_MODE_R,
-    ASSEMBLE_MODE_J,
-    ASSEMBLE_MODE_K,
+    ASSEMBLE_MODE_R, // Repeat
+    ASSEMBLE_MODE_J, // Long jump
+    ASSEMBLE_MODE_K, // Short jump
     ASSEMBLE_MODE_S,
+    ASSEMBLE_MODE_X,
 } AssembleMode;
 
 OpcodeAssembleData opcode_assemble_data_table[][PARSE_MODE_MAX][4] = {
@@ -238,6 +226,7 @@ OpcodeAssembleData opcode_assemble_data_table[][PARSE_MODE_MAX][4] = {
     [ OPCODE_INY ][ PARSE_MODE_IMMEDIATE       ][3] = { .byte = 0xC8, .mode = ASSEMBLE_MODE_R },
     [ OPCODE_INY ][ PARSE_MODE_IMPLIED         ][0] = { .byte = 0xC8, .mode = ASSEMBLE_MODE_0 },
     [ OPCODE_JMP ][ PARSE_MODE_DIRECT          ][2] = { .byte = 0x4C, .mode = ASSEMBLE_MODE_2 },
+    [ OPCODE_JMP ][ PARSE_MODE_DIRECT          ][3] = { .byte = 0x4C, .mode = ASSEMBLE_MODE_X },
     [ OPCODE_JMP ][ PARSE_MODE_INDIRECT        ][2] = { .byte = 0x6C, .mode = ASSEMBLE_MODE_2 },
     [ OPCODE_JMP ][ PARSE_MODE_X_INDIRECT      ][2] = { .byte = 0x7C, .mode = ASSEMBLE_MODE_2 },
     [ OPCODE_JMP ][ PARSE_MODE_LONG_INDIRECT   ][2] = { .byte = 0xDC, .mode = ASSEMBLE_MODE_2 },
@@ -245,6 +234,7 @@ OpcodeAssembleData opcode_assemble_data_table[][PARSE_MODE_MAX][4] = {
     [ OPCODE_JML ][ PARSE_MODE_DIRECT          ][3] = { .byte = 0x5C, .mode = ASSEMBLE_MODE_3 },
     [ OPCODE_JML ][ PARSE_MODE_LONG_INDIRECT   ][2] = { .byte = 0xDC, .mode = ASSEMBLE_MODE_2 },
     [ OPCODE_JSR ][ PARSE_MODE_DIRECT          ][2] = { .byte = 0x20, .mode = ASSEMBLE_MODE_2 },
+    [ OPCODE_JSR ][ PARSE_MODE_DIRECT          ][3] = { .byte = 0x20, .mode = ASSEMBLE_MODE_X },
     [ OPCODE_JSR ][ PARSE_MODE_X_INDIRECT      ][2] = { .byte = 0xFC, .mode = ASSEMBLE_MODE_2 },
     [ OPCODE_JSL ][ PARSE_MODE_DIRECT          ][2] = { .byte = 0x22, .mode = ASSEMBLE_MODE_3 },
     [ OPCODE_JSL ][ PARSE_MODE_DIRECT          ][3] = { .byte = 0x22, .mode = ASSEMBLE_MODE_3 },
@@ -442,13 +432,11 @@ static char* opcodes[]         = { OPCODES_LIST };
 static char opcodes_lower[][4] = { OPCODES_LIST };
 #undef X
 
-void unused() {
-    (void)opcodes_lower;
-}
-
 void error_at_pos(TextPos text_pos) {
-    fprintf(stderr, "%.*s:%i:%i: error\n", text_pos.name.length, text_pos.name.data,
+    printf("%.*s:%i:%i: error\n", text_pos.name.length, text_pos.name.data,
         text_pos.line_number, text_pos.line_pos);
+    /* fprintf(stderr, "%.*s:%i:%i: error\n", text_pos.name.length, text_pos.name.data, */
+    /*     text_pos.line_number, text_pos.line_pos); */
     char* line_end = text_pos.line_start;
     int length = 0;
     while(*line_end && *line_end != '\n') {
@@ -461,9 +449,12 @@ void error_at_pos(TextPos text_pos) {
         }
         line_end++;
     }
-    fprintf(stderr, "%.*s\n", (int)(line_end - text_pos.line_start), text_pos.line_start);
-    for(int i = 1; i < length; i++) fprintf(stderr, "~");
-    fprintf(stderr, "^\n");
+    /* fprintf(stderr, "%.*s\n", (int)(line_end - text_pos.line_start), text_pos.line_start); */
+    /* for(int i = 1; i < length; i++) fprintf(stderr, "~"); */
+    /* fprintf(stderr, "^\n"); */
+    printf("%.*s\n", (int)(line_end - text_pos.line_start), text_pos.line_start);
+    for(int i = 1; i < length; i++) printf("~");
+    printf("^\n");
 }
 
 void warn_at_pos(TextPos text_pos) {
@@ -495,53 +486,13 @@ const char* error_names[] = { ERROR_LIST };
 static char commands_lower[][12] = { COMMANDS_LIST };
 #undef X
 
-
-
-typedef struct {
-    String    name;
-    int       type;
-} Command;
-
-u32 command_hash(Command e) {
-    String s = e.name;
-    return SuperFastHash(s);
-}
-
-u32 command_equal(Command e1, Command e2) {
-    return string_equal(e1.name, e2.name);
-}
-
-generate_hashmap(CommandMap, command_map, Command, command_hash, command_equal);
-CommandMap command_map;
-
 void nuts_global_init() {
-    command_map_init(&command_map, 256);
     for(int i = 0; i < array_length(opcodes); i++) {
-        Command entry = {
-            .name = string_from_c_string(opcodes[i]),
-            .type = OPCODE_START + i + 1,
-        };
-        command_map_insert(&command_map, entry);
         for(char* p = opcodes_lower[i]; *p; p++) *p = *p + ('a' - 'A');
-        entry = (Command){
-            .name = string_from_c_string(opcodes_lower[i]),
-            .type = OPCODE_START + i + 1,
-        };
-        command_map_insert(&command_map, entry);
     }
     
     for(int i = 0; i < array_length(commands); i++) {
-        Command entry = {
-            .name = string_from_c_string(commands[i]),
-            .type = COMMAND_START + i + 1,
-        };
-        command_map_insert(&command_map, entry);
         for(char* p = commands_lower[i]; *p; p++) *p = *p + ('a' - 'A');
-        entry = (Command){
-            .name = string_from_c_string(commands_lower[i]),
-            .type = COMMAND_START + i + 1,
-        };
-        command_map_insert(&command_map, entry);
     }
 
     static char buffer[128][4];
@@ -597,8 +548,9 @@ void error_add(ErrorList* error_list, Error error) {
 
 
 void describe_error(Error error) {
-    error_at_pos(error.text_pos);
-    fprintf(stderr, "%s\n", error_names[error.type]);
+    if(error.text_pos.name.data) error_at_pos(error.text_pos);
+    printf("%s\n", error_names[error.type]);
+    //fprintf(stderr, "%s\n", error_names[error.type]);
 }
 
 static
@@ -643,7 +595,7 @@ int is_ident_char(Rune c) {
     return (c >= 'a' && c <= 'z')
         || (c >= 'A' && c <= 'Z')
         || (c >= '0' && c <= '9')
-        || (c == '_');
+        || c == '_' || c == '.';
 }
 
 static inline
@@ -715,7 +667,8 @@ Result get_token_number(ByteStream* stream, int base, Token* result, ErrorList* 
 static const
 Token token_eof = { .type = TOKEN_EOF };
 
-Result get_token(ByteStream* stream, Token* token, ErrorList* error_list) {
+Result get_token(ByteStream* stream, Token* token, ErrorList* error_list,
+                 IdentifierMap* identifier_map) {
     *token = (Token) {
         .string.data = stream->pos,
         .type        = TOKEN_NULL,
@@ -769,40 +722,23 @@ Result get_token(ByteStream* stream, Token* token, ErrorList* error_list) {
 
         case 'A' ... 'Z':
         case 'a' ... 'z':
-        case '_': {
-            token->name.data = stream->pos;
+        case '_': case '.': {
+            char* start = stream->pos;
             while(is_ident_char(byte_stream_lookahead(stream))) {
                 byte_stream_advance(stream);
             }
-            token->name.length = stream->pos - token->name.data + 1;
-            Command entry = {
-                .name = token->name,
+            char* end = stream->pos;
+            token->string = (String) {
+                .data = start,
+                .length = end - start + 1
             };
-            Command* found = command_map_find(&command_map, entry);
-            if(found) {
-                token->type = TOKEN_COMMAND;
-                token->cmd_type = found->type;
-                if(!(token->cmd_type & COMMAND_START)) {
-                    if(byte_stream_lookahead(stream) == '.') {
-                        byte_stream_advance(stream);
-                        switch(byte_stream_lookahead(stream)) {
-                        case 'b': { token->width = 1; break; }
-                        case 'w': { token->width = 2; break; }
-                        case 'l': { token->width = 3; break; }
-                        default: {
-                            error_add(error_list, (Error){
-                                .type = ERROR_UNEXPECTED_CHARACTER,
-                                .text_pos = get_text_pos(stream->text, token->string)
-                            });
-                            return RESULT_ERROR;
-                        }
-                        }
-                        byte_stream_advance(stream);
-                    }
-                }
-            } else {
-                token->type = TOKEN_LABEL;
-            }
+            token->identifier =
+                identifier_map_find_or_insert(identifier_map,
+                                              (Identifier){
+                                                  .name = token->string,
+                                                  .type = IDENTIFIER,
+                                              });
+            token->type = TOKEN_IDENTIFIER;
             break;
         }
 
@@ -843,9 +779,9 @@ Result get_token(ByteStream* stream, Token* token, ErrorList* error_list) {
             break;
         }
 
-        case '#': case '.': case ':': case '(': case ')': case '[':
+        case '#': case '&': case ':': case '(': case ')': case '[':
         case ']': case '{': case '}': case '=': case ',': case '*':
-        case '/': case '|': case '&': {
+        case '/': case '|': {
             token->type = r;
             break;
         }
@@ -956,7 +892,10 @@ Token token_stream_current_token(TokenStream* stream) {
     }
 }
 
-Result lex(Text text, TokenList* list, Arena* arena, ErrorList* error_list) {
+
+#define BATCH_SIZE 16
+Result lex(Text text, TokenList* list, Arena* arena, ErrorList* error_list,
+           IdentifierMap* identifier_map) {
     *list = (TokenList) {
         .text   = text,
         .data   = arena_alloc_array(arena, 0, Token),
@@ -964,12 +903,28 @@ Result lex(Text text, TokenList* list, Arena* arena, ErrorList* error_list) {
     };
     ByteStream stream;
     byte_stream_init(&stream, text);
-    while(1) {
-        Token* token = arena_alloc_array(arena, 1, Token);
-        return_on_error(get_token(&stream, token, error_list));
-        if(token->type == TOKEN_EOF) break;
-        list->length++;
+    Token token_buffer[BATCH_SIZE];
+    int length = 0;
+    int eof = 0;
+    while(!eof) {
+        for(int i = 0; i < BATCH_SIZE && !eof; i++) {
+            return_on_error(get_token(&stream, &token_buffer[i], error_list, identifier_map));
+            length++;
+            if(token_buffer[i].type == TOKEN_EOF) eof = 1;
+        }
+        Token* tokens = arena_alloc_array(arena, BATCH_SIZE, Token);
+        if(!tokens) {
+            error_add(error_list, (Error) {
+                .type     = ERROR_TO_MANY_TOKENS,
+                //.text_pos = get_text_pos(token_text, token_string)
+            });
+
+            return RESULT_ERROR;
+        }
+
+        memcpy(tokens, token_buffer, BATCH_SIZE * sizeof(Token));
     }
+    list->length = length;
     return RESULT_OK;
 }
 
@@ -983,14 +938,25 @@ u32 define_hash(Define e) {
 }
 implement_hashmap(DefineMap, define_map, Define, define_hash, define_equal);
 
-u32 label_equal(Label e1, Label e2) {
+u32 identifier_equal(Identifier e1, Identifier e2) {
     return string_equal(e1.name, e2.name);
 }
 
-u32 label_hash(Label e) {
+u32 identifier_hash(Identifier e) {
     return SuperFastHash(e.name);
 }
-implement_hashmap(LabelMap, label_map, Label, label_hash, label_equal);
+
+Identifier* identifier_copy(Arena* arena, Identifier e) {
+    Identifier* copy = arena_alloc_type(arena, Identifier);
+    *copy = e;
+    char* data = arena_alloc_array(arena, e.name.length, char);
+    memcpy(data, e.name.data, e.name.length);
+    copy->name.data = data;
+    return copy;
+}
+
+implement_intern_hashmap(IdentifierMap, identifier_map, Identifier,
+                         identifier_hash, identifier_equal, identifier_copy);
 
 
 static
@@ -1013,6 +979,7 @@ typedef enum {
     /* Unary operands */
     EXPR_NEG,
     /* Nullary operands */
+    EXPR_LABEL,
     EXPR_VALUE,
 } ExprType;
 
@@ -1020,6 +987,7 @@ typedef struct Expr_ {
     ExprType  type;
     ValueType value_type;
     String    string;
+    Width     width;
     union {
         /* Binary operands */
         struct {
@@ -1041,7 +1009,6 @@ struct bin_op_hierarchy_entry {
     uint token_type;
     uint level;
 } hierarchy[] = {
-    [EXPR_DOT] = { .token_type = '.',          .level = 5 },
     [EXPR_MUL] = { .token_type = '*',          .level = 4 },
     [EXPR_DIV] = { .token_type = '/',          .level = 4 },
     [EXPR_BAN] = { .token_type = '&',          .level = 3 },
@@ -1052,12 +1019,43 @@ struct bin_op_hierarchy_entry {
     [EXPR_SUB] = { .token_type = '-',          .level = 1 },
 };
 
+
+
+Identifier* label_full_name(String sublabel_name,
+                            String label_name,
+                            IdentifierMap* identifier_map) {
+    char full_name[4096] = {};
+    int pos = 0;
+    int num_dots = 0;
+    int copy_index = 0;
+    while(num_dots < sublabel_name.length) {
+        if(sublabel_name.data[num_dots] != '.') break;
+        while(label_name.data[copy_index] != '.' &&
+              copy_index < label_name.length) {
+            full_name[pos++] = label_name.data[copy_index++];
+        }
+        full_name[pos++] = '.';
+        copy_index++;
+        num_dots++;
+    }
+    
+    for(int j = num_dots; j < sublabel_name.length; j++) {
+        full_name[pos++] = sublabel_name.data[j];
+    }
+   
+    return identifier_map_find_or_insert(identifier_map, (Identifier) {
+        .name.data = full_name, .name.length = pos
+    });
+}
+
+
 static
 Result parse_expr_(Parser* parser, Expr* expr, int level) {
     Expr op1 = { 0 };
     Expr op2 = { 0 };
-    String string;
-    string.data = parser->token.string.data;
+    String string = {
+        .data = parser->token.string.data
+    };
     if(parser->token.type == '(') {
         parser_advance_stream(parser);
         return_on_error(parse_expr_(parser, &op1, 0));
@@ -1069,15 +1067,13 @@ Result parse_expr_(Parser* parser, Expr* expr, int level) {
         Text token_text = parser->stream_stack_top->text;
         String token_string = parser->token.string;
         parse_expr_(parser, &op1, 14);
-        if(op1.value.type != VALUE_INT && op2.value.type != VALUE_LABEL) {
+        if(op1.value.type != VALUE_INT) {
             error_add(parser->error_list, (Error) {
                 .type     = ERROR_INCOMPATIBLE_OPERANDS,
                 .text_pos = get_text_pos(token_text, token_string)
             });
             return RESULT_ERROR;
         }
-        // we copy op1 into neg_expr and use op1
-        // as the result of the negation
         Expr* neg_expr = arena_alloc_type(parser->arena, Expr);
         *neg_expr = op1;
         op1 = (Expr) {
@@ -1087,40 +1083,29 @@ Result parse_expr_(Parser* parser, Expr* expr, int level) {
         };
     } else if(parser->token.type == TOKEN_NUM) {
         op1 = (Expr) {
-            .type        = EXPR_VALUE,
-            .value.type  = VALUE_INT,
-            .value_type  = VALUE_INT,
-            .value.i     = parser->token.num,
-            .value.width = parser->token.width,
+            .type       = EXPR_VALUE,
+            .value.type = VALUE_INT,
+            .value.i    = parser->token.num,
+            .width      = parser->token.width,
         };
         parser_advance_stream(parser);
     } else if(parser->token.type == TOKEN_STRING) {
         op1 = (Expr) {
             .type        = EXPR_VALUE,
             .value.type  = VALUE_STRING,
-            .value_type  = VALUE_STRING,
             .value.s     = parser->token.name,
-            .value.width = WIDTH_UNSPECIFIED,
+            .width       = WIDTH_UNSPECIFIED,
         };
         parser_advance_stream(parser);
-    } else if(parser->token.type == TOKEN_LABEL) {
+    } else if(parser->token.type == TOKEN_IDENTIFIER) {
+        Identifier* ident = label_full_name(parser->token.identifier->name,
+                                            parser->last_label_name,
+                                            &parser->ast->identifier_map);
         op1 = (Expr){
-            .type        = EXPR_VALUE,
+            .type        = EXPR_LABEL,
             .value.type  = VALUE_LABEL,
-            .value_type  = VALUE_LABEL,
-            .value.width = WIDTH_3,
-            .value.s     = parser->token.name,
-        };
-        parser_advance_stream(parser);
-    } else if(parser->token.type == '.') {
-        parser_advance_stream(parser);
-        //TODO: Add notion of sublabel
-        op1 = (Expr){
-            .type        = EXPR_VALUE,
-            .value.type  = VALUE_LABEL,
-            .value_type  = VALUE_LABEL,
-            .value.width = WIDTH_3,
-            .value.s     = parser->token.name,
+            .value.l     = ident,
+            .width       = WIDTH_3,
         };
         parser_advance_stream(parser);
     } else {
@@ -1133,7 +1118,7 @@ Result parse_expr_(Parser* parser, Expr* expr, int level) {
         String token_string = parser->token.string;                     \
         parser_advance_stream(parser);                                  \
         parse_expr_(parser, &op2, hierarchy[expr_type].level);          \
-        if((op1.value_type != VALUE_INT && op1.value_type != VALUE_LABEL) ||\
+        if((op1.value_type != VALUE_INT && op1.value_type != VALUE_LABEL) || \
            (op2.value_type != VALUE_INT && op2.value_type != VALUE_LABEL)) { \
             error_add(parser->error_list, (Error) {                     \
                 .type = ERROR_INCOMPATIBLE_OPERANDS,                    \
@@ -1143,29 +1128,30 @@ Result parse_expr_(Parser* parser, Expr* expr, int level) {
         }                                                               \
         Expr* ops = arena_alloc_array(parser->arena, 2, Expr);          \
         ops[0] = op1; ops[1] = op2;                                     \
-        op1 = (Expr){                                                   \
+        op1 = (Expr){                                                \
             .type = expr_type,                                          \
             .value_type = VALUE_INT,                                    \
             .op1 = ops + 0,                                             \
-            .op2 = ops + 1                                              \
+            .op2 = ops + 1,                                             \
+            .width = max(op1.width, op2.width),                         \
         };                                                              \
         continue;                                                       \
     }
 
     while(1) {
-        if(parser->token.type == '.') parse_binary_operator(EXPR_DOT);
         if(parser->token.type == '*') parse_binary_operator(EXPR_MUL);
         if(parser->token.type == '/') parse_binary_operator(EXPR_DIV);
         if(parser->token.type == '&') parse_binary_operator(EXPR_BAN);
         if(parser->token.type == '|') parse_binary_operator(EXPR_BOR);
-        if(parser->token.type == TOKEN_LSHIFT)    parse_binary_operator(EXPR_LSH);
-        if(parser->token.type == TOKEN_RSHIFT)    parse_binary_operator(EXPR_RSH);
+        if(parser->token.type == TOKEN_LSHIFT) parse_binary_operator(EXPR_LSH);
+        if(parser->token.type == TOKEN_RSHIFT) parse_binary_operator(EXPR_RSH);
         if(parser->token.type == '+') parse_binary_operator(EXPR_ADD);
         if(parser->token.type == '-') parse_binary_operator(EXPR_SUB);
 
         break;
 	}
 #undef parse_binary_operator
+
 	*expr = op1;
     string.length = parser->token.string.data + parser->token.string.length - string.data;
     expr->string = string;
@@ -1178,6 +1164,112 @@ Result parse_expr(Parser* parser, Expr* expr) {
 }
 
 static
+Result eval_expr(Expr* expr, Value* value,
+                 LabelMap* label_map,
+                 ErrorList* error_list) {
+    Value val1, val2;
+    switch(expr->type) {
+    case EXPR_ADD: {
+        return_on_error(eval_expr(expr->op1, &val1, label_map, error_list));
+        return_on_error(eval_expr(expr->op2, &val2, label_map, error_list));
+
+        value->i = val1.i + val2.i;
+        value->type = VALUE_INT;
+        break;
+    }
+        
+    case EXPR_SUB: {
+        return_on_error(eval_expr(expr->op1, &val1, label_map, error_list));
+        return_on_error(eval_expr(expr->op2, &val2, label_map, error_list));
+
+        value->i = val1.i - val2.i;
+        value->type = VALUE_INT;
+        break;
+    }
+
+    case EXPR_MUL: {
+        return_on_error(eval_expr(expr->op1, &val1, label_map, error_list));
+        return_on_error(eval_expr(expr->op2, &val2, label_map, error_list));
+
+        value->i = val1.i * val2.i;
+        value->type = VALUE_INT;
+        break;
+    }
+        
+    case EXPR_DIV: {
+        return_on_error(eval_expr(expr->op1, &val1, label_map, error_list));
+        return_on_error(eval_expr(expr->op2, &val2, label_map, error_list));
+
+        value->i = val1.i / val2.i;
+        value->type = VALUE_INT;
+        break;
+    }
+
+    case EXPR_LSH: {
+        return_on_error(eval_expr(expr->op1, &val1, label_map, error_list));
+        return_on_error(eval_expr(expr->op2, &val2, label_map, error_list));
+
+        value->i = val1.i << val2.i;
+        value->type = VALUE_INT;
+        break;
+    }
+
+    case EXPR_RSH: {
+        return_on_error(eval_expr(expr->op1, &val1, label_map, error_list));
+        return_on_error(eval_expr(expr->op2, &val2, label_map, error_list));
+
+        value->i = val1.i >> val2.i;
+        value->type = VALUE_INT;
+        break;
+    }
+
+    case EXPR_BAN: {
+        return_on_error(eval_expr(expr->op1, &val1, label_map, error_list));
+        return_on_error(eval_expr(expr->op2, &val2, label_map, error_list));
+
+        value->i = val1.i & val2.i;
+        value->type = VALUE_INT;
+        break;
+    }
+
+    case EXPR_BOR: {
+        return_on_error(eval_expr(expr->op1, &val1, label_map, error_list));
+        return_on_error(eval_expr(expr->op2, &val2, label_map, error_list));
+
+        value->i = val1.i | val2.i;
+        value->type = VALUE_INT;
+        break;
+    }
+
+    case EXPR_NEG: {
+        return_on_error(eval_expr(expr->op1, &val1, label_map, error_list));
+
+        value->i = -val1.i;
+        value->type = VALUE_INT;
+        break;
+    }
+
+    case EXPR_VALUE: {
+            *value = expr->value;
+        break;
+    }
+    case EXPR_LABEL: {
+        Label* found = label_map_find(label_map, (Label) { .name = expr->value.l->name });
+        if(found) {
+            value->i = found->addr;
+            value->type = VALUE_LABEL;
+        } else {
+            return RESULT_UNDEFINED_LABEL;
+        }
+        break;
+    } 
+
+    invalid_default_case;
+    }
+    return RESULT_OK;
+}
+
+static
 Result static_eval_expr(Expr* expr, Value* value,
                         ErrorList* error_list) {
     Value val1, val2;
@@ -1187,7 +1279,6 @@ Result static_eval_expr(Expr* expr, Value* value,
         return_on_error(static_eval_expr(expr->op2, &val2, error_list));
 
         value->i = val1.i + val2.i;
-        value->width = max(val1.width, val2.width);
         value->type = VALUE_INT;
         break;
     }
@@ -1264,79 +1355,28 @@ Result static_eval_expr(Expr* expr, Value* value,
     }
 
     case EXPR_VALUE: {
-        if(expr->value.type == VALUE_LABEL) {
-            //TODO: Add text_pos;
-            error_add(error_list, (Error) {
-                .type     = ERROR_EXPR_NOT_STATIC,
-                //.text_pos = text_pos
-            });
-           return RESULT_ERROR;
-        }
         *value = expr->value;
         break;
     }
 
+    case EXPR_LABEL: {
+        //TODO: Add text_pos;
+        error_add(error_list, (Error) {
+            .type     = ERROR_EXPR_NOT_STATIC,
+            //.text_pos = text_pos
+        });
+        return RESULT_ERROR;
+    }
 
     invalid_default_case;
     }
     return RESULT_OK;
 }
 
-#define DONT_OPTIMIZE_BANK 0xFFFF
-Width expr_get_width(Expr* expr, LabelMap* label_map) {
-    switch(expr->type) {
-    case EXPR_NULL:
-        return WIDTH_0;
-    case EXPR_MUL:
-    case EXPR_DIV:
-    case EXPR_ADD:
-    case EXPR_SUB:
-    case EXPR_BAN:
-    case EXPR_BOR: {
-        return max(expr_get_width(expr->op1, label_map),
-                   expr_get_width(expr->op1, label_map));
-    }
-    case EXPR_LSH: {
-        Width w1 = expr_get_width(expr->op1, label_map);
-        if(expr->op2->type == EXPR_VALUE && expr->op2->value.type == VALUE_INT) {
-            return w1 - expr->op2->value.i / 8;
-        } else {
-            return w1;
-        }
-    }
-    case EXPR_RSH: {
-        Width w1 = expr_get_width(expr->op1, label_map);
-        if(expr->op2->type == EXPR_VALUE && expr->op2->value.type == VALUE_INT) {
-            return w1 + expr->op2->value.i / 8;
-        } else {
-            return w1;
-        }
-    }
-    /* Unary operands */
-    case EXPR_NEG: {
-        return expr_get_width(expr->op1, label_map);
-    }
-    /* Nullary operands */
-    case EXPR_VALUE: {
-        switch(expr->value.type) {
-        case VALUE_INT: {
-            return expr->value.width;
-        }
-        case VALUE_LABEL: {
-            Label dummy = { .name = expr->value.s };
-            Label* found = label_map_find(label_map, dummy);
-            assert(found);
-            (void)found;
-            return 3;
-        }
-        invalid_default_case;
-        }
-    }
-    invalid_default_case;
-    }
-    return 0;
-}
-
+typedef struct ExprList_{
+    Expr* expr;
+    struct ExprList_* next;
+} ExprList;
 
 int token_seperates_statements(Token token) {
     return token.type == TOKEN_CMD_DELIM
@@ -1350,16 +1390,18 @@ typedef enum {
     STATEMENT_TYPE_EMPTY,
     STATEMENT_TYPE_INCSRC,
     STATEMENT_TYPE_INCBIN,
+    STATEMENT_TYPE_DB,
+    STATEMENT_TYPE_ORG,
+    STATEMENT_TYPE_LABEL_DEF,
+    STATEMENT_TYPE_WDC65816,
+#if 0
     STATEMENT_TYPE_TABLE,
     STATEMENT_TYPE_CLEARTABLE,
     STATEMENT_TYPE_FILLBYTE,
-    STATEMENT_TYPE_DB,
-    STATEMENT_TYPE_ORG,
     STATEMENT_TYPE_WARNPC,
     STATEMENT_TYPE_FILL,
     STATEMENT_TYPE_BASE,
-    STATEMENT_TYPE_LABEL_DEF,
-    STATEMENT_TYPE_WDC65816,
+#endif
 } StatementType;
 
 typedef struct {
@@ -1394,9 +1436,8 @@ typedef struct Statement_ {
             Expr expr;
         } fillbyte;
         struct {
-            Expr* data;
-            uint length;
-            uint data_size;
+            ExprList list_sentinel;
+            Width width;
         } db;
         struct {
             Expr addr;
@@ -1410,24 +1451,94 @@ typedef struct Statement_ {
         } warnpc;
         struct {
             String name;
-        } label;
+        } label_def;
         OpEncoding wdc65816;
     };
 } Statement;
 
+void ast_init(AST* ast, Arena* arena) {
+    ast->statement_list.length = 0;
+    ast->statement_list.data = arena_alloc_array(arena, 512*1024, Statement);
+    identifier_map_init(&ast->identifier_map, 4096);
+    
+    for(int i = 0; i < array_length(commands); i++) {
+        Identifier entry = {
+            .name = string_from_c_string(commands[i]),
+            .type = COMMAND | i,
+        };
+        identifier_map_insert(&ast->identifier_map, entry);
+
+        entry = (Identifier){
+            .name = string_from_c_string(commands_lower[i]),
+            .type = COMMAND | i,
+        };
+        identifier_map_insert(&ast->identifier_map, entry);
+    }
+
+    for(int i = 0; i < array_length(opcodes); i++) {
+        u8 widths[7] = { WIDTH_UNSPECIFIED,
+                         WIDTH_1, WIDTH_2, WIDTH_3,
+                         WIDTH_1, WIDTH_2, WIDTH_3 };
+        char buffer[7][6] = {"",
+                             "   .b", "   .w", "   .l",
+                             "   .B", "   .W", "   .L"};
+        for(int j = 0; j < 7; j++) {
+            buffer[j][0] = opcodes_lower[i][0];
+            buffer[j][1] = opcodes_lower[i][1];
+            buffer[j][2] = opcodes_lower[i][2];
+            Identifier entry = (Identifier){
+                .name = string_from_c_string(buffer[j]),
+                .type = OPCODE | i,
+                .width = widths[j]
+            };
+            identifier_map_insert(&ast->identifier_map, entry);
+            buffer[j][0] = opcodes[i][0];
+            buffer[j][1] = opcodes[i][1];
+            buffer[j][2] = opcodes[i][2];
+            entry = (Identifier){
+                .name = string_from_c_string(buffer[j]),
+                .type = OPCODE | i,
+                .width = widths[j]
+            };
+            identifier_map_insert(&ast->identifier_map, entry);
+        }
+    }
+}
+
+int identifier_type_is_command(IdentifierType type) {
+    return type & COMMAND;
+}
+
+int identifier_is_command(IdentifierType type, CommandType cmd_type) {
+    return type == (COMMAND | cmd_type);
+}
+
+int identifier_type_is_opcode(IdentifierType type) {
+    return type & OPCODE;
+}
+
+int identifier_is_opcode(IdentifierType type, OpcodeType op_type) {
+    return type == (OPCODE | op_type);
+}
+
+int identifier_type_is_identifier(IdentifierType type) {
+    return type == IDENTIFIER;
+}
+
+
+
 void parser_init(Parser* parser, Arena* arena, FreeList* free_list,
-                 ErrorList* error_list, StatementList* stmt_list) {
+                 ErrorList* error_list, AST* ast) {
     parser->token = (Token){ 0 };
     parser->arena = arena;
     parser->free_list = free_list;
     parser->error_list = error_list;
-    parser->statement_list = stmt_list;
-    stmt_list->length = 0;
-    stmt_list->data = arena_alloc_array(parser->arena, 512*1024, Statement);
+    parser->ast = ast;
 
     token_stream_stack_init(&parser->stream_stack, free_list, 8);
     define_map_init(&parser->define_map, 512);
-    label_map_init(&parser->label_map, 4096);
+
+    parser->last_label_name.length = 0;
 }
 
 void parser_deinit(Parser* parser) {
@@ -1501,13 +1612,16 @@ Result parser_expect(Parser* parser, TokenType token_type) {
 
 static
 Result parse_incsrc(Parser* parser, Statement* stmt) {
+    (void)stmt;
     parser_advance_stream(parser);
     return_on_error(parser_expect(parser, TOKEN_STRING));
     parser->needed_token_stream_file_name = parser->token.name;
+#if 0
     if(parser->options.insert_incsrc) {
         stmt->type = STATEMENT_TYPE_EMPTY;
         stmt->incsrc.file_name = parser->token.name;
     }
+#endif
     parser_advance_stream(parser);
     return RESULT_OK;
 }
@@ -1544,6 +1658,7 @@ Result parse_incbin(Parser* parser, Statement* stmt) {
     return RESULT_OK;
 }
 
+#if 0
 static
 Result parse_table(Parser* parser, Statement* stmt) {
     parser_advance_stream(parser);
@@ -1561,28 +1676,6 @@ Result parse_warnpc(Parser* parser, Statement* stmt) {
     return_on_error(parse_expr(parser, &expr));
     stmt->warnpc.expr = expr;
     stmt->type = STATEMENT_TYPE_WARNPC;
-    return RESULT_OK;
-}
-
-static
-Result parse_org(Parser* parser, Statement* stmt) {
-    parser_advance_stream(parser);
-    Expr expr;
-    return_on_error(parse_expr(parser, &expr));
-    Value value = { 0 };
-    return_on_error(static_eval_expr(&expr, &value, parser->error_list));
-    if(value.type != VALUE_INT) {
-        error_add(parser->error_list, (Error) {
-            .type = ERROR_EXPR_NOT_INT,
-            //.text_pos = text_pos
-        });
-        return RESULT_ERROR;
-    }
-    parser->current_bank = value.i >> 16;
-    parser->current_org_bank = value.i >> 16;
-    stmt->org.addr = expr;
-    
-    stmt->type = STATEMENT_TYPE_ORG;
     return RESULT_OK;
 }
 
@@ -1611,7 +1704,7 @@ static
 Result parse_base(Parser* parser, Statement* stmt) {
     stmt->base.off = 0;
     parser_advance_stream(parser);
-    if(parser->token.type == TOKEN_COMMAND && parser->token.cmd_type == COMMAND_OFF) {
+    if(parser->token.type == TOKEN_IDENTIFIER && parser->token.identifier->type == COMMAND_OFF) {
         parser_advance_stream(parser);
         parser->current_bank = parser->current_org_bank;
         stmt->base.off = 1;
@@ -1641,32 +1734,62 @@ Result parse_cleartable(Parser* parser, Statement* stmt) {
     stmt->type = STATEMENT_TYPE_CLEARTABLE;
     return RESULT_OK;
 }
+#endif
 
 static
-Result parse_db(Parser* parser, uint data_size, Statement* stmt) {
-    stmt->db.data = arena_alloc_array(parser->arena, 0, Expr);
-    stmt->db.length = 0;
-    stmt->db.data_size = data_size;
-    stmt->type = STATEMENT_TYPE_DB;
-
+Result parse_org(Parser* parser, Statement* stmt) {
     parser_advance_stream(parser);
     Expr expr;
     return_on_error(parse_expr(parser, &expr));
-    Expr* expr_data = arena_alloc_array(parser->arena, 1, Expr);
-    *expr_data = expr;
+    Value value = { 0 };
+    return_on_error(static_eval_expr(&expr, &value, parser->error_list));
+    if(value.type != VALUE_INT) {
+        error_add(parser->error_list, (Error) {
+            .type = ERROR_EXPR_NOT_INT,
+            //.text_pos = text_pos
+        });
+        return RESULT_ERROR;
+    }
+    stmt->org.addr = expr;
+    
+    stmt->type = STATEMENT_TYPE_ORG;
+    return RESULT_OK;
+}
+
+static
+Result parse_db(Parser* parser, Width width, Statement* stmt) {
+    stmt->db.list_sentinel.next = &stmt->db.list_sentinel;
+    ExprList* node = stmt->db.list_sentinel.next;
+    parser_advance_stream(parser);
+    Expr expr;
+    return_on_error(parse_expr(parser, &expr));
+    Expr* new_expr = arena_alloc_array(parser->arena, 1, Expr);
+    *new_expr = expr;
+    ExprList* new_node = arena_alloc_array(parser->arena, 1, ExprList);
+    new_node->expr = new_expr;
+    node->next = new_node;
+    node = new_node;
     while(!token_seperates_statements(parser->token)) {
         if(parser->token.type != ',') {
             error_add(parser->error_list, (Error) {
                 .type = ERROR_UNEXPECTED_TOKEN,
                 .text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
             });
+            return RESULT_ERROR;
         } else {
             parser_advance_stream(parser);
             return_on_error(parse_expr(parser, &expr));
-            expr_data = arena_alloc_array(parser->arena, 1, Expr);
-            *expr_data = expr;
+            new_expr = arena_alloc_array(parser->arena, 1, Expr);
+            *new_expr = expr;
+            ExprList* new_node = arena_alloc_array(parser->arena, 1, ExprList);
+            new_node->expr = new_expr;
+            node->next = new_node;
+            node = new_node;
         }
     }
+    node->next = &stmt->db.list_sentinel;
+    stmt->db.width = width;
+    stmt->type = STATEMENT_TYPE_DB;
     return RESULT_OK;
 }
 
@@ -1694,8 +1817,9 @@ Result parse_if(Parser* parser) {
         });
     }
     parser_advance_stream(parser);
-    while(parser->token.type != TOKEN_COMMAND ||
-          (parser->token.cmd_type != COMMAND_ELSE && parser->token.cmd_type != COMMAND_ENDIF)) {
+    while(parser->token.type != TOKEN_IDENTIFIER ||
+          (!identifier_is_command(parser->token.identifier->type, COMMAND_ELSE) &&
+           !identifier_is_command(parser->token.identifier->type, COMMAND_ENDIF))) {
         if(parser->token.type == TOKEN_EOF) {
             // TODO: Better error handling.
             //       The error location is the unclosed if branch
@@ -1713,14 +1837,13 @@ Result parse_if(Parser* parser) {
         }
     }
     
-    if(parser->token.cmd_type == COMMAND_ELSE) {
+    if(parser->token.identifier->type == (COMMAND | COMMAND_ELSE)) {
         parser_advance_stream(parser);
-        while(parser->token.type != TOKEN_COMMAND ||
-              parser->token.cmd_type != COMMAND_ENDIF) {
+        while(parser->token.type != TOKEN_IDENTIFIER ||
+              parser->token.identifier->type != (COMMAND | COMMAND_ENDIF)) {
             if(parser->token.type == TOKEN_EOF) {
                 // TODO: Better error handling.
                 //       The error location is the unclosed if branch
-                // TODO: Convert to Error
                 //error_at_pos(parser->token.text_pos);
                 error_add(parser->error_list, (Error) {
                     .type = ERROR_UNTERMINATED_IF,
@@ -1744,17 +1867,178 @@ Result statement_wdc65816(Parser* parser,
                           Statement* stmt,
                           Token opcode,
                           OpcodeParseMode parse_mode,
-                          Width width,
                           Expr expr1, Expr expr2) {
-    u8 op_type = opcode.cmd_type;
+    (void)parser;
+    u8 op_type = opcode.identifier->type;
     stmt->wdc65816 = (OpEncoding) {
         .op_type = op_type,
         .parse_mode = parse_mode,
         .expr1   = expr1,
         .expr2   = expr2,
-        .width   = width
+        .width   = (opcode.identifier->width != WIDTH_UNSPECIFIED
+                    ? opcode.identifier->width
+                    : expr1.width),
     };
     stmt->type = STATEMENT_TYPE_WDC65816;
+    return RESULT_OK;
+}
+
+Result parse_wdc65816(Parser* parser, Statement* stmt) {
+    Token opcode = parser->token;
+    (void)opcode;
+    parser_advance_stream(parser);
+
+    if(token_seperates_statements(parser->token)) {
+        return_on_error(statement_wdc65816(parser, stmt, opcode, PARSE_MODE_IMPLIED,
+                                           null_expr, null_expr));
+    } else if(parser->token.type == TOKEN_IDENTIFIER &&
+              identifier_is_command(parser->token.identifier->type, COMMAND_A)) {
+        parser_advance_stream(parser);
+        return_on_error(statement_wdc65816(parser, stmt, opcode, PARSE_MODE_ACCUMULATOR,
+                                           null_expr, null_expr));
+    } else if(parser->token.type ==  '#') {
+        parser_advance_stream(parser);
+        Expr expr;
+        return_on_error(parse_expr(parser, &expr));
+        return_on_error(statement_wdc65816(parser, stmt, opcode, PARSE_MODE_IMMEDIATE,
+                                           expr, null_expr));
+    } else if(parser->token.type == '(') {
+        parser_advance_stream(parser);
+        Expr expr;
+        return_on_error(parse_expr(parser, &expr));
+        if(parser->token.type == ',') {
+            parser_advance_stream(parser);
+            if(parser->token.type == TOKEN_IDENTIFIER &&
+               identifier_is_command(parser->token.identifier->type, COMMAND_X)) {
+                parser_advance_stream(parser);
+                return_on_error(parser_expect(parser, ')'));
+                return_on_error(statement_wdc65816(parser, stmt, opcode, PARSE_MODE_X_INDIRECT,
+                                                   expr, null_expr));
+            } else if(parser->token.type == TOKEN_IDENTIFIER &&
+                      identifier_is_command(parser->token.identifier->type, COMMAND_S)) {
+                parser_advance_stream(parser);
+                return_on_error(parser_expect(parser, ')'));
+                parser_advance_stream(parser);
+                return_on_error(parser_expect(parser, ','));
+                parser_advance_stream(parser);
+                if(parser->token.type != TOKEN_IDENTIFIER ||
+                   !identifier_is_command(parser->token.identifier->type, COMMAND_Y)) {
+                    error_add(parser->error_list, (Error) {
+                        .type = ERROR_UNEXPECTED_TOKEN,
+                        .text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
+                    });
+                    return RESULT_ERROR;
+                }
+                return_on_error(statement_wdc65816(parser, stmt, opcode, PARSE_MODE_S_INDIRECT_Y,
+                                                   expr, null_expr));
+            } else {
+                error_add(parser->error_list, (Error) {
+                    .type = ERROR_UNEXPECTED_TOKEN,
+                    .text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
+                });
+                return RESULT_ERROR;
+            }
+            parser_advance_stream(parser);
+
+        } else if(parser->token.type == ')') {
+            parser_advance_stream(parser);
+            if(token_seperates_statements(parser->token)) {
+                return_on_error(statement_wdc65816(parser, stmt, opcode, PARSE_MODE_INDIRECT,
+                                                   expr, null_expr));
+            } else if(parser->token.type == ',') {
+                parser_advance_stream(parser);
+                if(parser->token.type != TOKEN_IDENTIFIER ||
+                   !identifier_is_command(parser->token.identifier->type, COMMAND_Y)) {
+                    error_add(parser->error_list, (Error) {
+                        .type = ERROR_UNEXPECTED_TOKEN,
+                        .text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
+                    });
+                    return RESULT_ERROR;
+                }
+                parser_advance_stream(parser);
+                return_on_error(statement_wdc65816(parser, stmt, opcode, PARSE_MODE_INDIRECT_Y,
+                                                   expr, null_expr));
+            }
+        } else {
+            error_add(parser->error_list, (Error) {
+                .type = ERROR_UNEXPECTED_TOKEN,
+                .text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
+            });
+            return RESULT_ERROR;
+        }
+    } else if(parser->token.type == '[') {
+        parser_advance_stream(parser);
+        Expr expr;
+        return_on_error(parse_expr(parser, &expr));
+        return_on_error(parser_expect(parser, ']'));
+        parser_advance_stream(parser);
+        if(parser->token.type == ',') {
+            parser_advance_stream(parser);
+            if(parser->token.type != TOKEN_IDENTIFIER ||
+               !identifier_is_command(parser->token.identifier->type, COMMAND_Y)) {
+                error_add(parser->error_list, (Error) {
+                    .type = ERROR_UNEXPECTED_TOKEN,
+                    .text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
+                });
+                return RESULT_ERROR;
+            }
+            parser_advance_stream(parser);
+            return_on_error(statement_wdc65816(parser, stmt, opcode, PARSE_MODE_LONG_INDIRECT_Y,
+                                               expr, null_expr));
+        } else if(token_seperates_statements(parser->token)) {
+            return_on_error(statement_wdc65816(parser, stmt, opcode, PARSE_MODE_LONG_INDIRECT,
+                                               expr, null_expr));
+        } else {
+            error_add(parser->error_list, (Error) {
+                .type = ERROR_UNEXPECTED_TOKEN,
+                .text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
+            });
+            return RESULT_ERROR;
+        }
+    } else {
+        Expr expr;
+        return_on_error(parse_expr(parser, &expr));
+        if(parser->token.type == ',') {
+            parser_advance_stream(parser);
+            if(parser->token.type == TOKEN_IDENTIFIER &&
+               identifier_is_command(parser->token.identifier->type, COMMAND_X)) {
+                parser_advance_stream(parser);
+                return_on_error(statement_wdc65816(parser, stmt, opcode, PARSE_MODE_DIRECT_X,
+                                                   expr, null_expr));
+            } else if(parser->token.type == TOKEN_IDENTIFIER &&
+                      identifier_is_command(parser->token.identifier->type, COMMAND_Y)) {
+                parser_advance_stream(parser);
+                return_on_error(statement_wdc65816(parser, stmt, opcode, PARSE_MODE_DIRECT_Y,
+                                                   expr, null_expr));
+            } else if(parser->token.type == TOKEN_IDENTIFIER &&
+                      identifier_is_command(parser->token.identifier->type, COMMAND_S)) {
+                parser_advance_stream(parser);
+                return_on_error(statement_wdc65816(parser, stmt, opcode, PARSE_MODE_DIRECT_S,
+                                                   expr, null_expr));
+            } else {
+                Expr expr2;
+                return_on_error(parse_expr(parser, &expr2));
+                return_on_error(statement_wdc65816(parser, stmt, opcode, PARSE_MODE_SRC_DEST,
+                                                   expr, expr2));
+            }
+        } else if(token_seperates_statements(parser->token)) {
+            return_on_error(statement_wdc65816(parser, stmt, opcode, PARSE_MODE_DIRECT,
+                                               expr, null_expr));
+        }
+    }
+    return RESULT_OK;
+}
+
+Result parse_label_def(Parser* parser,
+                      Statement* stmt) {
+    stmt->type = STATEMENT_TYPE_LABEL_DEF;
+    Token label = parser->token;
+    Identifier* ident = label_full_name(label.string,
+                                        parser->last_label_name,
+                                        &parser->ast->identifier_map);
+    stmt->label_def.name = ident->name;
+    parser->last_label_name = ident->name;
+    parser_advance_stream(parser);
     return RESULT_OK;
 }
 
@@ -1764,186 +2048,58 @@ Result parse_statement(Parser* parser, Statement* stmt) {
     stmt->tokens.data = parser->stream_stack_top->pos;
     
     switch(parser->token.type) {
-    case TOKEN_COMMAND: {
-        if(parser->token.cmd_type & COMMAND_START) {
-            switch(parser->token.cmd_type) {
-
-            case COMMAND_INCBIN:     { return_on_error(parse_incbin    (parser, stmt)); break; }
+    case TOKEN_IDENTIFIER: {
+        if(identifier_type_is_command(parser->token.identifier->type)) {
+            switch(parser->token.identifier->type & 0xFF) {
+#if 0
             case COMMAND_TABLE:      { return_on_error(parse_table     (parser, stmt)); break; }
             case COMMAND_WARNPC:     { return_on_error(parse_warnpc    (parser, stmt)); break; }
-            case COMMAND_ORG:        { return_on_error(parse_org       (parser, stmt)); break; }
             case COMMAND_FILL:       { return_on_error(parse_fill      (parser, stmt)); break; }
             case COMMAND_FILLBYTE:   { return_on_error(parse_fillbyte  (parser, stmt)); break; }
             case COMMAND_BASE:       { return_on_error(parse_base      (parser, stmt)); break; }
             case COMMAND_CLEARTABLE: { return_on_error(parse_cleartable(parser, stmt)); break; }
+#endif
+            case COMMAND_ORG:        { return_on_error(parse_org       (parser, stmt)); break; }
+            case COMMAND_INCBIN:     { return_on_error(parse_incbin    (parser, stmt)); break; }
             case COMMAND_INCSRC:     {
                 return_on_error(parse_incsrc(parser, stmt));
                 return RESULT_NEED_TOKEN_STREAM;
             }
 
-            case COMMAND_DB:         { return_on_error(parse_db(parser, 0, stmt));      break; }
-            case COMMAND_DW:         { return_on_error(parse_db(parser, 1, stmt));      break; }
-            case COMMAND_DL:         { return_on_error(parse_db(parser, 2, stmt));      break; }
-            case COMMAND_DD:         { return_on_error(parse_db(parser, 3, stmt));      break; }
+            case COMMAND_DB:         { return_on_error(parse_db(parser, WIDTH_1, stmt));      break; }
+            case COMMAND_DW:         { return_on_error(parse_db(parser, WIDTH_2, stmt));      break; }
+            case COMMAND_DL:         { return_on_error(parse_db(parser, WIDTH_3, stmt));      break; }
+            case COMMAND_DD:         { return_on_error(parse_db(parser, WIDTH_4, stmt));      break; }
 
             case COMMAND_IF:         { return_on_error(parse_if(parser));               break; }
             case COMMAND_ELSE: {
-                // TODO: Convert to Error
-                error_at_pos(get_text_pos(parser->stream_stack_top->text, parser->token.string));
-                fprintf(stderr, "Else without if.\n");
-                exit(1);
+                error_add(parser->error_list, (Error) {
+                    .type = ERROR_ELSE_WITHOUT_IF,
+                    .text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
+                });
+                return RESULT_ERROR;
             }
             case COMMAND_ENDIF: {
-                // TODO: Convert to Error
-                error_at_pos(get_text_pos(parser->stream_stack_top->text, parser->token.string));
-                fprintf(stderr, "Endif without if.\n");
-                exit(1);
+                error_add(parser->error_list, (Error) {
+                    .type = ERROR_ENDIF_WITHOUT_IF,
+                    .text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
+                });
+                return RESULT_ERROR;
             }
-
-                invalid_default_case;
+            default:
+                error_add(parser->error_list, (Error) {
+                    .type = ERROR_UNEXPECTED_TOKEN,
+                    .text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
+                });
+                return RESULT_ERROR;
             }
+        } else if(identifier_type_is_opcode(parser->token.identifier->type)) {
+            return_on_error(parse_wdc65816(parser, stmt));
         } else {
-            Token opcode = parser->token;
-            (void)opcode;
-            parser_advance_stream(parser);
-            Width width = opcode.width;
-            (void)width;
-
-            if(token_seperates_statements(parser->token)) {
-                return_on_error(statement_wdc65816(parser, stmt, opcode, PARSE_MODE_IMPLIED, width,
-                                                   null_expr, null_expr));
-            } else if(parser->token.type == TOKEN_COMMAND && parser->token.cmd_type == COMMAND_A) {
-                parser_advance_stream(parser);
-                return_on_error(statement_wdc65816(parser, stmt, opcode, PARSE_MODE_ACCUMULATOR, width,
-                                                   null_expr, null_expr));
-            } else if(parser->token.type ==  '#') {
-                parser_advance_stream(parser);
-                Expr expr;
-                return_on_error(parse_expr(parser, &expr));
-                return_on_error(statement_wdc65816(parser, stmt, opcode, PARSE_MODE_IMMEDIATE, width,
-                                                   expr, null_expr));
-            } else if(parser->token.type == '(') {
-                parser_advance_stream(parser);
-                Expr expr;
-                return_on_error(parse_expr(parser, &expr));
-                if(parser->token.type == ',') {
-                    parser_advance_stream(parser);
-                    if(parser->token.type == TOKEN_COMMAND && parser->token.cmd_type == COMMAND_X) {
-                        parser_advance_stream(parser);
-                        return_on_error(parser_expect(parser, ')'));
-                        return_on_error(statement_wdc65816(parser, stmt, opcode, PARSE_MODE_X_INDIRECT, width,
-                                                           expr, null_expr));
-                    } else if(parser->token.type == TOKEN_COMMAND && parser->token.cmd_type == COMMAND_S) {
-                        parser_advance_stream(parser);
-                        return_on_error(parser_expect(parser, ')'));
-                        parser_advance_stream(parser);
-                        return_on_error(parser_expect(parser, ','));
-                        parser_advance_stream(parser);
-                        if(parser->token.type != TOKEN_COMMAND || parser->token.cmd_type != COMMAND_Y) {
-                            error_add(parser->error_list, (Error) {
-                                .type = ERROR_UNEXPECTED_TOKEN,
-                                .text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
-                            });
-                            return RESULT_ERROR;
-                        }
-                        return_on_error(statement_wdc65816(parser, stmt, opcode, PARSE_MODE_S_INDIRECT_Y, width,
-                                                           expr, null_expr));
-                    } else {
-                        error_add(parser->error_list, (Error) {
-                            .type = ERROR_UNEXPECTED_TOKEN,
-                            .text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
-                        });
-                        return RESULT_ERROR;
-                    }
-                    parser_advance_stream(parser);
-
-                } else if(parser->token.type == ')') {
-                    parser_advance_stream(parser);
-                    if(token_seperates_statements(parser->token)) {
-                        return_on_error(statement_wdc65816(parser, stmt, opcode, PARSE_MODE_INDIRECT, width,
-                                                           expr, null_expr));
-                    } else if(parser->token.type == ',') {
-                        parser_advance_stream(parser);
-                        if(parser->token.type != TOKEN_COMMAND || parser->token.cmd_type != COMMAND_Y) {
-                            error_add(parser->error_list, (Error) {
-                                .type = ERROR_UNEXPECTED_TOKEN,
-                                .text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
-                            });
-                            return RESULT_ERROR;
-                        }
-                        parser_advance_stream(parser);
-                        return_on_error(statement_wdc65816(parser, stmt, opcode, PARSE_MODE_INDIRECT_Y, width,
-                                                           expr, null_expr));
-                    }
-                } else {
-                    error_add(parser->error_list, (Error) {
-                        .type = ERROR_UNEXPECTED_TOKEN,
-                        .text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
-                    });
-                    return RESULT_ERROR;
-                }
-            } else if(parser->token.type == '[') {
-                parser_advance_stream(parser);
-                Expr expr;
-                return_on_error(parse_expr(parser, &expr));
-                return_on_error(parser_expect(parser, ']'));
-                parser_advance_stream(parser);
-                if(parser->token.type == ',') {
-                    parser_advance_stream(parser);
-                    if(parser->token.type != TOKEN_COMMAND || parser->token.cmd_type != COMMAND_Y) {
-                        error_add(parser->error_list, (Error) {
-                            .type = ERROR_UNEXPECTED_TOKEN,
-                            .text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
-                        });
-                        return RESULT_ERROR;
-                    }
-                    parser_advance_stream(parser);
-                    return_on_error(statement_wdc65816(parser, stmt, opcode, PARSE_MODE_LONG_INDIRECT_Y, width,
-                                                       expr, null_expr));
-                } else if(token_seperates_statements(parser->token)) {
-                    return_on_error(statement_wdc65816(parser, stmt, opcode, PARSE_MODE_LONG_INDIRECT, width,
-                                                       expr, null_expr));
-                } else {
-                    error_add(parser->error_list, (Error) {
-                        .type = ERROR_UNEXPECTED_TOKEN,
-                        .text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
-                    });
-                    return RESULT_ERROR;
-                }
-            } else {
-                Expr expr;
-                return_on_error(parse_expr(parser, &expr));
-                if(parser->token.type == ',') {
-                    parser_advance_stream(parser);
-                    if(parser->token.type == TOKEN_COMMAND && parser->token.cmd_type == COMMAND_X) {
-                        parser_advance_stream(parser);
-                        return_on_error(statement_wdc65816(parser, stmt, opcode, PARSE_MODE_DIRECT_X, width,
-                                                           expr, null_expr));
-                    } else if(parser->token.type == TOKEN_COMMAND && parser->token.cmd_type == COMMAND_Y) {
-                        parser_advance_stream(parser);
-                        return_on_error(statement_wdc65816(parser, stmt, opcode, PARSE_MODE_DIRECT_Y, width,
-                                                           expr, null_expr));
-                    } else if(parser->token.type == TOKEN_COMMAND && parser->token.cmd_type == COMMAND_S) {
-                        parser_advance_stream(parser);
-                        return_on_error(statement_wdc65816(parser, stmt, opcode, PARSE_MODE_DIRECT_S, width,
-                                                           expr, null_expr));
-                    } else {
-                        Expr expr2;
-                        return_on_error(parse_expr(parser, &expr2));
-                        return_on_error(statement_wdc65816(parser, stmt, opcode, PARSE_MODE_SRC_DEST, width,
-                                                           expr, expr2));
-                    }
-                } else if(token_seperates_statements(parser->token)) {
-                    return_on_error(statement_wdc65816(parser, stmt, opcode, PARSE_MODE_DIRECT, width,
-                                                       expr, null_expr));
-                } else {
-                    error_add(parser->error_list, (Error) {
-                        .type = ERROR_UNEXPECTED_TOKEN,
-                        .text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
-                    });
-                    return RESULT_ERROR;
-                }
-            }
+            assert(identifier_type_is_identifier(parser->token.identifier->type));
+            return_on_error(parse_label_def(parser, stmt)); break;
+            break;
+            
         }
         break;
     }
@@ -1972,41 +2128,6 @@ Result parse_statement(Parser* parser, Statement* stmt) {
             return RESULT_ERROR;
         }
         stmt->type = STATEMENT_TYPE_EMPTY;
-        break;
-    }
-
-    case '.': {
-        while(parser->token.type == '.') {
-            parser_advance_stream(parser);
-        }
-        if(parser->token.type != TOKEN_LABEL) {
-            error_add(parser->error_list, (Error) {
-                .type = ERROR_UNEXPECTED_TOKEN,
-                .text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
-            });
-            return RESULT_ERROR;
-        }
-        parser_advance_stream(parser);
-        break;
-    }
-
-    case TOKEN_LABEL: {
-        Token label = parser->token;
-        Label dummy = {
-            .name = label.string,
-            .bank = parser->current_bank
-        };
-        Label* found = label_map_find(&parser->label_map, dummy);
-        if(found) {
-            error_add(parser->error_list, (Error) {
-                .type = ERROR_LABEL_ALREADY_DEFINED,
-                .text_pos = get_text_pos(parser->stream_stack_top->text, label.name)
-            });
-            return RESULT_ERROR;
-        }
-        stmt->type = STATEMENT_TYPE_LABEL_DEF;
-        stmt->label.name = label.string;
-        parser_advance_stream(parser);
         break;
     }
 
@@ -2054,112 +2175,138 @@ Result parse_statement(Parser* parser, Statement* stmt) {
     return RESULT_OK;
 }
 
-
 Result parse(Parser* parser, TokenList token_list) {
     TokenStream stream;
     token_stream_init(&stream, token_list);
     token_stream_stack_push(&parser->stream_stack, stream);
     parser->stream_stack_top = token_stream_stack_top(&parser->stream_stack);
     parser_update_stream(parser, DONT_EXPAND_DEFINES);
-    StatementList* stmt_list = parser->statement_list;
+    StatementList* stmt_list = &parser->ast->statement_list;
     Result parse_result = RESULT_OK;
     while(parser->token.type != TOKEN_EOF) {
         Statement* stmt = stmt_list->data + stmt_list->length;
-        stmt_list->length++;
         assert(stmt_list->length < 512 * 1024);
         Result parse_statement_result = parse_statement(parser, stmt);
         if(parse_statement_result == RESULT_ERROR) {
             do {
                 token_stream_advance(parser->stream_stack_top);
-                parser_update_stream(parser, DONT_EXPAND_DEFINES);
+                parser_update_stream(parser, DO_EXPAND_DEFINES);
             } while(!token_seperates_statements(parser->token));
             parse_result = RESULT_ERROR;
         } else if(parse_statement_result == RESULT_NEED_TOKEN_STREAM) {
             parse_result = RESULT_NEED_TOKEN_STREAM;
             break;
         }
+        stmt_list->length++;
     }
     return parse_result;
-};
+}
 
+#define LABEL_ADDR_UNSPECIFIED 0xFFFFFFFF
+
+u32 label_hash(Label e) {
+    return SuperFastHash(e.name);
+}
+
+u32 label_equal(Label e1, Label e2) {
+    return string_equal(e1.name, e2.name);
+}
+
+implement_hashmap(LabelMap, label_map, Label, label_hash, label_equal);
+
+
+Result assembler_write_bytes(Assembler* assembler, u32 bytes, uint width) {
+    for(int i = 0; i < width; i++) {
+        if(assembler->last_pass) {
+            wdc65816_mapper_write(assembler->rom, assembler->addr, bytes);
+        }
+        assembler->addr++;
+        bytes >>= 8;
+    }
+    return RESULT_OK;
+}
+
+
+Result assembler_write_expr(Assembler* assembler, Expr* expr, uint width) {
+    Value value = { };
+    eval_expr(expr, &value, &assembler->label_map, assembler->error_list);
+    if(value.type == VALUE_INT) {
+        return assembler_write_bytes(assembler, value.i, width);
+    } else if(value.type == VALUE_STRING) {
+        for(int i = 0; i < value.s.length; i++) {
+            return_on_error(assembler_write_bytes(assembler, value.s.data[i], width));
+        }
+        return RESULT_OK;
+    } else if(value.type == VALUE_LABEL) {
+        return assembler_write_bytes(assembler, value.i, width);
+    } else {
+        invalid_code_path;
+        return RESULT_ERROR;
+    }
+}
+
+Result assembler_write_buffer(Assembler* assembler, Buffer buffer) {
+    uint length = buffer_length(buffer);
+    if(assembler->last_pass) {
+        wdc65816_mapper_write_range(assembler->rom, assembler->addr, assembler->addr + length, buffer.begin);
+    }
+    assembler->addr += length;
+    return RESULT_OK;
+}
 
 
 void assembler_init(Assembler* assembler,
                     ErrorList* error_list,
-                    StatementList* stmt_list,
-                    Arena* arena) {
-    assembler->arena = arena;
-    assembler->statement_list = stmt_list;
-    assembler->current_statement = stmt_list->data;
+                    AST* ast,
+                    Wdc65816Mapper* rom) {
+    assembler->ast = ast;
+    assembler->current_statement = ast->statement_list.data;
     assembler->error_list = error_list;
+    assembler->rom = rom;
+    label_map_init(&assembler->label_map, 4096);
+    assembler->buffer = (Buffer) { }; 
+    assembler->addr = 0; 
+    assembler->last_pass = 0;
+    assembler->rerun = 0;
+    assembler->pass = 1; 
+    assembler->max_num_passes = 2;
 }
 
 Result assemble(Assembler* assembler) {
-    StatementList* stmt_list = assembler->statement_list;
+    StatementList* stmt_list = &assembler->ast->statement_list;
     Statement* stmt_end = stmt_list->data + stmt_list->length;
-    for(; assembler->current_statement < stmt_end; assembler->current_statement++) {
-        Statement* stmt = assembler->current_statement;
-        switch(stmt->type) {
-        case STATEMENT_TYPE_INCBIN: {
-            if(assembler->buffer.begin != NULL) {
-                wdc65816_rom_write_buffer(assembler->rom, assembler->pc, assembler->buffer);
-            } else {
-                assembler->file_name = stmt->incbin.file_name;
-                return RESULT_NEED_FILE;
+    for(;assembler->pass <= assembler->max_num_passes; assembler->pass++) {
+        if(assembler->pass == assembler->max_num_passes) {
+            assembler->last_pass = 1;
+        }
+        for(; assembler->current_statement < stmt_end; assembler->current_statement++) {
+            Statement* stmt = assembler->current_statement;
+            switch(stmt->type) {
+            case STATEMENT_TYPE_EMPTY: { break; };
+            case STATEMENT_TYPE_INCBIN: {
+                if(assembler->buffer.begin != NULL) {
+                    return_on_error(assembler_write_buffer(assembler,
+                                                           assembler->buffer));
+                    assembler->buffer.begin = NULL;
+                } else {
+                    assembler->file_name = stmt->incbin.file_name;
+                    return RESULT_NEED_FILE;
+                }
+                break;
             }
-            break;
-        }
-        case STATEMENT_TYPE_TABLE: {
-            break;
-        }
-        case STATEMENT_TYPE_CLEARTABLE: {
-            break;
-        }
-        case STATEMENT_TYPE_FILLBYTE: {
-            *assembler->fill_byte = stmt->fillbyte.expr;
-            break;
-        }
-        case STATEMENT_TYPE_DB: {
-            uint width = stmt->db.data_size;
-            uint length = stmt->db.length;
-            Expr* data = stmt->db.data;
-            for(int i = 0; i < length; i++) {
-                wdc65816_rom_write_expr(assembler->rom, assembler->pc, data + i, width);
+            case STATEMENT_TYPE_DB: {
+                Width width  = stmt->db.width;
+                
+                for(ExprList* node = stmt->db.list_sentinel.next;
+                    node != &stmt->db.list_sentinel;
+                    node = node->next) {
+                    assembler_write_expr(assembler, node->expr, width);
+                }
+                break;
             }
-            break;
-        }
-        case STATEMENT_TYPE_ORG: {
-            Value value = { 0 };
-            return_on_error(static_eval_expr(&stmt->org.addr, &value, assembler->error_list));
-            if(value.type != VALUE_INT) {
-                error_add(assembler->error_list, (Error) {
-                    .type = ERROR_EXPR_NOT_INT,
-                    //.text_pos = text_pos
-                });
-                return RESULT_ERROR;
-            }
-            assembler->pc   = value.i;
-            assembler->base = value.i;
-            break;
-        }
-        case STATEMENT_TYPE_WARNPC: {
-            break;
-        }
-        case STATEMENT_TYPE_FILL: {
-            Value value = { 0 };
-            // TODO: Error
-            return_on_error(static_eval_expr(&stmt->fill.length, &value, assembler->error_list));
-            for(int i = 0; i < value.i; i++) {
-                wdc65816_rom_write_expr(assembler->rom, assembler->pc, assembler->fill_byte, 1);
-            }
-            break;
-        }
-        case STATEMENT_TYPE_BASE: {
-            if(stmt->base.off) {
-                assembler->base = assembler->pc;
-            } else {
+            case STATEMENT_TYPE_ORG: {
                 Value value = { 0 };
-                return_on_error(static_eval_expr(&stmt->base.addr, &value, assembler->error_list));
+                return_on_error(static_eval_expr(&stmt->org.addr, &value, assembler->error_list));
                 if(value.type != VALUE_INT) {
                     error_add(assembler->error_list, (Error) {
                         .type = ERROR_EXPR_NOT_INT,
@@ -2167,92 +2314,219 @@ Result assemble(Assembler* assembler) {
                     });
                     return RESULT_ERROR;
                 }
-                assembler->base = value.i;
-            }
-            break;
-        }
-        case STATEMENT_TYPE_LABEL_DEF: {
-            Label dummy = { .name = stmt->label.name };
-            Label* found = label_map_find(&assembler->label_map, dummy);
-            assert(found);
-            if(found->bank != assembler->base >> 16) {
-                // TODO: Error
-                error_add(assembler->error_list, (Error) {
-                    .type = ERROR_EXPR_NOT_INT,
-                    //.text_pos = text_pos
-                });
-                return RESULT_ERROR;
-            }
-            
-            found->addr = assembler->base;
-            break;
-        }
-        case STATEMENT_TYPE_WDC65816: {
-            u8 op_type = stmt->wdc65816.op_type;
-            OpcodeParseMode parse_mode = stmt->wdc65816.parse_mode;
-            uint width = stmt->wdc65816.width;
-            OpcodeAssembleData opcode_data = opcode_assemble_data_table[op_type][parse_mode][width];
-            switch(opcode_data.mode) {
-            case ASSEMBLE_MODE_0: {
-                
+                assembler->addr = value.i;
+                /* printf("org %06x\n", assembler->addr); */
                 break;
             }
-            case ASSEMBLE_MODE_1: {
-                
+            case STATEMENT_TYPE_LABEL_DEF: {
+                String label_name = stmt->label_def.name;
+                Label* found = label_map_find(&assembler->label_map,
+                                              (Label){ .name = label_name });
+                if(found) {
+                    if(found->pass == assembler->pass) {
+                        error_add(assembler->error_list, (Error) {
+                            .type = ERROR_LABEL_ALREADY_DEFINED,
+                            //.text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
+                        });
+                    }
+                    if(found->addr != assembler->addr) {
+                        if(assembler->last_pass) {
+                            error_add(assembler->error_list, (Error) {
+                                .type = ERROR_FLOATING_LABEL,
+                                //.text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
+                            });
+                        }
+                        assembler->rerun = 1;
+                    }
+                    found->addr = assembler->addr;
+                    found->pass = assembler->pass;
+                } else {
+                    label_map_insert(&assembler->label_map,
+                                     (Label){ .name = stmt->label_def.name, .pass = assembler->pass, .addr = assembler->addr });
+                }
                 break;
             }
-            case ASSEMBLE_MODE_2: {
-                
-                break;
-            }
-            case ASSEMBLE_MODE_3: {
+            case STATEMENT_TYPE_WDC65816: {
+                u8 op_type = stmt->wdc65816.op_type;
+                OpcodeParseMode parse_mode = stmt->wdc65816.parse_mode;
+                Width width = stmt->wdc65816.width;
+                OpcodeAssembleData opcode_data = opcode_assemble_data_table[op_type][parse_mode][width];
+                switch(opcode_data.mode) {
+                case ASSEMBLE_MODE_0: {
+                    assembler_write_bytes(assembler, opcode_data.byte, 1);
+                    break;
+                }
+                case ASSEMBLE_MODE_1: {
+                    assembler_write_bytes(assembler, opcode_data.byte, 1);
+                    assembler_write_expr(assembler, &stmt->wdc65816.expr1, WIDTH_1);
+                    break;
+                }
+                case ASSEMBLE_MODE_2: {
+                    assembler_write_bytes(assembler, opcode_data.byte, 1);
+                    assembler_write_expr(assembler, &stmt->wdc65816.expr1, WIDTH_2);
+                    break;
+                }
+                case ASSEMBLE_MODE_3: {
+                    assembler_write_bytes(assembler, opcode_data.byte, 1);
+                    assembler_write_expr(assembler, &stmt->wdc65816.expr1, WIDTH_3);
+                    break;
+                }
+                case ASSEMBLE_MODE_R: {
+                    Value value = { };
+                    Result result = eval_expr(&stmt->wdc65816.expr1, &value,
+                                              &assembler->label_map, assembler->error_list);
+                    if(result == RESULT_UNDEFINED_LABEL) {
+                        if(assembler->last_pass) {
+                            error_add(assembler->error_list, (Error) {
+                                .type = ERROR_UNDEFINED_LABEL,
+                                //.text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
+                            });
+                        }
+                        assembler->rerun = 1;
+                    }
+#if 0
+                    if(value.i < 0) {
+                        error_add(assembler->error_list, (Error) {
+                            .type = ERROR_VALUE_NEGATIVE,
+                            //.text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
+                        });
+                    }
+#endif
+                    for(int i = 0; i < value.i; i++) {
+                        assembler_write_bytes(assembler, opcode_data.byte, 1);
+                    }
+                    break;
+                }
 
+                case ASSEMBLE_MODE_J: {
+                    Value value = { };
+                    Result result = eval_expr(&stmt->wdc65816.expr1, &value,
+                                              &assembler->label_map, assembler->error_list);
+                    if(result == RESULT_UNDEFINED_LABEL) {
+                        if(assembler->last_pass) {
+                            error_add(assembler->error_list, (Error) {
+                                .type = ERROR_UNDEFINED_LABEL,
+                                //.text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
+                            });
+                        }
+                    }
+                    
+                    i32 diff = (i32)value.i - (i32)assembler->addr - 2;
+                    if(value.type == VALUE_LABEL) {
+                        if(diff < -128 || diff > 127) {
+                            if(assembler->last_pass) {
+                                error_add(assembler->error_list, (Error) {
+                                   .type = ERROR_JUMP_TO_LONG,
+                                   //.text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
+                                });
+                            }
+                            assembler->rerun = 1;
+                        }
+                        assembler_write_bytes(assembler, opcode_data.byte, 1);
+                        assembler_write_bytes(assembler, diff, 1);
+                    } else {
+                        assembler_write_bytes(assembler, opcode_data.byte, 1);
+                        assembler_write_bytes(assembler, value.i, 1);
+                    }
+                    break;
+                }
+                case ASSEMBLE_MODE_K: {
+                    Value value = { };
+                    Result result = eval_expr(&stmt->wdc65816.expr1, &value,
+                                              &assembler->label_map, assembler->error_list);
+                    if(result == RESULT_UNDEFINED_LABEL) {
+                        if(assembler->last_pass) {
+                            error_add(assembler->error_list, (Error) {
+                                .type = ERROR_UNDEFINED_LABEL,
+                                //.text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
+                            });
+                        }
+                        assembler->rerun = 1;
+                    } 
+                    i32 diff = (i32)value.i - (i32)assembler->addr - 3;
+                    if(value.type == VALUE_LABEL) {
+                        if(diff < -32768 || diff > 32767) {
+                            if(assembler->last_pass) {
+                                error_add(assembler->error_list, (Error) {
+                                   .type = ERROR_JUMP_TO_LONG,
+                                   //.text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
+                                });
+                            }
+                            assembler->rerun = 1;
+                        }
+                        assembler_write_bytes(assembler, opcode_data.byte, 1);
+                        assembler_write_bytes(assembler, diff, 2);
+                    } else {
+                        assembler_write_bytes(assembler, opcode_data.byte, 1);
+                        assembler_write_bytes(assembler, value.i, 2);
+                    }
+                    break;
+                }
+                case ASSEMBLE_MODE_S: {
+                    assembler_write_bytes(assembler, opcode_data.byte, 1);
+                    assembler_write_expr(assembler, &stmt->wdc65816.expr1, 1);
+                    assembler_write_expr(assembler, &stmt->wdc65816.expr2, 1);
+                    break;
+                }
+                case ASSEMBLE_MODE_X: {
+                    Value value = { };
+                    Result result = eval_expr(&stmt->wdc65816.expr1, &value,
+                                              &assembler->label_map, assembler->error_list);
+                    if(result == RESULT_UNDEFINED_LABEL) {
+                        if(assembler->last_pass) {
+                            error_add(assembler->error_list, (Error) {
+                                .type = ERROR_UNDEFINED_LABEL,
+                                //.text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
+                            });
+                        }
+                        assembler->rerun = 1;
+                    }
+                    u32 bank = value.i >> 16;
+                    if(bank != 0 && bank != assembler->addr >> 16) {
+                        if(assembler->last_pass) {
+                            error_add(assembler->error_list, (Error) {
+                                .type = ERROR_WRONG_BANK,
+                                //.text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
+                            });
+                        }
+                        assembler->rerun = 1;
+                    }
+                    return_on_error(assembler_write_bytes(assembler, opcode_data.byte, 1));
+                    assembler_write_bytes(assembler, value.i, 2);
+                    break;
+                }
+                default: {
+                    error_add(assembler->error_list, (Error) {
+                        .type = ERROR_WRONG_OPCODE_USAGE,
+                        //.text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
+                    });
+                    break;
+                }
+                }
                 break;
             }
-            case ASSEMBLE_MODE_R: {
-
-                break;
+            invalid_default_case;
             }
-            case ASSEMBLE_MODE_J: {
-
-                break;
-            }
-            case ASSEMBLE_MODE_K: {
-
-                break;
-            }
-            case ASSEMBLE_MODE_S: {
-
-                break;
-            }
-            }
-            break;
         }
-        default: {
-            assert(0 && "Unknown statement type!");
+        if(assembler->last_pass && assembler->rerun) {
+            error_add(assembler->error_list, (Error) {
+                .type = ERROR_TO_MANY_PASSES,
+            });
+            return RESULT_ERROR;
         }
-        }
+        assembler->current_statement = assembler->ast->statement_list.data;
+        assembler->rerun = 0;
+        assembler->addr = 0;
     }
     return RESULT_OK;
 }
 
-void assembler_give_file(Assembler* assembler, Buffer buffer) {
+void assembler_give_buffer(Assembler* assembler, Buffer buffer) {
     assert(buffer.begin);
     assembler->buffer = buffer;
 }
 
 String assembler_get_file_name(Assembler* assembler) {
     return assembler->file_name;
-}
-
-
-void wdc65816_rom_write_bytes(Wdc65816Rom* rom, u32 addr, u32 bytes, uint width) {
-    
-}
-void wdc65816_rom_write_expr(Wdc65816Rom* rom, u32 addr, Expr* expr, uint width) {
-    
-}
-void wdc65816_rom_write_buffer(Wdc65816Rom* rom, u32 addr, Buffer buffer) {
-    
 }
 
