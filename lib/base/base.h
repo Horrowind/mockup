@@ -5,71 +5,59 @@
 #define _GNU_SOURCE
 #include <dirent.h>    // readdir, fdopendir, closedir
 #include <stdlib.h>    // calloc, free
-#include <string.h>    // stpncpy, strerror
+#include <string.h>    // memset, memcpy
 #include <stdio.h>     // fprintf, sprintf
 #elif defined(WINDOWS)
 #define UNICODE
 #define _UNICODE
-#include <windows.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <shlwapi.h>
-#include <pathcch.h>
 #elif defined(WASM)
-#include <sys/stat.h>
 #endif
 
-
-#if defined(WASM)
-void* malloc(size_t size);
-void  free(void *ptr);
-void* calloc(size_t nmemb, size_t size);
-void* memcpy(void *dest, const void *src, size_t n);
-int   memcmp(const void *s1, const void *s2, size_t n);
-void* memset(void *s, int c, size_t n);
-
-void exit(int status);
-
-typedef struct FILE FILE;
-FILE* stderr;
-int   printf(const char *format, ...);
-int   fprintf(FILE* fp, const char *format, ...);
-int   sprintf(char *str, const char *format, ...);
-char* strcat(char *dest, const char *src);
+#if defined(ARCH64)
+#define TYPE_ADDR long
+#define TYPE_I64  long
+typedef int       wchar;
+#elif defined(ARCH32)
+#define TYPE_ADDR int
+#define TYPE_I64  long long
+typedef long      wchar;
 #endif
 
+typedef signed   char     i8;
+typedef unsigned char     u8;
+typedef          short    i16;
+typedef unsigned short    u16;
+typedef signed   int      i32;
+typedef unsigned int      u32;
+typedef unsigned int      b32;
+typedef unsigned TYPE_I64 u64;
+typedef unsigned TYPE_I64 b64;
+typedef          float    f32;
+typedef          double   f64;
 
-// x86_64
-typedef signed   char   i8;
-typedef unsigned char   u8;
-typedef          short  i16;
-typedef unsigned short  u16;
-typedef signed   int    i32;
-typedef unsigned int    u32;
-typedef unsigned int    b32;
-typedef signed   long   i64;
-typedef unsigned long   u64;
-typedef unsigned long   b64;
-typedef float           f32;
-typedef double          f64;
+typedef unsigned long     ulong;
+typedef unsigned int      uint;
+typedef unsigned short    ushort;
+typedef unsigned char     uchar;
 
-typedef unsigned long   ulong;
-typedef unsigned int    uint;
-typedef unsigned short  ushort;
-typedef unsigned char   uchar;
-
-typedef          long   iptr;
-typedef unsigned long   uptr;
-
-
-//#define NULL ((void*)0)
+typedef          TYPE_ADDR iptr;
+typedef unsigned TYPE_ADDR uptr;
 
 #define STR_(x) #x
 #define STR(x) STR_(x)
 #define CODE_LOCATION STR(__FILE__) ": " STR(__LINE__) 
 
+#if defined(WINDOWS)
+#define fallthrough
+#else
+#define fallthrough __attribute__ ((fallthrough));
+#endif
+
 #define invalid_code_path assert(!"Invalid code path")
+#define not_implemented assert(!"Not implemented")
 #define invalid_default_case default: invalid_code_path; break
 
 #define alignof(x) __alignof(x)
@@ -90,7 +78,146 @@ typedef __builtin_va_list VariableArgumentList;
 #undef min
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
+
+#if defined(LINUX)
 #define debug_break raise_signal(2 /*SIGINT*/)
+#elif defined(WINDOWS)
+#define debug_break DebugBreak()
+#endif
+
+////////////////////////////////
+// Platform dependent structs //
+////////////////////////////////
+
+#if defined(LINUX)
+
+typedef struct {
+    long seconds;
+    long nano_seconds;
+} TimeSpec;
+
+typedef struct {
+    ulong st_dev;
+    u64   st_ino;
+    long  st_nlink;
+
+    uint  st_mode;
+    uint  st_uid;
+    uint  st_gid;
+    uint  __pad0;
+    u64   st_rdev;
+    long  st_size;
+    long  st_blksize;
+    u64   st_blocks;
+
+    TimeSpec st_atim;
+    TimeSpec st_mtim;
+    TimeSpec st_ctim;
+    long __unused[3];
+} Stat;
+
+typedef struct {
+    int fd_;
+    int fd_read_;
+    int fd_write_;
+    Stat stat_;
+} Path;
+
+typedef struct {
+    Path path;
+    Path* dir_path;
+    DIR* dp_;
+} DirIter;
+
+#elif defined(WINDOWS)
+
+typedef struct  {
+    ulong low_date_time;
+    ulong high_date_time;
+} Win32FileTime;
+
+typedef struct {
+    ulong dwFileAttributes;
+    Win32FileTime ftCreationTime;
+    Win32FileTime ftLastAccessTime;
+    Win32FileTime ftLastWriteTime;
+    ulong nFileSizeHigh;
+    ulong nFileSizeLow;
+} Win32FileAttributeData;
+
+typedef struct {
+    ulong dwFileAttributes;
+    Win32FileTime ftCreationTime;
+    Win32FileTime ftLastAccessTime;
+    Win32FileTime ftLastWriteTime;
+    ulong nFileSizeHigh;
+    ulong nFileSizeLow;
+    ulong dwReserved0;
+    ulong dwReserved1;
+    wchar cFileName[260];
+    wchar cAlternateFileName[14];
+} Win32FindDataW;
+
+typedef struct {
+    union {
+        ulong dwOemId;
+        struct {
+            ushort wProcessorArchitecture;
+            ushort wReserved;
+        };
+    };
+    ulong  dwPageSize;
+    void*  lpMinimumApplicationAddress;
+    void*  lpMaximumApplicationAddress;
+    ulong* dwActiveProcessorMask;
+    ulong  dwNumberOfProcessors;
+    ulong  dwProcessorType;
+    ulong  dwAllocationGranularity;
+    ushort wProcessorLevel;
+    ushort wProcessorRevision;
+} Win32SystemInfo;
+
+typedef struct {
+    void*  handle_;
+    wchar* path_name_;
+    Win32FileAttributeData data_;
+} Path;
+
+typedef struct {
+    Path path;
+    Path* dir_path;
+    void* handle_;
+    Win32FindDataW find_file_data_;
+    int first_iteration : 1;
+    int last_iteration  : 1;
+} DirIter;
+
+#define WIN32API __declspec(dllimport) __stdcall
+WIN32API
+void DebugBreak();
+
+#elif defined(WASM)
+
+typedef struct FILE FILE;
+
+void* malloc(uptr size);
+void  free(void *ptr);
+void* calloc(uptr nmemb, uptr size);
+void* memcpy(void *dest, const void *src, uptr n);
+int   memcmp(const void *s1, const void *s2, uptr n);
+void* memset(void *s, int c, uptr n);
+
+void exit(int status);
+
+FILE* stderr;
+int   printf(const char *format, ...);
+int   fprintf(FILE* fp, const char *format, ...);
+int   sprintf(char *str, const char *format, ...);
+#endif
+
+////////////////////
+// Base interface //
+////////////////////
 
 typedef struct  {
     uint page_size;
@@ -105,7 +232,9 @@ int  raise_signal(int signal);
 
 void* page_alloc(ulong num_pages);
 void* page_realloc(void* pages, ulong old_num_pages, ulong new_num_pages);
-void  page_free(void* pages, ulong num_pages);
+void  page_dealloc(void* pages, ulong num_pages);
+
+ulong size_to_pages(ulong size);
 
 typedef struct FreeList_ {
     struct FreeList_* next;
@@ -122,6 +251,10 @@ typedef struct {
     void* begin;
     void* end;
 } Buffer;
+
+Buffer buffer(void* data, ulong length);
+ulong  buffer_length(Buffer buffer);
+void   zero_buffer(Buffer buffer);
 
 typedef struct {
     Buffer   buffer;
@@ -152,10 +285,24 @@ typedef struct {
 
 #define L(cstr) (String){.data = cstr, .length = array_length(cstr) - 1 }
 
+String string_from_buffer(Buffer buffer);
+Buffer buffer_from_string(String string);
 b32 string_equal(String s1, String s2);
 String string_from_c_string(char* buf);
+String string_trim_spaces(String str);
 u64 string_to_u64(String s);
 u64 string_to_u64_base(String s, int base);
+void upcase_string(String s);
+void lowcase_string(String s);
+
+typedef struct {
+    Buffer buffer;
+    int length;
+} StringBuilder;
+
+StringBuilder string_builder(Buffer buffer);
+void string_builder_append(StringBuilder* builder, String string);
+String string_from_builder(StringBuilder builder);
 
 #define string_split_foreach(s, t, c)                                   \
     String t = { .data = (s).data };                                    \
@@ -176,85 +323,31 @@ u64 string_to_u64_base(String s, int base);
 void print(String s);
 void print_error(String s);
 
-
-
-#if defined(LINUX)
-
-typedef struct {
-    long seconds;
-    long nano_seconds;
-} TimeSpec;
-
-typedef struct {
-    ulong st_dev;
-    u64   st_ino;
-    long  st_nlink;
-
-    uint  st_mode;
-    uint  st_uid;
-    uint  st_gid;
-    uint  __pad0;
-    u64   st_rdev;
-    long  st_size;
-    long  st_blksize;
-    u64   st_blocks;
-
-    TimeSpec st_atim;
-    TimeSpec st_mtim;
-    TimeSpec st_ctim;
-    long __unused[3];
-} Stat;
-
-#endif
-
-
-typedef struct {
-#if defined(LINUX)
-    int fd_;
-    int fd_read_;
-    int fd_write_;
-    Stat stat_;
-#elif defined(WINDOWS)
-    HANDLE handle_;
-    PWSTR  path_name_;
-    WIN32_FILE_ATTRIBUTE_DATA data_;
-#endif
-} Path;
-
-typedef struct {
-    Path path;
-    Path* dir_path;
-#if defined(LINUX)
-    DIR* dp_;
-#elif defined(WINDOWS)
-    HANDLE handle_;
-    WIN32_FIND_DATA find_file_data_;
-    int first_iteration : 1;
-    int last_iteration  : 1;
-#endif
-} DirIter;
-
-void       path_init(Path* path, String name);
-void       path_init_c(Path* path, char* name);
-void       path_init_working_directory(Path* path);
-void       path_init_from_c(Path* path, Path* dir, char* name);
-void       path_init_from(Path* path, Path* dir, String name);
-void       path_copy(Path* orig, Path* copy);
-int        path_can_read(Path* path);
-Buffer     path_read_file(Path* path, Arena* arena);
-Buffer     path_read_file_aligned(Path* path, Arena* arena, int alignment);
-int        path_can_write(Path* path);
-void       path_write_file(Path* path, Buffer buffer);
-void       path_close(Path* path);
-void       path_navigate(Path* path, String name);
-void       path_navigate_c(Path* path, char* name);
-ulong      path_get_file_size(Path* path);
-int        path_is_directory(Path* path);
-String     path_get_name(Path* path, Arena* arena); //TODO
-String     path_get_base_name(Path* path, Arena* arena); //TODO
-DirIter    dir_iter_begin(Path* path);
-int        dir_iter_next(DirIter* dir_iter);
-void       dir_iter_end(DirIter* dir_iter);
+void    path_init(Path* path, String name);
+void    path_init_c(Path* path, char* name);
+void    path_init_from_c(Path* path, Path* dir, char* name);
+void    path_init_from(Path* path, Path* dir, String name);
+void    path_init_working_directory(Path* path);
+void    path_create(Path* path, String name);
+void    path_create_c(Path* path, char* name);
+void    path_create_from_c(Path* path, Path* dir, char* name);
+void    path_create_from(Path* path, Path* dir, String name);
+void    path_copy(Path* orig, Path* copy);
+b32     path_can_read(Path* path);
+Buffer  path_read_file(Path* path, Arena* arena);
+Buffer  path_read_file_aligned(Path* path, Arena* arena, int alignment);
+b32     path_can_write(Path* path);
+void    path_write_file(Path* path, Buffer buffer);
+void    path_close(Path* path);
+void    path_navigate(Path* path, String name);
+void    path_navigate_c(Path* path, char* name);
+ulong   path_get_file_size(Path* path);
+int     path_is_directory(Path* path);
+String  path_get_name(Path* path, Arena* arena); //TODO
+String  path_get_base_name(Path* path, Arena* arena); //TODO
+DirIter dir_iter_begin(Path* path);
+int     dir_iter_next(DirIter* dir_iter);
+void    dir_iter_end(DirIter* dir_iter);
 
 
 #define FixedString(size)                                               \
@@ -329,18 +422,33 @@ void       dir_iter_end(DirIter* dir_iter);
     implement_fixed_string(name, prefix, size);                         \
 
 
-typedef struct bml_node {
+typedef enum {
+    BML_NODE,
+    BML_NODE_END,
+    BML_NODE_EOF,
+    BML_NODE_ERROR,
+    BML_NODE_ERROR_INVALID_NODE_NAME,
+} BmlNodeType;
+
+typedef struct {
+    BmlNodeType type;
     String name;
     String value;
-    struct bml_node* child;
-    struct bml_node* next;
-} BMLNode;
+} BmlNode;
 
-BMLNode* bml_parse(Buffer buffer, Arena* arena);
-void bml_print_node(BMLNode* node, int indent);
+typedef struct {
+    Buffer  buffer;
+    char*   pos;
+    int     indent;
+    int     indent_index;
+    int     indent_levels[16];
+    int     state;
+} BmlParser;
 
-
-
+void    bml_parser_init(BmlParser* parser, Buffer buffer);
+BmlNode bml_parse(BmlParser* parser);
+BmlNode bml_skip(BmlParser* parser);
+    
 #define define_stack(name, prefix, type)                                \
     typedef struct {                                                    \
         type* data;                                                     \
@@ -456,11 +564,11 @@ u32 SuperFastHash(String str);
     void prefix##_init(name* map, int size) {                           \
         map->size = size;                                               \
         map->fill = 0;                                                  \
-        map->entries = calloc(size, sizeof(*map->entries));             \
+        map->entries = page_alloc(size_to_pages(size * sizeof(map->entries[0])));  \
     }                                                                   \
                                                                         \
     void prefix##_deinit(name* map) {                                   \
-        free(map->entries);                                             \
+        page_dealloc(map->entries, size_to_pages(map->size * sizeof(map->entries[0]))); \
     }                                                                   \
                                                                         \
     void prefix##_insert2(name* map, type data, u32 hash);              \
@@ -475,7 +583,7 @@ u32 SuperFastHash(String str);
                 prefix##_insert2(&new_map, data, hash);                 \
             }                                                           \
         }                                                               \
-        free(map->entries);                                             \
+        page_dealloc(map->entries, size_to_pages(map->size * sizeof(map->entries[0]))); \
         *map = new_map;                                                 \
     }                                                                   \
                                                                         \
@@ -550,6 +658,141 @@ u32 SuperFastHash(String str);
 
 define_hashmap(StringMap, string_map, String, SuperFastHash, string_equal);
 
+#define InternHashmap(type)                                             \
+    struct {                                                            \
+        Arena arena;                                                    \
+        struct {                                                        \
+            type* data;                                                 \
+            u32  hash : 31;                                             \
+            u32  used :  1;                                             \
+        }* entries;                                                     \
+        uint size;                                                      \
+        uint fill;                                                      \
+    }
+
+#define define_intern_hashmap(name, prefix, type)                       \
+    typedef InternHashmap(type) name;                                   \
+    void  prefix##_init(name* map, int size);                           \
+    void  prefix##_deinit(name* map);                                   \
+    void  prefix##_resize(name* map);                                   \
+    type* prefix##_find(name* map, type data);                          \
+    type* prefix##_find_hash(name* map, type data, u32 hash);           \
+    void  prefix##_insert(name* map, type data);                        \
+    type* prefix##_find_or_insert(name* map, type data);                \
+    void  prefix##_insert2(name* map, type* data, u32 hash);
+
+
+#define implement_intern_hashmap(name, prefix, type, fun, cmp, cpy)     \
+    void prefix##_init(name* map, int size) {                           \
+        map->arena = arena_create(1024 * 1024 * 128);                   \
+        map->size = size;                                               \
+        map->fill = 0;                                                  \
+        map->entries = page_alloc(size_to_pages(size * sizeof(map->entries[0]))); \
+    }                                                                   \
+                                                                        \
+    void prefix##_deinit(name* map) {                                   \
+        page_dealloc(map->entries, size_to_pages(map->size * sizeof(map->entries[0]))); \
+    }                                                                   \
+                                                                        \
+    void prefix##_insert2(name* map, type* data, u32 hash);             \
+    void prefix##_resize(name* map) {                                   \
+        name new_map;                                                   \
+        new_map.size = 2 * map->size;                                   \
+        new_map.fill = 0;                                               \
+        new_map.entries = page_alloc(size_to_pages(new_map.size * sizeof(map->entries[0]))); \
+        new_map.arena = map->arena;                                     \
+        for(int i = 0; i < map->size; i++) {                            \
+            type* data = map->entries[i].data;                          \
+            u32 hash = map->entries[i].hash;                            \
+            u32 used = map->entries[i].used;                            \
+            if(used) {                                                  \
+                prefix##_insert2(&new_map, data, hash);                 \
+            }                                                           \
+        }                                                               \
+        page_dealloc(map->entries, size_to_pages(map->size * sizeof(map->entries[0]))); \
+        *map = new_map;                                                 \
+    }                                                                   \
+                                                                        \
+    inline                                                              \
+    void prefix##_insert2(name* map, type* data, u32 hash) {            \
+        u32 mask = (map->size - 1);                                     \
+        u32 pos = hash & mask;                                          \
+        u32 dist = 0;                                                   \
+        for(;;) {                                                       \
+            if(!map->entries[pos].used) {                               \
+                map->entries[pos].data = data;                          \
+                map->entries[pos].hash = hash;                          \
+                map->entries[pos].used = 1;                             \
+                break;                                                  \
+            } else {                                                    \
+                u32 probed_hash = map->entries[pos].hash;               \
+                u32 probed_dist = (probed_hash - pos) & mask;           \
+                if(probed_dist < dist) {                                \
+                    type* tmp_data = data;                              \
+                    data = map->entries[pos].data;                      \
+                    map->entries[pos].data = tmp_data;                  \
+                                                                        \
+                    u32 tmp_hash = hash;                                \
+                    hash = probed_hash;                                 \
+                    map->entries[pos].hash = tmp_hash;                  \
+                    map->entries[pos].used = 1;                         \
+                }                                                       \
+            }                                                           \
+            pos = (pos + 1) & mask;                                     \
+            dist++;                                                     \
+        }                                                               \
+        map->fill++;                                                    \
+        if(map->fill * MAX_FILL_DENOMINATOR > map->size * MAX_FILL_NOMINATOR) \
+            prefix##_resize(map);                                       \
+    }                                                                   \
+                                                                        \
+    type* prefix##_find(name* map, type data) {                         \
+        u32 hash = fun(data);                                           \
+        return prefix##_find_hash(map, data, hash);                     \
+    }                                                                   \
+                                                                        \
+    type* prefix##_find_hash(name* map, type data, u32 hash) {          \
+        u32 mask = (map->size - 1);                                     \
+        u32 dist = 0;                                                   \
+        u32 pos = hash & mask;                                          \
+        for(;;) {                                                       \
+            if(!map->entries[pos].used) {                               \
+                return NULL;                                            \
+            } else  if(cmp(*map->entries[pos].data, data)) {            \
+                return map->entries[pos].data;                          \
+            } else {                                                    \
+                u32 probed_hash = map->entries[pos].hash;               \
+                u32 probed_dist = (probed_hash - pos) & mask;           \
+                if(probed_dist < dist) {                                \
+                    return NULL;                                        \
+                }                                                       \
+                pos = (pos + 1) & mask;                                 \
+                dist++;                                                 \
+            }                                                           \
+        }                                                               \
+    }                                                                   \
+                                                                        \
+    type* prefix##_find_or_insert(name* map, type data) {               \
+        u32 hash = fun(data);                                           \
+        type* found = prefix##_find_hash(map, data, hash);              \
+        if(found) return found;                                         \
+        type* new_data = cpy(&map->arena, data);                        \
+        prefix##_insert2(map, new_data, hash);                          \
+        return new_data;                                                \
+    }                                                                   \
+                                                                        \
+    void prefix##_insert(name* map, type data) {                        \
+        u32 hash = fun(data);                                           \
+        type* new_data = cpy(&map->arena, data);                        \
+        prefix##_insert2(map, new_data, hash);                          \
+    }
+
+#define generate_intern_hashmap(Name, name, type, fun, cmp)             \
+    define_intern_hashmap(Name, name, type, fun, cmp)                   \
+    implement_intern_hashmap(Name, name, type, fun, cmp)
+
+
+
 typedef struct {
     String name;
     Buffer buffer;
@@ -570,55 +813,41 @@ void vfs_add_dir(VFS* vfs, Path* path, Arena* arena);
 
 Global global = { 0 };
 
-#if defined(WASM)
-
-void free(void *ptr);
-void *calloc(size_t nmemb, size_t size);
-
-typedef struct FILE FILE;
-FILE* stderr;
-int printf(const char *format, ...);
-int fprintf(FILE* fp, const char *format, ...);
-
-void* memset(void *s, int c, size_t n) {
-    for(size_t i = 0; i < n; i++) {
-        ((char*)s)[i] = c;
-    }
-    return s;
-}
-#endif
+///////////////////////////////////////
+// Platform dependent implementation //
+///////////////////////////////////////
 
 #if defined(LINUX)
 
 #define INVALID_FD (-1)
 
-static __inline long syscall0(long n) {
+static __inline long linux_syscall0(long n) {
 	unsigned long ret;
 	__asm__ __volatile__ ("syscall" : "=a"(ret) : "a"(n) : "rcx", "r11", "memory");
 	return ret;
 }
 
-static __inline long syscall1(long n, long a1) {
+static __inline long linux_syscall1(long n, long a1) {
 	unsigned long ret;
 	__asm__ __volatile__ ("syscall" : "=a"(ret) : "a"(n), "D"(a1) : "rcx", "r11", "memory");
 	return ret;
 }
 
-static __inline long syscall2(long n, long a1, long a2) {
+static __inline long linux_syscall2(long n, long a1, long a2) {
 	unsigned long ret;
 	__asm__ __volatile__ ("syscall" : "=a"(ret) : "a"(n), "D"(a1), "S"(a2)
 						  : "rcx", "r11", "memory");
 	return ret;
 }
 
-static __inline long syscall3(long n, long a1, long a2, long a3) {
+static __inline long linux_syscall3(long n, long a1, long a2, long a3) {
 	unsigned long ret;
 	__asm__ __volatile__ ("syscall" : "=a"(ret) : "a"(n), "D"(a1), "S"(a2),
 						  "d"(a3) : "rcx", "r11", "memory");
 	return ret;
 }
 
-static __inline long syscall4(long n, long a1, long a2, long a3, long a4) {
+static __inline long linux_syscall4(long n, long a1, long a2, long a3, long a4) {
 	unsigned long ret;
 	register long r10 __asm__("r10") = a4;
 	__asm__ __volatile__ ("syscall" : "=a"(ret) : "a"(n), "D"(a1), "S"(a2),
@@ -626,7 +855,7 @@ static __inline long syscall4(long n, long a1, long a2, long a3, long a4) {
 	return ret;
 }
 
-static __inline long syscall5(long n, long a1, long a2, long a3, long a4, long a5) {
+static __inline long linux_syscall5(long n, long a1, long a2, long a3, long a4, long a5) {
 	unsigned long ret;
 	register long r10 __asm__("r10") = a4;
 	register long r8 __asm__("r8") = a5;
@@ -635,7 +864,7 @@ static __inline long syscall5(long n, long a1, long a2, long a3, long a4, long a
 	return ret;
 }
 
-static __inline long syscall6(long n, long a1, long a2, long a3, long a4, long a5, long a6) {
+static __inline long linux_syscall6(long n, long a1, long a2, long a3, long a4, long a5, long a6) {
 	unsigned long ret;
 	register long r10 __asm__("r10") = a4;
 	register long r8 __asm__("r8") = a5;
@@ -646,31 +875,31 @@ static __inline long syscall6(long n, long a1, long a2, long a3, long a4, long a
 }
 
 
-#define SYSCALL_NARGS_X_(a,b,c,d,e,f,g,h,n,...) n
-#define SYSCALL_NARGS_(...) SYSCALL_NARGS_X_(__VA_ARGS__,7,6,5,4,3,2,1,0,)
-#define SYSCALL_CONCAT_X_(a,b) a##b
-#define SYSCALL_CONCAT_(a,b) SYSCALL_CONCAT_X_(a,b)
-#define SYSCALL_DISP_(b,...) SYSCALL_CONCAT_(b, SYSCALL_NARGS_(__VA_ARGS__))(__VA_ARGS__)
+#define LINUX_SYSCALL_NARGS_X_(a,b,c,d,e,f,g,h,n,...) n
+#define LINUX_SYSCALL_NARGS_(...) LINUX_SYSCALL_NARGS_X_(__VA_ARGS__,7,6,5,4,3,2,1,0,)
+#define LINUX_SYSCALL_CONCAT_X_(a,b) a##b
+#define LINUX_SYSCALL_CONCAT_(a,b) LINUX_SYSCALL_CONCAT_X_(a,b)
+#define LINUX_SYSCALL_DISP_(b,...) LINUX_SYSCALL_CONCAT_(b, LINUX_SYSCALL_NARGS_(__VA_ARGS__))(__VA_ARGS__)
 
-#define syscall(...) SYSCALL_DISP_(syscall,__VA_ARGS__)
+#define linux_syscall(...) LINUX_SYSCALL_DISP_(linux_syscall,__VA_ARGS__)
 
 enum {
-    SYSCALL_READ           =   0,
-    SYSCALL_WRITE          =   1,
-    SYSCALL_OPEN           =   2,
-    SYSCALL_CLOSE          =   3,
-    SYSCALL_FSTAT          =   5,
-    SYSCALL_LSTAT          =   6,
-    SYSCALL_MMAP           =   9,
-    SYSCALL_MUNMAP         =  11,
-    SYSCALL_RT_SIGPROCMASK =  14,
-    SYSCALL_MREMAP         =  25,
-    SYSCALL_DUP            =  32,
-    SYSCALL_READLINK       =  89,
-    SYSCALL_GETTID         = 186,
-    SYSCALL_TKILL          = 200,
-    SYSCALL_EXIT_GROUP     = 231,
-    SYSCALL_OPENAT         = 257,
+    LINUX_SYSCALL_READ           =   0,
+    LINUX_SYSCALL_WRITE          =   1,
+    LINUX_SYSCALL_OPEN           =   2,
+    LINUX_SYSCALL_CLOSE          =   3,
+    LINUX_SYSCALL_FSTAT          =   5,
+    LINUX_SYSCALL_LSTAT          =   6,
+    LINUX_SYSCALL_MMAP           =   9,
+    LINUX_SYSCALL_MUNMAP         =  11,
+    LINUX_SYSCALL_RT_SIGPROCMASK =  14,
+    LINUX_SYSCALL_MREMAP         =  25,
+    LINUX_SYSCALL_DUP            =  32,
+    LINUX_SYSCALL_READLINK       =  89,
+    LINUX_SYSCALL_GETTID         = 186,
+    LINUX_SYSCALL_TKILL          = 200,
+    LINUX_SYSCALL_EXIT_GROUP     = 231,
+    LINUX_SYSCALL_OPENAT         = 257,
 } LinuxSyscall;
 
 enum {
@@ -678,8 +907,8 @@ enum {
     OPEN_FLAGS_WRITE          =       1,
     OPEN_FLAGS_READ_WRITE     =       2,
 
-
     OPEN_FLAGS_LARGE_FILE     =       0,
+    OPEN_FLAGS_CREATE         =    0x40,
     OPEN_FLAGS_CLOSE_ON_EXEC  = 0x80000,
 
     OPEN_FLAGS_COMMON         = OPEN_FLAGS_LARGE_FILE | OPEN_FLAGS_CLOSE_ON_EXEC,
@@ -701,97 +930,97 @@ enum {
     MEMORY_FLAGS_MAYMOVE      =  1,
 } LinuxMemoryFlags;
 
-long syscall_read(int file_descriptor, void* buf, unsigned long count) {
-    return syscall(SYSCALL_READ, (long)file_descriptor, (long)buf, (long)count);
+long linux_syscall_read(int file_descriptor, void* buf, unsigned long count) {
+    return linux_syscall(LINUX_SYSCALL_READ, (long)file_descriptor, (long)buf, (long)count);
 }
 
-long syscall_write(int file_descriptor, const void* buf, unsigned long count) {
-    return syscall(SYSCALL_WRITE, (long)file_descriptor, (long)buf, (long)count);
+long linux_syscall_write(int file_descriptor, const void* buf, unsigned long count) {
+    return linux_syscall(LINUX_SYSCALL_WRITE, (long)file_descriptor, (long)buf, (long)count);
 }
 
-long syscall_open(const char* file_path, int flags, int mode) {
-    return syscall(SYSCALL_OPEN, (long)file_path, (long)flags, (long)mode);
+long linux_syscall_open(const char* file_path, int flags, int mode) {
+    return linux_syscall(LINUX_SYSCALL_OPEN, (long)file_path, (long)flags, (long)mode);
 }
 
-int syscall_close(int file_descriptor) {
-    return (int)syscall(SYSCALL_CLOSE, (long)file_descriptor);
+int linux_syscall_close(int file_descriptor) {
+    return (int)linux_syscall(LINUX_SYSCALL_CLOSE, (long)file_descriptor);
 }
 
-long syscall_fstat(int file_descriptor, Stat* stat) {
-    return syscall(SYSCALL_FSTAT, (long)file_descriptor, (long)stat);
+long linux_syscall_fstat(int file_descriptor, Stat* stat) {
+    return linux_syscall(LINUX_SYSCALL_FSTAT, (long)file_descriptor, (long)stat);
 }
 
-long syscall_lstat(const char* path_name, Stat* stat) {
-    return syscall(SYSCALL_LSTAT, (long)path_name, (long)stat);
+long linux_syscall_lstat(const char* path_name, Stat* stat) {
+    return linux_syscall(LINUX_SYSCALL_LSTAT, (long)path_name, (long)stat);
 }
 
-void* syscall_mmap(void* addr, unsigned long length, int prot,
+void* linux_syscall_mmap(void* addr, unsigned long length, int prot,
                    int flags, int file_descriptor, off_t offset) {
-    return (void*)syscall(SYSCALL_MMAP, (long)addr, (long)length, (long)prot, (long)flags,
+    return (void*)linux_syscall(LINUX_SYSCALL_MMAP, (long)addr, (long)length, (long)prot, (long)flags,
                    (long)file_descriptor, (long)offset);
 }
 
-int syscall_munmap(void* start, size_t len) {
-    return (int)syscall(SYSCALL_MUNMAP, (long)start, (long)len);
+int linux_syscall_munmap(void* start, size_t len) {
+    return (int)linux_syscall(LINUX_SYSCALL_MUNMAP, (long)start, (long)len);
 }
 
-int syscall_rt_sigprocmask(int how, const ulong* signal_set,
+int linux_syscall_rt_sigprocmask(int how, const ulong* signal_set,
                            ulong* old_signal_set, ulong signal_set_size) {
-    return (int)syscall(SYSCALL_RT_SIGPROCMASK, (long)how, (long)signal_set,
+    return (int)linux_syscall(LINUX_SYSCALL_RT_SIGPROCMASK, (long)how, (long)signal_set,
                         (long)old_signal_set, (long)signal_set_size);
 }
 
-void* syscall_mremap(void* old_addr, unsigned long old_size,
+void* linux_syscall_mremap(void* old_addr, unsigned long old_size,
                      unsigned long new_size, int flags, void* new_addr) {
-    return (void*)syscall(SYSCALL_MREMAP, (long)old_addr, (long)old_size, (long)new_size, (long)flags,
+    return (void*)linux_syscall(LINUX_SYSCALL_MREMAP, (long)old_addr, (long)old_size, (long)new_size, (long)flags,
                    (long)new_addr);
 }
 
-int syscall_dup(int file_descriptor) {
-    return (int)syscall(SYSCALL_DUP, (long)file_descriptor);
+int linux_syscall_dup(int file_descriptor) {
+    return (int)linux_syscall(LINUX_SYSCALL_DUP, (long)file_descriptor);
 }
 
-int syscall_gettid() {
-    return (int)syscall(SYSCALL_GETTID);
+int linux_syscall_gettid() {
+    return (int)linux_syscall(LINUX_SYSCALL_GETTID);
 }
 
-int syscall_tkill(int thread_id, int signal) {
-    return (int)syscall(SYSCALL_TKILL, (long)thread_id, (long)signal);
+int linux_syscall_tkill(int thread_id, int signal) {
+    return (int)linux_syscall(LINUX_SYSCALL_TKILL, (long)thread_id, (long)signal);
 }
 
-long syscall_readlink(const char* restrict path_name, char* restrict buffer, unsigned long buffer_size) {
-    return syscall(SYSCALL_READLINK, (long)path_name, (long)buffer, (long)buffer_size);
+long linux_syscall_readlink(const char* restrict path_name, char* restrict buffer, unsigned long buffer_size) {
+    return linux_syscall(LINUX_SYSCALL_READLINK, (long)path_name, (long)buffer, (long)buffer_size);
 }
 
-void syscall_exit_group(int status) {
-    syscall(SYSCALL_EXIT_GROUP, (long)status);
+void linux_syscall_exit_group(int status) {
+    linux_syscall(LINUX_SYSCALL_EXIT_GROUP, (long)status);
 }
 
-long syscall_openat(const char* file_path, int file_descriptor, int flags, int mode) {
-    return syscall(SYSCALL_OPENAT, (long)file_descriptor, (long)file_path, (long)flags, (long)mode);
+long linux_syscall_openat(const char* file_path, int file_descriptor, int flags, int mode) {
+    return linux_syscall(LINUX_SYSCALL_OPENAT, (long)file_descriptor, (long)file_path, (long)flags, (long)mode);
 }
 
 
 void print(String s) {
-    syscall_write(1, s.data, s.length);
+    linux_syscall_write(1, s.data, s.length);
 }
 
 void print_error(String s) {
-    syscall_write(2, s.data, s.length);
+    linux_syscall_write(2, s.data, s.length);
 }
 
 void print_format(const char* s, ulong length) {
-    syscall_write(1, s, length);
+    linux_syscall_write(1, s, length);
 }
 
 void error_print_format(const char* s, ulong length) {
-    syscall_write(2, s, length);
+    linux_syscall_write(2, s, length);
 }
 
 
 _Noreturn
 void exit(int status) {
-    syscall_exit_group(status);
+    linux_syscall_exit_group(status);
     for(;;) {}
 }
 
@@ -803,10 +1032,10 @@ int raise_signal(int signal) {
     static const unsigned long app_mask[] = {
         0x7fffffff, 0xfffffffc
     };
-    syscall_rt_sigprocmask(0 /*SIG_BLOCK*/, app_mask, signal_set, 8);
-    thread_id = syscall_gettid();
-    result    = syscall_tkill(thread_id, signal);
-    syscall_rt_sigprocmask(2 /*SIG_SETMASK*/, signal_set, 0, 8);
+    linux_syscall_rt_sigprocmask(0 /*SIG_BLOCK*/, app_mask, signal_set, 8);
+    thread_id = linux_syscall_gettid();
+    result    = linux_syscall_tkill(thread_id, signal);
+    linux_syscall_rt_sigprocmask(2 /*SIG_SETMASK*/, signal_set, 0, 8);
     return result;
 }
 
@@ -818,59 +1047,288 @@ void global_init() {
 
 void* page_alloc(ulong num_pages) {
     if(!global.is_initialized) global_init();
-    return syscall_mmap(NULL, global.page_size * num_pages, MEMORY_FLAGS_READ | MEMORY_FLAGS_WRITE,
-                        MEMORY_FLAGS_PRIVATE | MEMORY_FLAGS_ANONYMOUS, 0, 0);
+    return linux_syscall_mmap(NULL, global.page_size * num_pages, MEMORY_FLAGS_READ | MEMORY_FLAGS_WRITE,
+                              MEMORY_FLAGS_PRIVATE | MEMORY_FLAGS_ANONYMOUS, 0, 0);
 }
 
 void* page_realloc(void* pages, ulong old_num_pages, ulong new_num_pages) {
     if(!global.is_initialized) global_init();
-    return syscall_mremap(pages, global.page_size * old_num_pages,
+    return linux_syscall_mremap(pages, global.page_size * old_num_pages,
                           global.page_size * new_num_pages, MEMORY_FLAGS_MAYMOVE, 0);
 }
 
 
-void page_free(void* page, ulong num_pages) {
+void page_dealloc(void* page, ulong num_pages) {
     if(!global.is_initialized) global_init();
-    syscall_munmap(page, num_pages * global.page_size);
+    linux_syscall_munmap(page, num_pages * global.page_size);
 }
 
 
 #elif defined(WINDOWS)
 
-void global_init() {
-    SYSTEM_INFO system_info;
-    GetSystemInfo(&system_info);
-    global.page_size = system_info.dwPageSize;
-    assert(0);
-}
+
+typedef enum {
+    WIN32_GET_FILEEX_INFO_STANDARD,
+    WIN32_GET_FILEEX_MAX_INFO_LEVEL
+} Win32GetFileExInfoLevels;
+
+typedef enum {
+    WIN32_LMEM_FIXED          = 0x0000,
+    WIN32_LMEM_MOVEABLE       = 0x0002,
+    WIN32_LMEM_NOCOMPACT      = 0x0010,
+    WIN32_LMEM_NODISCARD      = 0x0020,
+    WIN32_LMEM_ZEROINIT       = 0x0040,
+    WIN32_LMEM_MODIFY         = 0x0080,
+    WIN32_LMEM_DISCARDABLE    = 0x0f00,
+    WIN32_LMEM_VALID_FLAGS    = 0x0f72,
+    WIN32_LMEM_INVALID_HANDLE = 0x8000
+} Win32LocalAllocFlags;
+
+WIN32API
+b32 GetFileAttributesExW(const wchar* lpFileName,
+                         Win32GetFileExInfoLevels fInfoLevelId,
+                         void* lpFileInformation);
+WIN32API
+void GetSystemInfo(Win32SystemInfo* system_info);
+
+WIN32API
+void* LocalAlloc(uint uFlags, size_t uBytes);
+
+WIN32API
+void* LocalFree(void* hMem);
+
+WIN32API
+ulong GetFullPathNameW(const wchar* lpFileName,
+                                 ulong   nBufferLength,
+                                 wchar*  lpBuffer,
+                                 wchar** lpFilePart);
+
+WIN32API
+void DebugBreak(void);
+
+typedef struct {
+    ulong nLength;
+    void* lpSecurityDescriptor;
+    b32   bInheritHandle;
+} Win32SecurityAttributes;
 
 
-void* page_alloc(ulong num_pages) {
-    if(!global.is_initialized) global_init();
+typedef enum {
+    WIN32_GENERIC_ALL     = 0x10000000L,
+    WIN32_GENERIC_EXECUTE = 0x20000000L,
+    WIN32_GENERIC_WRITE   = 0x40000000L,
+    WIN32_GENERIC_READ    = 0x80000000L,
+} Win32AccessRights;
 
-    return malloc(global.page_size * num_pages);
-    /* return VirtualAlloc(0, global.page_size * num_pages, */
-    /*                     MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE); */
-}
+typedef enum {
+    WIN32_FILE_SHARE_READ   = 0x00000001,
+    WIN32_FILE_SHARE_WRITE  = 0x00000002,
+    WIN32_FILE_SHARE_DELETE = 0x00000004,
+} Win32ShareMode;
 
-void page_free(void* page, ulong num_pages) {
-    if(!global.is_initialized) global_init();
-    free(page);
-//    VirtualFree(page, num_pages * global.page_size, MEM_RELEASE);
-}
-void* page_realloc(void* pages, ulong old_num_pages, ulong new_num_pages) {
-    if(!global.is_initialized) global_init();
-    return realloc(pages, global.page_size * new_num_pages);
-}
+typedef enum {
+    WIN32_CREATE_NEW        = 1,
+    WIN32_CREATE_ALWAYS     = 2,
+    WIN32_OPEN_EXISTING     = 3,
+    WIN32_OPEN_ALWAYS       = 4,
+    WIN32_TRUNCATE_EXISTING = 5,
+} Win32CreationDisposition;
+
+WIN32API
+void* CreateFileW(const wchar* lpFileName,
+                  ulong /*Win32AccessRights*/ dwDesiredAccess,
+                  ulong /*Win32ShareMode*/ dwShareMode,
+                  Win32SecurityAttributes* lpSecurityAttributes,
+                  ulong /*Win32CreationDisposition*/ dwCreationDisposition,
+                  ulong dwFlagsAndAttributes,
+                  void* hTemplateFile);
+
+typedef struct {
+    ulong* Internal;
+    ulong* InternalHigh;
+    union {
+        struct {
+            ulong Offset;
+            ulong OffsetHigh;
+        };
+        void* Pointer;
+    };
+    void* hEvent;
+} Win32Overlapped;
+
+
+typedef union {
+    struct {
+        ulong low_part;
+        long high_part;
+    };
+    i64 quad_part;
+} Win32LargeInteger;
+
+typedef enum {
+    WIN32_FILE_ATTRIBUTE_HIDDEN        = 0x2,
+    WIN32_FILE_ATTRIBUTE_NORMAL        = 0x80,
+    WIN32_FILE_ATTRIBUTE_DIRECTORY     = 0x10,
+    WIN32_FILE_ATTRIBUTE_TEMPORARY     = 0x100,
+    WIN32_FILE_ATTRIBUTE_REPARSE_POINT = 0x400,
+    WIN32_INVALID_FILE_ATTRIBUTES      = 0xffffffff
+} Win32FileAttribute;
+
+WIN32API
+b32 ReadFile(void* file, void* buffer, ulong number_of_bytes_to_read,
+                    ulong* number_of_bytes_read, Win32Overlapped* overlapped);
+WIN32API
+b32 WriteFile(void* file,
+              const void* buffer,
+              ulong number_of_bytes_to_read,
+              ulong* number_of_bytes_read,
+              Win32Overlapped* lpOverlapped);
+
+WIN32API
+ulong GetCurrentDirectoryW(ulong buffer_length,
+                                    wchar* buffer);
+WIN32API
+b32 GetFileSizeEx(void* hFile, Win32LargeInteger* lpFileSize);
+
+WIN32API
+b32 PathIsRelativeW(const wchar* path);
+
+WIN32API
+b32 CloseHandle(void*);
+
+WIN32API
+void* FindFirstFileW(const wchar* lpFileName,
+                              Win32FindDataW* lpFindFileData);
+WIN32API
+b32 FindNextFileW(void* hFindFile,
+                           Win32FindDataW* lpFindFileData);
+WIN32API
+b32 FindClose(void* hFindFile);
+
+
+#define WIN32_CP_UTF8 65001
+#define WIN32_WC_NO_BEST_FIT_CHARS 0x00000400
+
+WIN32API
+int WideCharToMultiByte(uint CodePage,
+                        ulong dwFlags,
+                        const wchar* lpWideCharStr,
+                        int cchWideChar,
+                        char* lpMultiByteStr,
+                        int cbMultiByte,
+                        const char* lpDefaultChar,
+                        b32* lpUsedDefaultChar);
+
+WIN32API
+int lstrlenW(const wchar* lpString);
+WIN32API
+wchar* lstrcpyW(wchar* lpString1, const wchar* lpString2);
+WIN32API
+wchar* lstrcatW(wchar* lpString1, const wchar* lpString2);
+
+
+typedef enum {
+    WIN32_ERROR_SUCCESS             = 0L,
+    WIN32_ERROR_NO_MORE_FILES       = 18L,
+    WIN32_ERROR_MORE_DATA           = 234L,
+    WIN32_ERROR_INSUFFICIENT_BUFFER = 122L
+} Win32Error;
+
+
+WIN32API
+ulong /* Win32Error */ GetLastError();
 
 #endif
 
 
 
+
+Buffer buffer(void* data, ulong length) {
+    return (Buffer){
+        .begin = data,
+        .end   = data + length
+    };
+}
+
+ulong buffer_length(Buffer buffer) {
+    return buffer.end - buffer.begin;
+}
+
+void zero_buffer(Buffer buffer) {
+    __builtin_memset(buffer.begin, 0, buffer_length(buffer));
+}
+
+void copy_buffer(Buffer src, Buffer dest) {
+    ulong length_src = buffer_length(src);
+    ulong length_dest = buffer_length(dest);
+    ulong length = min(length_src, length_dest);
+
+    __builtin_memcpy(dest.begin, src.begin, length);    
+}
+
+Buffer buffer_from_string(String string) {
+    return (Buffer){
+        .begin = string.data,
+        .end   = string.data + string.length
+    };
+}
+
+String string_from_buffer(Buffer buffer) {
+    return (String){
+        .data   = buffer.begin,
+        .length = buffer.end - buffer.begin
+    };
+}
+
+
+void lowcase_string(String s) {
+    for(int i = 0; i < s.length; i++) {
+        if((uint)s.data[i] - 'A' < 26) s.data[i] |= 0x20;
+    }
+}
+
+void upcase_string(String s) {
+    for(int i = 0; i < s.length; i++) {
+        if((uint)s.data[i] - 'a' < 26) s.data[i] &= 0x5f;
+    }
+}
+
+
+StringBuilder string_builder(Buffer buffer) {
+    return (StringBuilder) {
+        .buffer = buffer,
+        .length = 0
+    };
+}
+
+void string_builder_append(StringBuilder* builder, String string) {
+    Buffer dest = {
+        .begin = builder->buffer.begin + builder->length,
+        .end   = builder->buffer.end
+    };
+    copy_buffer(buffer_from_string(string), dest);
+    builder->length += string.length;
+}
+
+String string_from_builder(StringBuilder builder) {
+    return (String) {
+        .data = builder.buffer.begin,
+        .length = builder.length
+    };
+}
+
+
+
+ulong size_to_pages(ulong size) {
+    if(!global.is_initialized) global_init();
+    return (size + global.page_size - 1) / global.page_size;
+}
+
+
 Arena arena_create(ulong size) {
     if(!global.is_initialized) global_init();
     Buffer buffer = {
-        .begin = page_alloc((size + global.page_size - 1) / global.page_size),
+        .begin = page_alloc(size_to_pages(size)),
         .end   = (void*)((char*)buffer.begin + size)
     };
     return (Arena){
@@ -948,8 +1406,6 @@ void free_list_add(FreeList* free_list_sentinel, void* ptr, ulong num_pages) {
     entry->next->prev = entry;
 }
 
-
-
 Temp temp_begin(Arena* a) {
     return (Temp) {
         .arena = a,
@@ -1004,7 +1460,13 @@ u64 string_to_u64(String s) {
     return string_to_u64_base(s, base);
 }
 
-
+String string_trim_spaces(String str) {
+    while(str.length > 0 && str.data[0] == ' ') {
+        str.length--;
+        str.data++;
+    }
+    return str;
+}
 
 String string_from_c_string(char* buf) {
     int length = 0;
@@ -1177,14 +1639,32 @@ char* format_string(String string, char *format, ...) {
 }
 #endif
 
+
+int c_string_equal(const char* restrict s1, const char* restrict s2) {
+    do {
+        if(*s1 != *s2) return 0;
+    } while(*s1++);
+    return 1;
+}
+
+
+void c_string_copy(char* restrict dest, const char* restrict src, uint n) {
+    if(n == 0) return;
+    int i = 0;
+    for(; i < n - 1 && src[i]; i++) {
+        dest[i] = src[i];
+    }
+    dest[i] = '\0';
+}
+
+
 #if defined(LINUX)
 
-
 void path_init_c(Path* path, char* name) {
-    path->fd_       = syscall_open(name, OPEN_FLAGS_READ  | OPEN_FLAGS_COMMON, 0);
-    path->fd_read_  = syscall_open(name, OPEN_FLAGS_READ  | OPEN_FLAGS_COMMON, 0);
-    path->fd_write_ = syscall_open(name, OPEN_FLAGS_WRITE | OPEN_FLAGS_COMMON, 0);
-    syscall_fstat(path->fd_, &path->stat_);
+    path->fd_       = linux_syscall_open(name, OPEN_FLAGS_READ  | OPEN_FLAGS_COMMON, 0);
+    path->fd_read_  = linux_syscall_open(name, OPEN_FLAGS_READ  | OPEN_FLAGS_COMMON, 0);
+    path->fd_write_ = linux_syscall_open(name, OPEN_FLAGS_WRITE | OPEN_FLAGS_COMMON, 0);
+    linux_syscall_fstat(path->fd_, &path->stat_);
 }
 
 void path_init(Path* path, String name) {
@@ -1192,29 +1672,62 @@ void path_init(Path* path, String name) {
     if(name.length >= PATH_MAX - 1) {
         fprintf(stderr, "File name \"%.*s\" is to long.\n", name.length, name.data);
     }
-    stpncpy(name_c, name.data, name.length);
+    c_string_copy(name_c, name.data, PATH_MAX);
     name_c[name.length] = '\0';
     path_init_c(path, name_c);
 }
 
-void path_init_from_c(Path* path, Path* dir, char* name) {
-    path->fd_       = syscall_openat(name, dir->fd_, OPEN_FLAGS_READ  | OPEN_FLAGS_COMMON, 0);
-    path->fd_read_  = syscall_openat(name, dir->fd_, OPEN_FLAGS_READ  | OPEN_FLAGS_COMMON, 0);
-    path->fd_write_ = syscall_openat(name, dir->fd_, OPEN_FLAGS_WRITE | OPEN_FLAGS_COMMON, 0);
-    syscall_fstat(path->fd_, &path->stat_);
+void path_create_c(Path* path, char* name) {
+    path->fd_       = linux_syscall_open(name, OPEN_FLAGS_READ  | OPEN_FLAGS_COMMON | OPEN_FLAGS_CREATE, 0644);
+    path->fd_read_  = linux_syscall_open(name, OPEN_FLAGS_READ  | OPEN_FLAGS_COMMON | OPEN_FLAGS_CREATE, 0644);
+    path->fd_write_ = linux_syscall_open(name, OPEN_FLAGS_WRITE | OPEN_FLAGS_COMMON | OPEN_FLAGS_CREATE, 0644);
+    linux_syscall_fstat(path->fd_, &path->stat_);
 }
 
+void path_create(Path* path, String name) {
+    char name_c[PATH_MAX];
+    if(name.length >= PATH_MAX - 1) {
+        fprintf(stderr, "File name \"%.*s\" is to long.\n", name.length, name.data);
+    }
+    c_string_copy(name_c, name.data, PATH_MAX);
+    name_c[name.length] = '\0';
+    path_create_c(path, name_c);
+
+}
+
+void path_init_from_c(Path* path, Path* dir, char* name) {
+    path->fd_       = linux_syscall_openat(name, dir->fd_, OPEN_FLAGS_READ  | OPEN_FLAGS_COMMON, 0);
+    path->fd_read_  = linux_syscall_openat(name, dir->fd_, OPEN_FLAGS_READ  | OPEN_FLAGS_COMMON, 0);
+    path->fd_write_ = linux_syscall_openat(name, dir->fd_, OPEN_FLAGS_WRITE | OPEN_FLAGS_COMMON, 0);
+    linux_syscall_fstat(path->fd_, &path->stat_);
+}
 
 void path_init_from(Path* path, Path* dir, String name) {
     char name_c[PATH_MAX];
     if(name.length >= PATH_MAX - 1) {
         fprintf(stderr, "File name \"%.*s\" is to long.\n", name.length, name.data);
     }
-    stpncpy(name_c, name.data, name.length);
+    c_string_copy(name_c, name.data, PATH_MAX);
     name_c[name.length] = '\0';
-    path_init_c(path, name_c);
+    path_init_from_c(path, dir, name_c);
 }
 
+void path_create_from_c(Path* path, Path* dir, char* name) {
+    path->fd_       = linux_syscall_openat(name, dir->fd_, OPEN_FLAGS_READ  | OPEN_FLAGS_COMMON | OPEN_FLAGS_CREATE, 0644);
+    path->fd_read_  = linux_syscall_openat(name, dir->fd_, OPEN_FLAGS_READ  | OPEN_FLAGS_COMMON | OPEN_FLAGS_CREATE, 0644);
+    path->fd_write_ = linux_syscall_openat(name, dir->fd_, OPEN_FLAGS_WRITE | OPEN_FLAGS_COMMON | OPEN_FLAGS_CREATE, 0644);
+    linux_syscall_fstat(path->fd_, &path->stat_);
+}
+
+void path_create_from(Path* path, Path* dir, String name) {
+    char name_c[PATH_MAX];
+    if(name.length >= PATH_MAX - 1) {
+        fprintf(stderr, "File name \"%.*s\" is to long.\n", name.length, name.data);
+    }
+    c_string_copy(name_c, name.data, PATH_MAX);
+    name_c[name.length] = '\0';
+    path_create_from_c(path, dir, name_c);
+}
 
 void path_init_working_directory(Path* path) {
     path_init_c(path, ".");
@@ -1222,10 +1735,10 @@ void path_init_working_directory(Path* path) {
 
 void path_copy(Path* orig, Path* copy) {
     *copy = (Path){ 0 };
-    copy->fd_ = syscall_dup(orig->fd_);
-    syscall_fstat(copy->fd_, &copy->stat_);
-    copy->fd_read_ = syscall_dup(orig->fd_read_);
-    copy->fd_write_ = syscall_dup(orig->fd_write_);
+    copy->fd_ = linux_syscall_dup(orig->fd_);
+    linux_syscall_fstat(copy->fd_, &copy->stat_);
+    copy->fd_read_ = linux_syscall_dup(orig->fd_read_);
+    copy->fd_write_ = linux_syscall_dup(orig->fd_write_);
 }
 
 Buffer path_read_file_aligned(Path* path, Arena* arena, int alignment) {
@@ -1233,7 +1746,7 @@ Buffer path_read_file_aligned(Path* path, Arena* arena, int alignment) {
     Buffer result = { 0 };
     result.begin = arena_alloc(arena, file_size, alignment);
     result.end = result.begin + file_size;
-    syscall_read(path->fd_read_, result.begin, file_size);
+    linux_syscall_read(path->fd_read_, result.begin, file_size);
     return result;
 }
 
@@ -1242,28 +1755,28 @@ Buffer path_read_file(Path* path, Arena* arena) {
 }
 
 void path_write_file(Path* path, Buffer buffer) {
-    syscall_write(path->fd_write_, buffer.begin, buffer.end - buffer.begin);
+    linux_syscall_write(path->fd_write_, buffer.begin, buffer.end - buffer.begin);
 }
 
 void path_close(Path* path) {
     if(path->fd_ != INVALID_FD) {
-        syscall_close(path->fd_);
+        linux_syscall_close(path->fd_);
     }
     if(path->fd_read_ != INVALID_FD) {
-        syscall_close(path->fd_read_);
+        linux_syscall_close(path->fd_read_);
     }
     if(path->fd_write_ != INVALID_FD) {
-        syscall_close(path->fd_write_);
+        linux_syscall_close(path->fd_write_);
     }
 }
 
 void path_navigate_c(Path* path, char* name) {
-    int new_fd = syscall_openat(name, path->fd_, OPEN_FLAGS_READ | OPEN_FLAGS_COMMON, 0);
+    int new_fd = linux_syscall_openat(name, path->fd_, OPEN_FLAGS_READ | OPEN_FLAGS_COMMON, 0);
     path_close(path);
     path->fd_ = new_fd;
-    syscall_fstat(path->fd_, &path->stat_);
-    path->fd_read_  = syscall_openat(name, path->fd_, OPEN_FLAGS_READ  | OPEN_FLAGS_COMMON, 0);
-    path->fd_write_ = syscall_openat(name, path->fd_, OPEN_FLAGS_WRITE | OPEN_FLAGS_COMMON, 0);
+    linux_syscall_fstat(path->fd_, &path->stat_);
+    path->fd_read_  = linux_syscall_openat(name, path->fd_, OPEN_FLAGS_READ  | OPEN_FLAGS_COMMON, 0);
+    path->fd_write_ = linux_syscall_openat(name, path->fd_, OPEN_FLAGS_WRITE | OPEN_FLAGS_COMMON, 0);
 }
 
 void path_navigate(Path* path, String name) {
@@ -1271,7 +1784,7 @@ void path_navigate(Path* path, String name) {
     if(name.length >= PATH_MAX - 1) {
         fprintf(stderr, "File name \"%.*s\" is to long.\n", name.length, name.data);
     }
-    stpncpy(name_c, name.data, name.length);
+    c_string_copy(name_c, name.data, name.length);
     name_c[name.length] = '\0';
     path_navigate_c(path, name_c);
 }
@@ -1289,15 +1802,15 @@ String path_get_name(Path* path, Arena* arena) {
     sprintf(proc_path_name, "/proc/self/fd/%i", path->fd_);
     Stat sb;
     int e;
-    if((e = syscall_lstat(proc_path_name, &sb)) < 0) {
-        fprintf(stderr, "lstat: %s", strerror(-e));
+    if((e = linux_syscall_lstat(proc_path_name, &sb)) < 0) {
+        fprintf(stderr, "Error: lstat");
         exit(1);
     }
     int supposed_file_name_length = sb.st_size + 1;
     if(sb.st_size == 0) supposed_file_name_length = PATH_MAX;
     String result;
     result.data   = arena_alloc_array(arena, supposed_file_name_length, char);
-    int length = syscall_readlink(proc_path_name, result.data,
+    int length = linux_syscall_readlink(proc_path_name, result.data,
                              supposed_file_name_length);
     if(length == -1) {
         perror("readlink");
@@ -1337,7 +1850,7 @@ String path_get_base_name(Path* path, Arena* arena) {
 
     if(last_slash >= path_name.data - 1) {
         result.length = last_char - last_slash;
-        stpncpy(result.data, last_slash + 1, result.length);
+        c_string_copy(result.data, last_slash + 1, result.length);
     } else {
         assert(0 && "This should not happen.");
         exit(1);
@@ -1352,20 +1865,20 @@ int dir_iter_next(DirIter* dir_iter) {
     do {
         de = readdir(dir_iter->dp_);
         if(!de) return 0;
-        if(!strcmp(de->d_name, "."))
+        if(c_string_equal(de->d_name, "."))
             continue;
-        if(!strcmp(de->d_name, ".."))
+        if(c_string_equal(de->d_name, ".."))
             continue;
         break;
     } while(1);
     path_close(&dir_iter->path);
-    dir_iter->path.fd_       = syscall_openat(de->d_name, dir_iter->dir_path->fd_,
+    dir_iter->path.fd_       = linux_syscall_openat(de->d_name, dir_iter->dir_path->fd_,
                                               OPEN_FLAGS_READ  | OPEN_FLAGS_COMMON, 0);
-    dir_iter->path.fd_read_  = syscall_openat(de->d_name, dir_iter->dir_path->fd_,
+    dir_iter->path.fd_read_  = linux_syscall_openat(de->d_name, dir_iter->dir_path->fd_,
                                               OPEN_FLAGS_READ  | OPEN_FLAGS_COMMON, 0);
-    dir_iter->path.fd_write_ = syscall_openat(de->d_name, dir_iter->dir_path->fd_,
+    dir_iter->path.fd_write_ = linux_syscall_openat(de->d_name, dir_iter->dir_path->fd_,
                                               OPEN_FLAGS_WRITE | OPEN_FLAGS_COMMON, 0);
-    syscall_fstat(dir_iter->path.fd_, &dir_iter->path.stat_);
+    linux_syscall_fstat(dir_iter->path.fd_, &dir_iter->path.stat_);
     return 1;
 }
 
@@ -1388,38 +1901,84 @@ void dir_iter_end(DirIter* dir_iter) {
 #undef INVALID_FD
 #elif defined(WINDOWS)
 
+
+void global_init() {
+    Win32SystemInfo system_info;
+    GetSystemInfo(&system_info);
+    global.page_size = system_info.dwPageSize;
+    assert(0);
+}
+
+
+void* page_alloc(ulong num_pages) {
+    if(!global.is_initialized) global_init();
+
+    return malloc(global.page_size * num_pages);
+    /* return VirtualAlloc(0, global.page_size * num_pages, */
+    /*                     MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE); */
+}
+
+void page_dealloc(void* page, ulong num_pages) {
+    if(!global.is_initialized) global_init();
+    free(page);
+//    VirtualFree(page, num_pages * global.page_size, MEM_RELEASE);
+}
+void* page_realloc(void* pages, ulong old_num_pages, ulong new_num_pages) {
+    if(!global.is_initialized) global_init();
+    return realloc(pages, global.page_size * new_num_pages);
+}
+
+
+void print_error(String s) {
+    
+}
+
+
+
 static
-LPWSTR utf8_to_wchar(String str) {
+wchar* utf8_to_wchar(String str) {
+#if 0
     int length = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
                                      str.data, str.length, NULL, 0);
     LPWSTR result = LocalAlloc(LMEM_FIXED, length * sizeof(wchar_t));
     MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
                         str.data, str.length, result, length);
     return result;
+#else
+    return NULL;
+#endif
 }
 
 static
-LPWSTR utf8_to_wchar_c(char* str) {
+wchar* utf8_to_wchar_c(char* str) {
+#if 0
     int length = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
                                      str, -1, NULL, 0);
     LPWSTR result = LocalAlloc(LMEM_FIXED, length * sizeof(wchar_t));
     MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
                         str, -1, result, length);
     return result;
+#else
+    return NULL;
+#endif
 }
 
-
-char* wchar_to_utf8_c(LPWSTR str) {
+char* wchar_to_utf8_c(wchar* str) {
+#if 0
     int length = WideCharToMultiByte(CP_UTF8, WC_NO_BEST_FIT_CHARS,
                                     str, -1, NULL, 0, NULL, NULL);
     char* result = LocalAlloc(LMEM_FIXED, length);
     WideCharToMultiByte(CP_UTF8, WC_NO_BEST_FIT_CHARS,
                         str, -1, result, length, NULL, NULL);
     return result;
+#else
+    return NULL;
+#endif
 }
 
 static
-String wchar_to_utf8(LPWSTR str) {
+String wchar_to_utf8(wchar* str) {
+#if 0
     int length = WideCharToMultiByte(CP_UTF8, WC_NO_BEST_FIT_CHARS,
                                     str, -1, NULL, 0, NULL, NULL);
     String result = {
@@ -1429,18 +1988,25 @@ String wchar_to_utf8(LPWSTR str) {
     WideCharToMultiByte(CP_UTF8, WC_NO_BEST_FIT_CHARS,
                         str, -1, result.data, length, NULL, NULL);
     return result;
+#else
+    return (String){};
+#endif
 }
 
 
+void path_load_stats(Path* path) {
+    GetFileAttributesExW(path->path_name_, WIN32_GET_FILEEX_INFO_STANDARD, &path->data_);
+}
+
 void path_init_c(Path* path, char* name) {
-    LPWSTR wname = utf8_to_wchar_c(name);
-    DWORD path_name_length = GetFullPathNameW(wname, 0, NULL, NULL);
-    path->path_name_ = LocalAlloc(LMEM_FIXED, path_name_length);
+    wchar* wname = utf8_to_wchar_c(name);
+    ulong path_name_length = GetFullPathNameW(wname, 0, NULL, NULL);
+    path->path_name_ = LocalAlloc(WIN32_LMEM_FIXED, path_name_length);
     GetFullPathNameW(wname, path_name_length, path->path_name_, NULL);
     LocalFree(wname);
-    path->handle_ = CreateFileW(path->path_name_, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
-    path->has_stats = 0;
-    path->invalid = 0;
+    path->handle_ = CreateFileW(path->path_name_, WIN32_GENERIC_READ,
+                                        WIN32_FILE_SHARE_READ, 0, WIN32_OPEN_EXISTING, 0, 0);
+    path_load_stats(path);
 }
 
 void path_init(Path* path, String name) {
@@ -1448,68 +2014,117 @@ void path_init(Path* path, String name) {
     if(name.length >= PATH_MAX - 1) {
         fprintf(stderr, "File name \"%.*s\" is to long.\n", name.length, name.data);
     }
-    stpncpy(name_c, name.data, name.length);
+    c_string_copy(name_c, name.data, name.length);
     name_c[name.length] = '\0';
     path_init_c(path, name_c);
+    path_load_stats(path);
 }
 
 void path_init_from_c(Path* path, Path* dir, char* name) {
-    LPWSTR wname = utf8_to_wchar_c(name);
-    if(PathIsRelative(wname)) {
+    wchar* wname = utf8_to_wchar_c(name);
+    if(PathIsRelativeW(wname)) {
         int path_length = lstrlenW(wname) + lstrlenW(dir->path_name_) + 1;
-        path->path_name_ = LocalAlloc(LMEM_FIXED, path_length * sizeof(wchar_t));
+        path->path_name_ = LocalAlloc(WIN32_LMEM_FIXED, path_length * sizeof(wchar));
         lstrcpyW(path->path_name_, dir->path_name_);
         lstrcatW(path->path_name_, wname);
         LocalFree(wname);
     } else {
         path->path_name_ = wname;
     }
-    path->handle_ = CreateFileW(path->path_name_, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
-    path->has_stats = 0;
-    path->invalid = 0;
+    path->handle_ = CreateFileW(path->path_name_, WIN32_GENERIC_READ,
+                                WIN32_FILE_SHARE_READ, 0, WIN32_OPEN_EXISTING, 0, 0);
+    path_load_stats(path);
 }
 
 
 void path_init_from(Path* path, Path* dir, String name) {
-    LPWSTR wname = utf8_to_wchar(name);
-    if(PathIsRelative(wname)) {
+    wchar* wname = utf8_to_wchar(name);
+    if(PathIsRelativeW(wname)) {
         int path_length = lstrlenW(wname) + lstrlenW(dir->path_name_) + 1;
-        path->path_name_ = LocalAlloc(LMEM_FIXED, path_length * sizeof(wchar_t));
+        path->path_name_ = LocalAlloc(WIN32_LMEM_FIXED, path_length * sizeof(wchar));
         lstrcpyW(path->path_name_, dir->path_name_);
         lstrcatW(path->path_name_, wname);
         LocalFree(wname);
     } else {
         path->path_name_ = wname;
     }
-    path->handle_ = CreateFileW(path->path_name_, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
-    path->has_stats = 0;
-    path->invalid = 0;
+    path->handle_ = CreateFileW(path->path_name_, WIN32_GENERIC_READ,
+                                WIN32_FILE_SHARE_READ, 0, WIN32_OPEN_EXISTING, 0, 0);
+    path_load_stats(path);
+}
+
+void path_create_c(Path* path, char* name) {
+    wchar* wname = utf8_to_wchar_c(name);
+    ulong path_name_length = GetFullPathNameW(wname, 0, NULL, NULL);
+    path->path_name_ = LocalAlloc(WIN32_LMEM_FIXED, path_name_length);
+    GetFullPathNameW(wname, path_name_length, path->path_name_, NULL);
+    LocalFree(wname);
+    path->handle_ = CreateFileW(path->path_name_, WIN32_GENERIC_READ,
+                                        WIN32_FILE_SHARE_READ, 0, WIN32_OPEN_ALWAYS, 0, 0);
+    path_load_stats(path);
+}
+
+void path_create(Path* path, String name) {
+    char name_c[PATH_MAX];
+    if(name.length >= PATH_MAX - 1) {
+        fprintf(stderr, "File name \"%.*s\" is to long.\n", name.length, name.data);
+    }
+    c_string_copy(name_c, name.data, name.length);
+    name_c[name.length] = '\0';
+    path_init_c(path, name_c);
+    path_load_stats(path);
+}
+
+void path_create_from_c(Path* path, Path* dir, char* name) {
+    wchar* wname = utf8_to_wchar_c(name);
+    if(PathIsRelativeW(wname)) {
+        int path_length = lstrlenW(wname) + lstrlenW(dir->path_name_) + 1;
+        path->path_name_ = LocalAlloc(WIN32_LMEM_FIXED, path_length * sizeof(wchar));
+        lstrcpyW(path->path_name_, dir->path_name_);
+        lstrcatW(path->path_name_, wname);
+        LocalFree(wname);
+    } else {
+        path->path_name_ = wname;
+    }
+    path->handle_ = CreateFileW(path->path_name_, WIN32_GENERIC_READ,
+                                WIN32_FILE_SHARE_READ, 0, WIN32_OPEN_ALWAYS, 0, 0);
+    path_load_stats(path);
+}
+
+
+void path_create_from(Path* path, Path* dir, String name) {
+    wchar* wname = utf8_to_wchar(name);
+    if(PathIsRelativeW(wname)) {
+        int path_length = lstrlenW(wname) + lstrlenW(dir->path_name_) + 1;
+        path->path_name_ = LocalAlloc(WIN32_LMEM_FIXED, path_length * sizeof(wchar));
+        lstrcpyW(path->path_name_, dir->path_name_);
+        lstrcatW(path->path_name_, wname);
+        LocalFree(wname);
+    } else {
+        path->path_name_ = wname;
+    }
+    path->handle_ = CreateFileW(path->path_name_, WIN32_GENERIC_READ,
+                                WIN32_FILE_SHARE_READ, 0, WIN32_OPEN_ALWAYS, 0, 0);
+    path_load_stats(path);
 }
 
 
 void path_init_working_directory(Path* path) {
-    DWORD path_name_length = GetCurrentDirectoryW(0, NULL);
-    path->path_name_ = LocalAlloc(LMEM_FIXED, path_name_length);
+    ulong path_name_length = GetCurrentDirectoryW(0, NULL);
+    path->path_name_ = LocalAlloc(WIN32_LMEM_FIXED, path_name_length);
     GetCurrentDirectoryW(path_name_length, path->path_name_);
-    path->handle_ = CreateFileW(path->path_name_, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
-    path->has_stats = 0;
-    path->invalid = 0;
-}
-
-void path_load_stats(Path* path) {
-    if(!path->has_stats) {
-        GetFileAttributesExW(path->path_name_, GetFileExInfoStandard, &path->data_);
-        path->has_stats = 1;
-    }
+    path->handle_ = CreateFileW(path->path_name_, WIN32_GENERIC_READ,
+                                        WIN32_FILE_SHARE_READ, 0, WIN32_OPEN_ALWAYS, 0, 0);
 }
 
 void path_copy(Path* orig, Path* copy) {
     *copy = (Path){ 0 };
-    copy->handle_ = CreateFileW(orig->path_name_, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+    copy->handle_ = CreateFileW(orig->path_name_, WIN32_GENERIC_READ,
+                                        WIN32_FILE_SHARE_READ, 0, WIN32_OPEN_EXISTING, 0, 0);
     int path_length = lstrlenW(orig->path_name_) + 1;
-    copy->path_name_ = LocalAlloc(LMEM_FIXED, path_length * sizeof(wchar_t));
+    copy->path_name_ = LocalAlloc(WIN32_LMEM_FIXED, path_length * sizeof(wchar_t));
     lstrcpyW(copy->path_name_, orig->path_name_);
-    if(orig->has_stats) path_load_stats(copy);
+    path_load_stats(copy);
 }
 
 Buffer path_open_file_aligned(Path* path, Arena* arena, int alignment) {
@@ -1526,11 +2141,8 @@ Buffer path_open_file(Path* path, Arena* arena) {
 }
 
 void path_close(Path* path) {
-    if(!path->invalid) {
-        CloseHandle(path->handle_);
-        LocalFree(path->path_name_);
-        path->invalid = 1;
-    }
+    CloseHandle(path->handle_);
+    LocalFree(path->path_name_);
 }
 
 /* TODO
@@ -1549,43 +2161,66 @@ void path_navigate(Path* path, String name) {
     if(name.length >= PATH_MAX - 1) {
         fprintf(stderr, "File name \"%.*s\" is to long.\n", name.length, name.data);
     }
-    stpncpy(name_c, name.data, name.length);
+    c_string_copy(name_c, name.data, name.length);
     name_c[name.length] = '\0';
     path_navigate_c(path, name_c);
 }
 */
 
+
+Buffer path_read_file_aligned(Path* path, Arena* arena, int alignment) {
+    Win32LargeInteger file_size;
+    GetFileSizeEx(path->handle_, &file_size);
+    Buffer result = { 0 };
+    result.begin = arena_alloc(arena, file_size.quad_part, alignment);
+    result.end = result.begin + file_size.quad_part;
+    ulong size_read;
+    ReadFile(path->handle_, result.begin, file_size.quad_part, &size_read, 0);
+    return result;
+}
+
+Buffer path_read_file(Path* path, Arena* arena) {
+    return path_read_file_aligned(path, arena, 1);
+}
+
+
+void path_write_file(Path* path, Buffer buffer) {
+    WriteFile(path->handle_, buffer.begin, buffer.end - buffer.begin, NULL, NULL);
+}
+
+
+
 int path_is_directory(Path* path) {
     path_load_stats(path);
-    return path->data_.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY;
+    return path->data_.dwFileAttributes & WIN32_FILE_ATTRIBUTE_DIRECTORY;
 }
 
 ulong path_get_file_size(Path* path) {
     path_load_stats(path);
-    LARGE_INTEGER file_size_win;
-    file_size_win.LowPart  = path->data_.nFileSizeLow;
-    file_size_win.HighPart = path->data_.nFileSizeHigh;
-    return file_size_win.QuadPart;
+    Win32LargeInteger file_size_win;
+    file_size_win.low_part  = path->data_.nFileSizeLow;
+    file_size_win.high_part = path->data_.nFileSizeHigh;
+    return (ulong)file_size_win.quad_part;
 }
 
 String path_get_name(Path* path, Arena* arena) {
     int path_name_length = WideCharToMultiByte(
-        CP_UTF8, WC_NO_BEST_FIT_CHARS,
+        WIN32_CP_UTF8, WIN32_WC_NO_BEST_FIT_CHARS,
         path->path_name_, -1, NULL, 0, NULL, NULL);
     String result;
     result.data   = arena_alloc_array(arena, path_name_length, char);
     result.length = path_name_length;
-    WideCharToMultiByte(CP_UTF8, WC_NO_BEST_FIT_CHARS,
+    WideCharToMultiByte(WIN32_CP_UTF8, WIN32_WC_NO_BEST_FIT_CHARS,
                         path->path_name_, -1, result.data,
                         path_name_length, NULL, NULL);
     return result;
 }
 
 String path_get_base_name(Path* path, Arena* arena) {
-    DWORD path_name_size = GetFullPathName(path->path_name_, 0, NULL, NULL);
+    ulong path_name_size = GetFullPathNameW(path->path_name_, 0, NULL, NULL);
     wchar_t* base_name_win;
     wchar_t* path_name_win = arena_alloc_array(arena, path_name_size, wchar_t);
-    GetFullPathName(path->path_name_, path_name_size, path_name_win, &base_name_win);
+    GetFullPathNameW(path->path_name_, path_name_size, path_name_win, &base_name_win);
     String base_name = wchar_to_utf8(base_name_win);
     String result = { .length = base_name.length };
     result.data = arena_alloc_array(arena, base_name.length, char);
@@ -1607,11 +2242,12 @@ int dir_iter_next(DirIter* dir_iter) {
     }
     dir_iter->handle_ =
         CreateFileW(dir_iter->find_file_data_.cFileName,
-                    GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+                            WIN32_GENERIC_READ, WIN32_FILE_SHARE_READ, 0,
+                            WIN32_OPEN_EXISTING, 0, 0);
     
-    BOOL error =  FindNextFile(dir_iter->handle_, &dir_iter->find_file_data_);
+    b32 error =  FindNextFileW(dir_iter->handle_, &dir_iter->find_file_data_);
     if(!error) {
-        if(GetLastError() == ERROR_NO_MORE_FILES) {
+        if(GetLastError() == WIN32_ERROR_NO_MORE_FILES) {
             dir_iter->last_iteration = 1;
         } else {
             fprintf(stderr, "Error occured\n");
@@ -1624,10 +2260,10 @@ int dir_iter_next(DirIter* dir_iter) {
 DirIter dir_iter_begin(Path* path) {
     DirIter result = { 0 };
     int path_length = lstrlenW(path->path_name_) + 3;
-    PWSTR search_name = LocalAlloc(LMEM_FIXED, path_length * sizeof(wchar_t));
+    wchar* search_name = LocalAlloc(WIN32_LMEM_FIXED, path_length * sizeof(wchar));
     lstrcpyW(search_name, path->path_name_);
     lstrcatW(search_name, L"\\*");
-    result.handle_ = FindFirstFile(search_name, &result.find_file_data_);
+    result.handle_ = FindFirstFileW(search_name, &result.find_file_data_);
     //TODO: Error
     result.dir_path = path;
     result.last_iteration = 1;
@@ -1640,6 +2276,22 @@ void dir_iter_end(DirIter* dir_iter) {
     FindClose(dir_iter->handle_);
 }
 
+#elif defined(WASM)
+
+void free(void *ptr);
+void *calloc(size_t nmemb, size_t size);
+
+typedef struct FILE FILE;
+FILE* stderr;
+int printf(const char *format, ...);
+int fprintf(FILE* fp, const char *format, ...);
+
+void* memset(void *s, int c, size_t n) {
+    for(size_t i = 0; i < n; i++) {
+        ((char*)s)[i] = c;
+    }
+    return s;
+}
 #endif
 
 implement_hashmap(StringMap, string_map, String, SuperFastHash, string_equal);
@@ -1699,32 +2351,67 @@ u32 vfs_entry_equal(VFSEntry v1, VFSEntry v2) {
 
 implement_hashmap(VFS, vfs, VFSEntry, vfs_entry_hash, vfs_entry_equal);
 
+typedef enum {
+    BML_PARSER_STATE_INDENT,
+    BML_PARSER_STATE_INDENT_DECREASE,
+    BML_PARSER_STATE_CHILD,
+    BML_PARSER_STATE_ATTRIBUTE,
+    BML_PARSER_STATE_ATTRIBUTE_END,
+    BML_PARSER_STATE_EOF,
+} BmlParserState;
 
 
-typedef struct {
-    Buffer  buffer;
-    char*   pos;
-    Arena*  arena;
-    int     had_new_line;
-} BMLParserState;
-
-
-void bml_parser_advance(BMLParserState* parser) {
-    parser->pos++;
+BmlNode bml_skip(BmlParser* parser) {
+    int depth = 1;
+    while(depth > 0) {
+        BmlNode node = bml_parse(parser);
+        switch(node.type) {
+        case BML_NODE: {
+            //printf("Node\n");
+            depth++;
+            break;
+        }
+        case BML_NODE_END: {
+            //printf("End\n");
+            depth--;
+            break;
+        }
+        default: {
+            return node;
+        }
+        }
+    }
+    return bml_parse(parser);
 }
 
-int bml_is_valid_char(char p)  {  //A-Z, a-z, 0-9, -.
-    return p - 'A' < 26u || p - 'a' < 26u || p - '0' < 10u || p - '-' < 2u;
+void bml_parser_advance(BmlParser* parser) {
+    if(parser->pos < (char*)parser->buffer.end) {
+        parser->pos++;
+    } else {
+        parser->state = BML_PARSER_STATE_EOF;
+    }
+}
+
+int bml_is_valid_char(char c)  {  //A-Z, a-z, 0-9, -.
+    return (c >= 'a' && c <= 'z')
+        || (c >= 'A' && c <= 'Z')
+        || (c >= '0' && c <= '9')
+        || c == '-' || c == '.';
 }
 
 
-void bml_parse_name(BMLNode* node, BMLParserState* parser) {
+void bml_parse_name(BmlParser* parser, BmlNode* node) {
+    if(parser->pos >= (char*)parser->buffer.end) {
+        parser->state = BML_PARSER_STATE_EOF;
+        return;
+    }
     char* begin = parser->pos;
-    while(bml_is_valid_char(parser->pos[0])) bml_parser_advance(parser);
+    while(parser->state != BML_PARSER_STATE_EOF &&
+          bml_is_valid_char(parser->pos[0])) {
+        bml_parser_advance(parser);
+    }
     if(parser->pos == begin) {
-        //error_at_pos(parser->text_pos);
-        fprintf(stderr, "Invalid node name.\n");
-        exit(1);
+        node->type = BML_NODE_ERROR_INVALID_NODE_NAME;
     }
     node->name = (String) {
         .data = begin,
@@ -1732,7 +2419,7 @@ void bml_parse_name(BMLNode* node, BMLParserState* parser) {
     };
 }
 
-void bml_parse_data(BMLNode* node, BMLParserState* parser) {
+void bml_parse_data(BmlParser* parser, BmlNode* node) {
     char* begin = NULL, *end = NULL;
     if(parser->pos[0] == '=' && parser->pos[1] == '"') {
         bml_parser_advance(parser);
@@ -1749,13 +2436,14 @@ void bml_parse_data(BMLNode* node, BMLParserState* parser) {
                 //error_at_pos(parser->text_pos);
                 fprintf(stderr, "Unescaped value.\n");
                 exit(1);
+                break;
             case '\r':
                 if(parser->pos[1] == '\n') {
                     //error_at_pos(parser->text_pos);
                     fprintf(stderr, "Unescaped value.\n");
                     exit(1);
                 }
-            default:
+            fallthrough default:
                 bml_parser_advance(parser);
             }
         }
@@ -1809,8 +2497,152 @@ void bml_parse_data(BMLNode* node, BMLParserState* parser) {
     };
 }
 
-void bml_parse_attributes(BMLNode* node, BMLParserState* parser) {
-    BMLNode** next_node_ptr = &node->child;
+int bml_parse_indent(BmlParser* parser) {
+    int result = 0;
+    while(parser->state != BML_PARSER_STATE_EOF &&
+          (parser->pos[0] == ' ' || parser->pos[0] == '\t')) {
+        result++;
+        bml_parser_advance(parser);
+    }
+    return result;
+}
+
+void bml_parser_init(BmlParser* parser, Buffer buffer) {
+    *parser = (BmlParser) {
+        .buffer        = buffer,
+        .pos           = buffer.begin,
+        .indent_levels = { },
+        .state         = BML_PARSER_STATE_CHILD,
+    };
+}
+
+static BmlNode end_node = { .type = BML_NODE_END };
+static BmlNode eof_node = { .type = BML_NODE_EOF };
+
+BmlNode bml_parse(BmlParser* parser) {
+    BmlNode result = {};
+    int cont = 1;
+    while(cont) {
+        switch(parser->state) {
+        case BML_PARSER_STATE_INDENT: {
+            int indent = bml_parse_indent(parser);
+            if(parser->state == BML_PARSER_STATE_EOF) break;
+            parser->indent = indent;
+            int index = parser->indent_index;
+            int current_indent = parser->indent_levels[index];
+            if(current_indent < indent) {
+                if(index == 15) {
+                    return (BmlNode){ .type = BML_NODE_ERROR /* _NESTING_TOO_DEEP*/ };
+                }
+                parser->indent_index++;
+                parser->indent_levels[index + 1] = parser->indent;
+                parser->state = BML_PARSER_STATE_CHILD;
+                break;
+            } else if(current_indent > indent) {
+                parser->state = BML_PARSER_STATE_INDENT_DECREASE;
+                result = end_node;
+                cont = 0;
+                break;
+            } else {
+                parser->state = BML_PARSER_STATE_CHILD;
+                result = end_node;
+                cont = 0;
+                break;
+            }
+        }
+        case BML_PARSER_STATE_INDENT_DECREASE: {
+            int index = parser->indent_index;
+            int current_indent = parser->indent_levels[index];
+            if(current_indent > parser->indent) {
+                parser->indent_index--;
+                result = end_node;
+                cont = 0;
+                break;
+            } else if(current_indent < parser->indent) {
+                result = (BmlNode){ .type = BML_NODE_ERROR /* _INDENTATION*/ };
+                cont = 0;
+                break;
+            }
+            parser->state = BML_PARSER_STATE_CHILD;
+            break;
+            //return end_node;
+        }
+        case BML_PARSER_STATE_CHILD: {
+            result = (BmlNode) { .type = BML_NODE };
+            if(parser->pos[0] == '\n') {
+                parser->state = BML_PARSER_STATE_INDENT;
+                bml_parser_advance(parser);
+                break;
+            }
+            bml_parse_name(parser, &result);
+            bml_parse_data(parser, &result);
+            if(parser->state == BML_PARSER_STATE_EOF) break;
+            parser->state = BML_PARSER_STATE_ATTRIBUTE;
+            cont = 0;
+            break;
+        }
+        case BML_PARSER_STATE_ATTRIBUTE: {
+            while(parser->pos[0] == ' ') {
+                bml_parser_advance(parser);
+                if(parser->state == BML_PARSER_STATE_EOF) break;
+            }
+            if(parser->pos[0] == '\n') {
+                bml_parser_advance(parser);
+                if(parser->state == BML_PARSER_STATE_EOF) break;
+                parser->state = BML_PARSER_STATE_INDENT;
+                break;
+            }
+            result = (BmlNode) { .type = BML_NODE };
+            bml_parse_name(parser, &result);
+            bml_parse_data(parser, &result);
+            if(parser->state == BML_PARSER_STATE_EOF) break;
+            parser->state = BML_PARSER_STATE_ATTRIBUTE_END;
+            cont = 0;
+            break;
+        }
+        case BML_PARSER_STATE_ATTRIBUTE_END: {
+            parser->state = BML_PARSER_STATE_ATTRIBUTE;
+            result = end_node;
+            cont = 0;
+            break;
+        }
+        case BML_PARSER_STATE_EOF: {
+            if(parser->indent_index >= 0) {
+                parser->indent_index--;
+                result =  end_node;
+                cont = 0;
+                break;
+            } else {
+                result = eof_node;
+                cont = 0;
+                break;
+            }
+        }
+        }        
+    }
+#if 0
+    switch(result.type) {
+    case BML_NODE:
+        printf("NODE %.*s: %.*s\n", result.name.length, result.name.data,
+               result.value.length, result.value.data);
+        break;
+    case BML_NODE_END:
+        printf("END\n");
+        break;
+    case BML_NODE_ERROR:
+    case BML_NODE_ERROR_INVALID_NODE_NAME:
+        printf("ERROR\n");
+        break;
+    case BML_NODE_EOF:
+        printf("EOF\n");
+        break;
+    }
+#endif
+    return result;
+}
+
+#if 0
+void bml_parse_attributes(BmlNode* node, BmlParser* parser) {
     while(1) {
         if(!parser->pos[0]) break;
         if(parser->pos[0] == '\n') {
@@ -1831,8 +2663,6 @@ void bml_parse_attributes(BMLNode* node, BMLParserState* parser) {
             break;
         }
 
-        BMLNode* new_node = (BMLNode*)arena_alloc_type(parser->arena, BMLNode);
-        *new_node = (BMLNode){ };
         char* begin = parser->pos;
         while(bml_is_valid_char(parser->pos[0])) bml_parser_advance(parser);
         if(parser->pos == begin) {
@@ -1850,16 +2680,8 @@ void bml_parse_attributes(BMLNode* node, BMLParserState* parser) {
     }
 }
 
-int bml_parse_indent(BMLParserState* parser) {
-    int result = 0;
-    while(parser->pos[0] == ' ' || parser->pos[0] == '\t') {
-        result++;
-        bml_parser_advance(parser);
-    }
-    return result;
-}
 
-BMLNode* bml_parse_node(BMLParserState* parser, int* indent) {
+BmlNode* bml_parse_node(BmlParser* parser, int* indent) {
     if(parser->pos[0] == '\0') {
         return NULL;
     }
@@ -1869,12 +2691,12 @@ BMLNode* bml_parse_node(BMLParserState* parser, int* indent) {
             *indent = bml_parse_indent(parser);
         }
     }
-    BMLNode* node = arena_alloc_type(parser->arena, BMLNode);
-    *node = (BMLNode) { };
+    BmlNode* node = arena_alloc_type(parser->arena, BmlNode);
+    *node = (BmlNode) { };
     bml_parse_name(node, parser);
     bml_parse_data(node, parser);
 
-    BMLNode** next_node_ptr = &node->child;
+    BmlNode** next_node_ptr = &node->child;
 
     // Parse attributes
     while(1) {
@@ -1897,8 +2719,6 @@ BMLNode* bml_parse_node(BMLParserState* parser, int* indent) {
             break;
         }
 
-        BMLNode* new_node = arena_alloc_type(parser->arena, BMLNode);
-        *new_node = (BMLNode){ };
         char* begin = parser->pos;
         while(bml_is_valid_char(parser->pos[0])) bml_parser_advance(parser);
         if(parser->pos == begin) {
@@ -1935,7 +2755,7 @@ BMLNode* bml_parse_node(BMLParserState* parser, int* indent) {
             fprintf(stderr, "Indentation error.\n");
             exit(1);
         } else {
-            BMLNode* new_node = bml_parse_node(parser, &new_indent);
+            BmlNode* new_node = bml_parse_node(parser, &new_indent);
             *next_node_ptr = new_node;
             next_node_ptr = &new_node->next;
             if(new_indent <= *indent) {
@@ -1950,15 +2770,15 @@ BMLNode* bml_parse_node(BMLParserState* parser, int* indent) {
     }
 }
 
-BMLNode* bml_parse(Buffer buffer, Arena* arena) {
-    BMLParserState parser = { };
+BmlNode* bml_parse(Buffer buffer, Arena* arena) {
+    BmlParser parser = { };
     parser.buffer = buffer;
     parser.pos    = (char*)buffer.begin;
     //parser.text_pos.line_number = 1;
     parser.arena = arena;
     int indent = 0;
-    BMLNode* root;
-    BMLNode** next_node_ptr = &root;
+    BmlNode* root;
+    BmlNode** next_node_ptr = &root;
     while(parser.pos[0] != '\0') {
         *next_node_ptr =  bml_parse_node(&parser, &indent);
         next_node_ptr = &((*next_node_ptr)->next);
@@ -1966,7 +2786,9 @@ BMLNode* bml_parse(Buffer buffer, Arena* arena) {
     return root;
 }
 
-void bml_print_node(BMLNode* node, int indent) {
+
+
+void bml_print_node(BmlNode* node, int indent) {
     if(node) {
         printf("%*s%.*s: %.*s\n", indent, "", node->name.length, node->name.data,
                node->value.length, node->value.data);
@@ -1975,7 +2797,7 @@ void bml_print_node(BMLNode* node, int indent) {
     }
 }
 
-
+#endif
 
 void vfs_add_dir(VFS* vfs, Path* path, Arena* arena) {
     DirIter dir_iter = dir_iter_begin(path);

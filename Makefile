@@ -2,7 +2,7 @@
 
 PLATFORMS      = linux windows wasm linux_release
 TARGETS        = $(PLATFORMS) static_analysis
-.PHONY:          $(TARGETS) all clean release
+.PHONY:          $(TARGETS) all clean release test
 .DEFAULT_GOAL := linux
 
 MAKEFLAGS+="-j $(shell nproc)"
@@ -46,7 +46,7 @@ build/%/nuts-fmt.o:
 build/%/lmockup:    build/%/libbase.o build/%/libwdc65816.o build/%/libwdc65816_run.o build/%/libmockup.o build/%/lmockup.o
 	$(CC) $(LFLAGS) -o $@$(EXT) $^ $(LIBS)
 
-build/%/imockup:    build/%/libbase.o build/%/libwdc65816.o build/%/libwdc65816_run.o build/%/libmockup.o build/%/imockup.o build/%/libnuklear.o
+build/%/imockup:    build/%/libbase.o build/%/libwdc65816.o build/%/libwdc65816_run.o build/%/libmockup.o build/%/imockup.o build/%/libnuklear.o build/%/libnuts.o
 	$(CC) $(LFLAGS) -o $@$(EXT) $^ $(GLLIBS) $(LIBS) 
 
 build/%/imockup_js: build/%/libbase.o build/%/libwdc65816.o build/%/libwdc65816_run.o build/%/libmockup.o build/%/imockup.o build/%/libnuklear_js.o
@@ -54,6 +54,10 @@ build/%/imockup_js: build/%/libbase.o build/%/libwdc65816.o build/%/libwdc65816_
 
 build/%/nuts:       build/%/libbase.o build/%/libwdc65816.o build/%/libwdc65816_run.o build/%/libnuts.o build/%/nuts.o
 	$(CC) $(LFLAGS) -o $@$(EXT) $^ $(LIBS)
+
+build/%/test/bml:
+	$(CC) $(CFLAGS) $(LFLAGS) -Ilib/ -o $@$(EXT) $(LIBS) test/bml/main.c
+	-$@$(EXT)
 
 -include build/linux/*.d
 -include build/linux_release/*.d
@@ -63,7 +67,7 @@ build/%/nuts:       build/%/libbase.o build/%/libwdc65816.o build/%/libwdc65816_
 
 
 windows:         CC       = $(CCWINDOWS)
-windows:         CFLAGS   = -g -Wall -Werror -MMD -MP -DWINDOWSsy
+windows:         CFLAGS   = -g -Wall -Werror -MMD -MP -DWINDOWS -DARCH32
 windows:         GLLIBS   = -lglew32 -lglfw3 -lopengl32 
 windows:         LIBS     = -lmingw32 -mwindows     \
                           -Wl,--no-undefined -lm -ldinput8 -ldxguid -ldxerr8  \
@@ -72,12 +76,12 @@ windows:         LIBS     = -lmingw32 -mwindows     \
 windows:         EXT      = .exe
 
 wasm:            CC       = $(CCWASM)
-wasm:            CFLAGS   = -O2 -Wall -Werror --target=wasm32-unknown-unknown-wasm -MMD -MP -DNO_COMPUTED_GOTO -DWASM
+wasm:            CFLAGS   = -O2 -Wall -Werror --target=wasm32-unknown-unknown-wasm -MMD -MP -DNO_COMPUTED_GOTO -DWASM -DARCH32
 wasm:            LFLAGS   = --target=wasm32-unknown-unknown-wasm -nostdlib
 wasm:            EXT      = .wasm
 
 linux:           CC       = $(CCLINUX)
-linux:           CFLAGS   = -g -Wall -Werror -Wunused-result -MMD -MP -DLINUX
+linux:           CFLAGS   = -g3 -Wall -Wextra -Werror -Wunused-result -Wno-sign-compare -MMD -MP -DLINUX -DARCH64
 linux:           GLLIBS   = -lGLEW -lGL -lglfw
 
 linux_release:   CC       = $(CCLINUX)
@@ -102,6 +106,12 @@ clean:
 upload:
 	curl -H "Authorization: Bearer $(KEY)" -F "mockup.html=@html/mockup.html" https://neocities.org/api/upload
 
+
+.PRECIOUS: build/linux/test/bml
+test:            CC       = $(CCLINUX)
+test:            CFLAGS   = -g3 -Wall -Werror -Wunused-result -MMD -MP -DLINUX
+test:            GLLIBS   = -lGLEW -lGL -lglfw
+test: build/linux/test/ build/linux/test/bml
 # macro_debug:
 # 	gcc -g -E -P -Werror -I../../lib nuts.c | clang-format > nuts.pp.c
 # 	gcc -g -O0 -mno-avx -Werror -fpreprocessed -I../../lib nuts.pp.c -o nuts
@@ -111,3 +121,6 @@ upload:
 
 # profile_use:
 # 	gcc -g -fprofile-use -O3 -Werror -I../../lib nuts.c -o nuts
+
+.SUFFIXES:
+MAKEFLAGS += --no-builtin-rules
