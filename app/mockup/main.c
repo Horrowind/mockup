@@ -17,6 +17,7 @@
 #define LEN(a) (sizeof(a)/sizeof(a)[0])
 
 #include "mockup/smw.h"
+#include "nuts/nuts.h"
 
 extern char* sprite_names[256];
 GLFWwindow* win;
@@ -42,7 +43,6 @@ int next_level;
 int prev_level;
 
 SMW         smw;
-Wdc65816Rom rom;
 PalettePC   palette;
 Map16PC     map16_fg, map16_bg;
 
@@ -56,14 +56,35 @@ u16*      level_layer2_object_data = NULL;
 u16 selected_index_x;
 u16 selected_index_y;
 
-int hot_index = 99999999;
-int selected_index = 99999999;
+enum {
+    UNSELECTED_INDEX = 999999
+};
+int hot_index = UNSELECTED_INDEX;
+int selected_index = UNSELECTED_INDEX;
 
 uint8_t frame_num = 0;
 int current_level = 0x105;
 int sprite_map8_palette = 0;
 int map8_palette = 0;
 
+AST ast;
+Assembler assembler;
+Wdc65816Mapper rom;
+ErrorList error_list;
+//u8 level_105_data[] = { 0x33, 0x40, 0x08, 0x80, 0x27, 0x00, 0x01, 0x00, 0xFF };
+u8 level_105_data[] = { 0x33, 0x40, 0x08, 0x80, 0x27, 0xFF };
+
+u8 spc_engine_bin[6321] = {};
+
+Buffer level_105_buffer = {
+    .begin = level_105_data,
+    .end = level_105_data + sizeof(level_105_data)
+};
+
+Buffer spc_engine_buffer = {
+    .begin = spc_engine_bin,
+    .end = spc_engine_bin + sizeof(spc_engine_bin)
+};
 
 
 typedef struct {
@@ -121,8 +142,40 @@ void gl_update_textures() {
 }
 
 
+void do_assemble(Arena* temp_arena) {
+    assembler_init(&assembler, &error_list, &ast, &rom);
+    
+    Result result = RESULT_ERROR;
+    while(result != RESULT_OK) {
+        result = assemble(&assembler);
+        if(result == RESULT_NEED_FILE) {
+            String file_name = assembler_get_file_name(&assembler);
+            Buffer file_buffer;
+            if(string_equal(file_name, L("level_105_data.bin"))) {
+                file_buffer = level_105_buffer;
+            } else if(string_equal(file_name, L("spc700_engine.bin"))) {
+                file_buffer = spc_engine_buffer;
+            } else {
+                invalid_code_path;
+                Path file;
+                path_init(&file, file_name);
+                file_buffer  = path_read_file(&file, temp_arena);
+            }
+            
+            assembler_give_buffer(&assembler, file_buffer);
+        } else if(result == RESULT_ERROR) {
+            break;
+        }
+    }
+}
 
-void render(Arena* arena) {
+
+void update_and_render(Arena* arena) {
+
+    Temp full_temp = temp_begin(&smw.arena);
+    Temp temp = temp_begin(&smw.temp_arena);
+
+    
     /* Input */
     int fb_width = 0;
     int fb_height = 0;
@@ -233,30 +286,7 @@ void render(Arena* arena) {
     map16_pc_deinit(&map16_fg);
     map16_pc_deinit(&map16_bg);
    
-    { /* GUI */
-        /* nk_style_push_color(ctx, &ctx->style.window.background, nk_rgba_u32(0xFF000000)); */
-        /* if(nk_begin(ctx, "Main", nk_rect(0, 0, 50, 50), NK_WINDOW_BACKGROUND | NK_WINDOW_SCALABLE)) { */
-        /*     nk_window_set_size(ctx, nk_vec2(fb_width, fb_height)); */
-        /*     nk_menubar_begin(ctx); */
-        /*     nk_layout_row_begin(ctx, NK_STATIC, 25, 4); */
-        /*     nk_layout_row_push(ctx, 45); */
-        /*     if(nk_menu_begin_label(ctx, "MENU", NK_TEXT_LEFT, nk_vec2(120, 200))) { */
-        /*         static size_t prog = 40; */
-        /*         static int slider = 10; */
-        /*         static int check = nk_true; */
-        /*         nk_layout_row_dynamic(ctx, 25, 1); */
-        /*         nk_progress(ctx, &prog, 100, NK_MODIFIABLE); */
-        /*         nk_slider_int(ctx, 0, &slider, 16, 1); */
-        /*         nk_checkbox_label(ctx, "check", &check); */
-        /*         nk_menu_end(ctx); */
-        /*     } */
-        /*     nk_menubar_end(ctx); */
-        /* } */
-        /* nk_end(ctx); */
-        /* nk_style_pop_color(ctx); */
-
-        
-       
+    {
         if(nk_begin(ctx, "Map8", nk_rect(320, 620, 172, 310),
                     NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|NK_WINDOW_BORDER|
                     NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE)) {
@@ -683,6 +713,40 @@ void render(Arena* arena) {
             }
 #endif
 
+            if(nk_begin(ctx, "Objects", nk_rect(1200, 30, 400, 400),
+                        NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|NK_WINDOW_BORDER|
+                        NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE)) {
+                nk_layout_row_static(ctx, 30, 120, 3);
+                if(nk_button_label(ctx, "New Object")) {
+                    ObjectPC new_object = {
+                        .x = 5,
+                        .y = 5,
+                        .num = 1,
+                        .settings = 0,
+                        .tiles = NULL
+                    };
+                    smw_level_add_layer1_object(&smw, current_level, 0, new_object);
+                    selected_index = 0;
+                    printf("%i\n", selected_index);
+                    //debug_break;
+                }
+                if(selected_index != UNSELECTED_INDEX) {
+                    int x    = smw.levels[current_level].layer1_objects.objects[selected_index].x;
+                    int y    = smw.levels[current_level].layer1_objects.objects[selected_index].y;
+                    int num  = smw.levels[current_level].layer1_objects.objects[selected_index].num;
+                    int type = smw.levels[current_level].layer1_objects.objects[selected_index].settings;
+                    //if(num != 0 || (type != 0 && type != 1)) {
+                    nk_property_int(ctx, "x",    0, &x,    smw.levels[current_level].width, 1, 0.4);
+                    smw.levels[current_level].layer1_objects.objects[selected_index].x = x;
+                    nk_property_int(ctx, "y",    0, &y,    smw.levels[current_level].height, 1, 0.4);
+                    smw.levels[current_level].layer1_objects.objects[selected_index].y = y;
+                    nk_property_int(ctx, "num",  0, &num,  0x3F, 1, 0.4);
+                    smw.levels[current_level].layer1_objects.objects[selected_index].num = num;
+                    nk_property_int(ctx, "type", 0, &type, 255, 1, 0.4);
+                    smw.levels[current_level].layer1_objects.objects[selected_index].settings = type;
+                }
+            }
+            nk_end(ctx);
                 
             /* if(nk_begin(ctx, "Main", nk_rect(0, 0, 200, 400), */
             /*             NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|NK_WINDOW_BORDER| */
@@ -694,11 +758,23 @@ void render(Arena* arena) {
             /* nk_end(ctx); */
         }
     }
-
     
-    //smw_level_refresh(&smw, current_level);
+    /* printf("length: %i\n", smw.levels[current_level].layer1_objects.length); */
+    level_105_buffer = smw_level_serialize_fast(&smw, 0x105);
+    do_assemble(&smw.temp_arena);
+    /* for(u8* ptr = level_105_buffer.begin; ptr < (u8*)level_105_buffer.end; ptr++) { */
+    /*     printf("%02x ", *ptr); */
+    /* } */
+    /* printf("\n"); */
+    /* for(int i = 0; i < smw.levels[current_level].layer1_objects.length; i++) { */
+    /*     printf("Object: { x: %4i, y: %4i, num: %02x, settings: %02x}\n", */
+    /*            smw.levels[current_level].layer1_objects.objects[i].x, */
+    /*            smw.levels[current_level].layer1_objects.objects[i].y, */
+    /*            smw.levels[current_level].layer1_objects.objects[i].num, */
+    /*            smw.levels[current_level].layer1_objects.objects[i].settings); */
+    /* } */
+    smw_level_load(&smw, current_level);
 
-   
     /* Draw */
     {
         float bg[4];
@@ -715,14 +791,16 @@ void render(Arena* arena) {
         nk_glfw3_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
         glfwSwapBuffers(win);
     }
+
+    temp_end(temp);
+    temp_end(full_temp);
+
 }
 
 void error_callback(int error, const char* description)
 {
     fprintf(stderr, "Error %d: %s\n", error, description);
 }
-
-
 
 int main(int argc, char** argv)
 {
@@ -737,10 +815,6 @@ int main(int argc, char** argv)
 
     int width = 1280;
     int height = 1024;
-#ifdef __EMSCRIPTEN__
-    int is_fullscreen = 1;
-    emscripten_get_canvas_size(&width, &height, &is_fullscreen);
-#endif
     
     win = glfwCreateWindow(width, height, "Mockup", NULL, NULL);
     if (!win)
@@ -768,33 +842,112 @@ int main(int argc, char** argv)
 
 
     Arena arena = arena_create(MB(1024));
-    String path_name = (argc > 2) ? string_from_c_string(argv[2]) : L("SuperMarioWorld.sfc");
-    Path path;
-    path_init(&path, path_name);
-    VFS vfs;
-    vfs_init(&vfs, 4);
-    vfs_add_dir(&vfs, &path, &arena);
-    
-    Wdc65816Rom rom;
-    wdc65816_rom_init(&rom, &vfs, &arena);
+    String cartridge_folder_path_name = (argc > 2)
+        ? string_from_c_string(argv[2])
+        : L("SuperMarioWorld.sfc");
+    Path cartridge_folder_path;
+    path_init(&cartridge_folder_path, cartridge_folder_path_name);
+    Path manifest_path;
+    path_init_from_c(&manifest_path, &cartridge_folder_path, "manifest.bml");
+    Buffer manifest_buffer = path_read_file(&manifest_path, &arena);
 
-    smw_init(&smw, &rom, &arena);
+    Wdc65816MapperBuilder rom_builder = { };
+    
+    char name[256];
+    Buffer name_buffer = buffer(name, 256);
+    Buffer rom_buffer;
+    for(Wdc65816RomLoader loader = wdc65816_rom_loader_begin(&rom_builder,
+                                                             string_from_buffer(manifest_buffer));
+        wdc65816_rom_loader_end(&loader);
+        wdc65816_rom_loader_next(&loader)) {
+        Wdc65816MemoryBufferRequest request = wdc65816_rom_loader_get_buffer_request(&loader,
+                                                                                     name_buffer);
+        Buffer file_buffer = buffer(arena_alloc_array(&arena, request.size, u8), request.size);
+        if(string_equal(request.name, L("program.rom")) &&
+           request.type == WDC65816_MEMORY_ROM) {
+            rom_buffer = file_buffer;
+        }
+        wdc65816_rom_loader_set_buffer(&loader, file_buffer);
+    }
+    (void)rom_buffer;
+
+    uint mapper_buffer_size = wdc65816_mapper_get_buffer_size();
+    u8* work_buffer = arena_alloc_array(&arena, mapper_buffer_size, u8);
+    wdc65816_mapper_init(&rom, &rom_builder, (u8**)work_buffer);
+
+    Path working_dir;
+    path_init_working_directory(&working_dir);
+    FreeList sentinel;
+    free_list_init(&sentinel);
+    error_list_init(&error_list, arena_subarena(&arena, MB(10)));
+
+    nuts_global_init();
+    ast_init(&ast, &arena);
+
+    Path spc_engine_file;
+    path_init(&spc_engine_file, L("spc700_engine.bin"));
+    spc_engine_buffer  = path_read_file(&spc_engine_file, &arena);
+
+    
+    String file_name = string_from_c_string(argv[1]); 
+    
+    Parser parser;
+    parser_init(&parser, &arena, &sentinel, &error_list, &ast);
+    int error_num = 0;
+    while(1) {
+        Path file;
+        path_init(&file, file_name);
+        Buffer file_buffer = path_read_file(&file, &arena);
+        TokenList token_list;
+        //printf("read %.*s\n", file_name.length, file_name.data);
+        Text file_text = {
+            .buffer = file_buffer,
+            .name   = file_name
+        };
+        Result result = lex(file_text, &token_list, &arena, &error_list, &ast.identifier_map);
+        if(result == RESULT_ERROR) {
+            for(;error_num < error_list.length; error_num++) {
+                describe_error(error_list.errors[error_num]);
+            }
+        }
+        //token_list_print(token_list);
+        result = parse(&parser, token_list);
+        
+        if(result == RESULT_NEED_TOKEN_STREAM) {
+            file_name = parser.needed_token_stream_file_name;
+            continue;
+        } else if(result == RESULT_OK) {
+            break;
+        } else if(result == RESULT_ERROR) {
+            for(;error_num < error_list.length; error_num++) {
+                describe_error(error_list.errors[error_num]);
+            }
+            return 1;
+        } else {
+            invalid_code_path;
+        }
+    }
+
+    do_assemble(&arena);
+    for(int i = 0; i < error_list.length; i++) {
+        describe_error(error_list.errors[i]);
+    }
+
+    smw_init(&smw, &rom_builder, &arena);
     smw_level_load(&smw, current_level);
 
     gl_init_textures();
 
-   
-#ifdef __EMSCRIPTEN__
-    /* Main loop */
-    emscripten_set_main_loop(render, 0, 1);
-
-#else
-    while (!glfwWindowShouldClose(win))
-    {
-        render(&arena);
+    while(!glfwWindowShouldClose(win)) {
+        update_and_render(&arena);
     }
-#endif
-   
+
+
+    parser_deinit(&parser);
+
+    Path rom_path;
+    path_create_from(&rom_path, &cartridge_folder_path, L("program.rom"));
+    path_write_file(&rom_path, rom_buffer);
    
     nk_glfw3_shutdown();
     glfwTerminate();

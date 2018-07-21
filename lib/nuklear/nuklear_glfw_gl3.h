@@ -1,9 +1,4 @@
-/*
- * Nuklear - v1.00 - public domain
- * no warrenty implied; use at your own risk.
- * authored from 2015-2016 by Micha Mettke
- * emscripten from 2016 by Chris Willcocks
- */
+/* * Nuklear - v1.00 - public domain * no warrenty implied; use at your own risk. * authored from 2015-2016 by Micha Mettke * emscripten from 2016 by Chris Willcocks */
 /*
  * ==============================================================
  *
@@ -20,7 +15,6 @@
 #else
 #ifdef __MINGW32__
 #define GLEW_STATIC
-#include "windows.h"
 #else
 #define GLFW_INCLUDE_ES2
 #endif
@@ -94,7 +88,7 @@ static struct nk_glfw {
     struct nk_vec2 fb_scale;
     unsigned int text[NK_GLFW_TEXT_MAX];
     int text_len;
-    float scroll;
+    struct nk_vec2 scroll;
     int is_fullscreen;
 } glfw;
 
@@ -380,7 +374,7 @@ NK_API void
 nk_gflw3_scroll_callback(GLFWwindow *win, double xoff, double yoff)
 {
     (void)win; (void)xoff;
-    glfw.scroll += (float)yoff;
+    glfw.scroll = nk_vec2(glfw.scroll.x + (float)xoff, glfw.scroll.y + (float)yoff);
 }
 
 NK_INTERN void
@@ -517,7 +511,7 @@ nk_glfw3_new_frame(void)
     nk_input_scroll(ctx, glfw.scroll);
     nk_input_end(&glfw.ctx);
     glfw.text_len = 0;
-    glfw.scroll = 0;
+    glfw.scroll = (struct nk_vec2){ };
 }
 
 NK_API
