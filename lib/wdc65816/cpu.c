@@ -3,81 +3,98 @@
 #include "memory.h"
 #include "table.h"
 
-void wdc65816_cpu_init(Wdc65816Cpu* cpu, Wdc65816Rom* rom, Arena* arena) {
+uint wdc65816_cpu_get_work_buffer_size() {
+    return 0x20000 + 0x2500 + 2 * wdc65816_mapper_get_buffer_size();
+}
+
+void wdc65816_cpu_init(Wdc65816Cpu* cpu, Wdc65816MapperBuilder* rom, u8* work_buffer) {
+    uint mapper_buffer_size = wdc65816_mapper_get_buffer_size();
     cpu->regs.p.b = 0x24;
     cpu->rom  = rom;
-    cpu->ram  = arena_alloc_array(arena, 0x20000, u8);
-    cpu->sreg = arena_alloc_array(arena, 0x2500, u8);
-
+    u8** read_map_buffer  = (u8**)(work_buffer + 0 * mapper_buffer_size);
+    u8** write_map_buffer = (u8**)(work_buffer + 1 * mapper_buffer_size);
+    cpu->ram              =        work_buffer + 2 * mapper_buffer_size + 0x000000;
+    cpu->sreg             =        work_buffer + 2 * mapper_buffer_size + 0x020000;
+    
     cpu->regs.pc.d = 0x000000;
     wdc65816_breakpoint_list_init(&cpu->breakpoints_exec);
     wdc65816_breakpoint_list_init(&cpu->breakpoints_read);
     wdc65816_breakpoint_list_init(&cpu->breakpoints_write);
     wdc65816_cpu_clear(cpu);
 #ifdef DEBUG_PRINT_CPU_STATE
-    cpu->debug = 0;
+    cpu->debug = 1;
 #endif
 
     Wdc65816MapperEntry ram_entry1 = {
-        .bank_low  =   0x00,
-        .bank_high =   0x3F,
-        .addr_low  = 0x0000,
-        .addr_high = 0x1FFF,
-        .size      = 0x2000,
-        .data      = cpu->ram,
-        .name      = L(".ram"),
+        .map = {
+            .bank_low    =   0x00,
+            .bank_high   =   0x3F,
+            .addr_low    = 0x0000,
+            .addr_high   = 0x1FFF,
+            .size        = 0x2000,
+            .content     = L("Work"),
+        },
+        .data = buffer(cpu->ram, 0x2000),
     };
-    
+        
     Wdc65816MapperEntry ram_entry2 = {
-        .bank_low  =   0x80,
-        .bank_high =   0xBF,
-        .addr_low  = 0x0000,
-        .addr_high = 0x1FFF,
-        .size      = 0x2000,
-        .data      = cpu->ram,
-        .data_length= 0x2000,
-        .name      = L(".ram"),
+        .map = {
+            .bank_low    =   0x80,
+            .bank_high   =   0xBF,
+            .addr_low    = 0x0000,
+            .addr_high   = 0x1FFF,
+            .size        = 0x2000,
+            .content     = L("Work"),
+        },
+        .data = buffer(cpu->ram, 0x2000),
     };
 
     Wdc65816MapperEntry ram_entry3 = {
-        .bank_low  =   0x7E,
-        .bank_high =   0x7F,
-        .addr_low  = 0x0000,
-        .addr_high = 0xFFFF,
-        .size      = 0x20000,
-        .data      = cpu->ram,
-        .data_length= 0x20000,
-        .name      = L(".ram"),
+        .map = {
+            .bank_low    =   0x7E,
+            .bank_high   =   0x7F,
+            .addr_low    = 0x0000,
+            .addr_high   = 0xFFFF,
+            .size        = 0x20000,
+            .content     = L("Work"),
+        },
+        .data = buffer(cpu->ram, 0x20000),
     };
 
     Wdc65816MapperEntry sreg_entry = {
-        .bank_low  =   0x00,
-        .bank_high =   0xFF,
-        .addr_low  = 0x2000,
-        .addr_high = 0x44FF,
-        .size      = 0x2500,
-        .data      = cpu->sreg,
-        .name      = L(".sreg"),
+        .map = {
+            .bank_low  =   0x00,
+            .bank_high =   0xFF,
+            .addr_low  = 0x2000,
+            .addr_high = 0x44FF,
+            .size      = 0x2500,
+            .content   = L("SReg"),
+        },
+        .data = buffer(cpu->sreg, 0x2500),
     };
 
-    
-    wdc65816_mapper_init(&cpu->read_mapper);
-    wdc65816_mapper_init(&cpu->write_mapper);
-    wdc65816_mapper_add(&cpu->read_mapper,  &ram_entry1);
-    wdc65816_mapper_add(&cpu->read_mapper,  &ram_entry2);
-    wdc65816_mapper_add(&cpu->read_mapper,  &ram_entry3);
-    wdc65816_mapper_add(&cpu->read_mapper,  &sreg_entry);
-    wdc65816_mapper_add(&cpu->write_mapper, &ram_entry1);
-    wdc65816_mapper_add(&cpu->write_mapper, &ram_entry2);
-    wdc65816_mapper_add(&cpu->write_mapper, &ram_entry3);
-    wdc65816_mapper_add(&cpu->write_mapper, &sreg_entry);
-    for(int i = 0; i < rom->read_mapper.num_entries; i++)
-        wdc65816_mapper_add(&cpu->read_mapper, rom->read_mapper.entries + i);
-    for(int i = 0; i < rom->write_mapper.num_entries; i++)
-        wdc65816_mapper_add(&cpu->write_mapper, rom->write_mapper.entries + i);
+    Wdc65816MapperBuilder read_builder;
+    wdc65816_mapper_builder_init(&read_builder);
+
+    Wdc65816MapperBuilder write_builder;
+    wdc65816_mapper_builder_init(&write_builder);
+
+    wdc65816_mapper_builder_add(&read_builder,  &ram_entry1);
+    wdc65816_mapper_builder_add(&read_builder,  &ram_entry2);
+    wdc65816_mapper_builder_add(&read_builder,  &ram_entry3);
+    wdc65816_mapper_builder_add(&read_builder,  &sreg_entry);
+    wdc65816_mapper_builder_add(&write_builder, &ram_entry1);
+    wdc65816_mapper_builder_add(&write_builder, &ram_entry2);
+    wdc65816_mapper_builder_add(&write_builder, &ram_entry3);
+    wdc65816_mapper_builder_add(&write_builder, &sreg_entry);
+    for(int i = 0; i < rom->entries_length; i++)
+        wdc65816_mapper_builder_add(&read_builder, rom->entries + i);
         
-    wdc65816_mapper_update(&cpu->read_mapper);
-    wdc65816_mapper_update(&cpu->write_mapper);
+    wdc65816_mapper_init(&cpu->read_mapper,  &read_builder,  read_map_buffer);
+    wdc65816_mapper_init(&cpu->write_mapper, &write_builder, write_map_buffer);
+
+    wdc65816_mapper_builder_deinit(&read_builder);
+    wdc65816_mapper_builder_deinit(&write_builder);
 }
 
 void wdc65816_cpu_free(Wdc65816Cpu* cpu) {
@@ -97,8 +114,8 @@ void wdc65816_cpu_clear(Wdc65816Cpu* cpu) {
     cpu->regs.p.b = 0x24;
     cpu->regs.e = 0;
     cpu->regs.mdr = 0x00;
-    memset(cpu->ram, 0, 0x20000);
-    memset(cpu->sreg, 0, 0x2500);
+    zero_buffer(buffer(cpu->ram,  0x20000));
+    zero_buffer(buffer(cpu->sreg,  0x2500));
     wdc65816_breakpoint_list_deinit(&cpu->breakpoints_exec);
     wdc65816_breakpoint_list_deinit(&cpu->breakpoints_read);
     wdc65816_breakpoint_list_deinit(&cpu->breakpoints_write);
@@ -150,11 +167,10 @@ void wdc65816_cpu_show_state(Wdc65816Cpu* cpu, char* output) {
 
 void wdc65816_cpu_disassemble_opcode(Wdc65816Cpu* cpu, char* output, u32 addr) {
   static Wdc65816Reg24 pc;
-  char t[256];
+  char t[256], u[256], v[256];
   char* s = output;
 
   pc.d = addr;
-  sprintf(s, "%.6x ",  (u32)pc.d);
 
   u8 op  = wdc65816_dreadb(cpu, pc.d); pc.w++;
   u8 op0 = wdc65816_dreadb(cpu, pc.d); pc.w++;
@@ -168,33 +184,34 @@ void wdc65816_cpu_disassemble_opcode(Wdc65816Cpu* cpu, char* output, u32 addr) {
   #define x8   (cpu->regs.e || cpu->regs.p.x)
 
   switch(op) {
-  case 0x00: { sprintf(t, "brk #$%.2x              ", op8); } break;
-  case 0x01: { sprintf(t, "ora ($%.2x,x)   [%.6x]", op8, wdc65816_decode(cpu, OPTYPE_IDPX, op8)); } break;
-  case 0x02: { sprintf(t, "cop #$%.2x              ", op8); } break;
-  case 0x03: { sprintf(t, "ora $%.2x,s     [%.6x]", op8, wdc65816_decode(cpu, OPTYPE_SR, op8)); } break;
-  case 0x04: { sprintf(t, "tsb $%.2x       [%.6x]", op8, wdc65816_decode(cpu, OPTYPE_DP, op8)); } break;
-  case 0x05: { sprintf(t, "ora $%.2x       [%.6x]", op8, wdc65816_decode(cpu, OPTYPE_DP, op8)); } break;
-  case 0x06: { sprintf(t, "asl $%.2x       [%.6x]", op8, wdc65816_decode(cpu, OPTYPE_DP, op8)); } break;
-  case 0x07: { sprintf(t, "ora [$%.2x]     [%.6x]", op8, wdc65816_decode(cpu, OPTYPE_ILDP, op8)); } break;
-  case 0x08: { sprintf(t, "php                   "); } break;
+  case 0x00: { sprintf(t, "brk #$%.2x              ", op8                                         );   } break;
+  case 0x01: { sprintf(t, "ora ($%.2x,x)   [%.6x]",   op8,  wdc65816_decode(cpu, OPTYPE_IDPX, op8));   } break;
+  case 0x02: { sprintf(t, "cop #$%.2x              ", op8                                         );   } break;
+  case 0x03: { sprintf(t, "ora $%.2x,s     [%.6x]",   op8,  wdc65816_decode(cpu, OPTYPE_SR,   op8));   } break;
+  case 0x04: { sprintf(t, "tsb $%.2x       [%.6x]",   op8,  wdc65816_decode(cpu, OPTYPE_DP,   op8));   } break;
+  case 0x05: { sprintf(t, "ora $%.2x       [%.6x]",   op8,  wdc65816_decode(cpu, OPTYPE_DP,   op8));   } break;
+  case 0x06: { sprintf(t, "asl $%.2x       [%.6x]",   op8,  wdc65816_decode(cpu, OPTYPE_DP,   op8));   } break;
+  case 0x07: { sprintf(t, "ora [$%.2x]     [%.6x]",   op8,  wdc65816_decode(cpu, OPTYPE_ILDP, op8));   } break;
+  case 0x08: { sprintf(t, "php                   "                                                );   } break;
   case 0x09: { if(a8) sprintf(t, "ora #$%.2x              ", op8);
                else sprintf(t, "ora #$%.4x            ", op16); } break;
-  case 0x0a: { sprintf(t, "asl a                 "); } break;
+  case 0x0a: { sprintf(t, "asl a                 "                                                );   } break;
   case 0x0b: { sprintf(t, "phd                   "); } break;
-  case 0x0c: { sprintf(t, "tsb $%.4x     [%.6x]", op16, wdc65816_decode(cpu, OPTYPE_ADDR, op16)); } break;
-  case 0x0d: { sprintf(t, "ora $%.4x     [%.6x]", op16, wdc65816_decode(cpu, OPTYPE_ADDR, op16)); } break;
-  case 0x0e: { sprintf(t, "asl $%.4x     [%.6x]", op16, wdc65816_decode(cpu, OPTYPE_ADDR, op16)); } break;
-  case 0x0f: { sprintf(t, "ora $%.6x   [%.6x]", op24, wdc65816_decode(cpu, OPTYPE_LONG, op24)); } break;
-  case 0x10: { sprintf(t, "bpl $%.4x     [%.6x]", (u16)(wdc65816_decode(cpu, OPTYPE_RELB, op8)), wdc65816_decode(cpu, OPTYPE_RELB, op8)); } break;
-  case 0x11: { sprintf(t, "ora ($%.2x),y   [%.6x]", op8, wdc65816_decode(cpu, OPTYPE_IDPY, op8)); } break;
-  case 0x12: { sprintf(t, "ora ($%.2x)     [%.6x]", op8, wdc65816_decode(cpu, OPTYPE_IDP, op8)); } break;
-  case 0x13: { sprintf(t, "ora ($%.2x,s),y [%.6x]", op8, wdc65816_decode(cpu, OPTYPE_ISRY, op8)); } break;
-  case 0x14: { sprintf(t, "trb $%.2x       [%.6x]", op8, wdc65816_decode(cpu, OPTYPE_DP, op8)); } break;
-  case 0x15: { sprintf(t, "ora $%.2x,x     [%.6x]", op8, wdc65816_decode(cpu, OPTYPE_DPX, op8)); } break;
-  case 0x16: { sprintf(t, "asl $%.2x,x     [%.6x]", op8, wdc65816_decode(cpu, OPTYPE_DPX, op8)); } break;
-  case 0x17: { sprintf(t, "ora [$%.2x],y   [%.6x]", op8, wdc65816_decode(cpu, OPTYPE_ILDPY, op8)); } break;
+  case 0x0c: { sprintf(t, "tsb $%.4x     [%.6x]",     op16, wdc65816_decode(cpu, OPTYPE_ADDR,  op16)); } break;
+  case 0x0d: { sprintf(t, "ora $%.4x     [%.6x]",     op16, wdc65816_decode(cpu, OPTYPE_ADDR,  op16)); } break;
+  case 0x0e: { sprintf(t, "asl $%.4x     [%.6x]",     op16, wdc65816_decode(cpu, OPTYPE_ADDR,  op16)); } break;
+  case 0x0f: { sprintf(t, "ora $%.6x   [%.6x]",       op24, wdc65816_decode(cpu, OPTYPE_LONG,  op24)); } break;
+  case 0x10: { sprintf(t, "bpl $%.4x     [%.6x]",     (u16)(wdc65816_decode(cpu, OPTYPE_RELB,  op8)),
+                                                            wdc65816_decode(cpu, OPTYPE_RELB, op8));   } break;
+  case 0x11: { sprintf(t, "ora ($%.2x),y   [%.6x]",   op8,  wdc65816_decode(cpu, OPTYPE_IDPY,  op8));  } break;
+  case 0x12: { sprintf(t, "ora ($%.2x)     [%.6x]",   op8,  wdc65816_decode(cpu, OPTYPE_IDP,   op8));  } break;
+  case 0x13: { sprintf(t, "ora ($%.2x,s),y [%.6x]",   op8,  wdc65816_decode(cpu, OPTYPE_ISRY,  op8));  } break;
+  case 0x14: { sprintf(t, "trb $%.2x       [%.6x]",   op8,  wdc65816_decode(cpu, OPTYPE_DP,    op8));  } break;
+  case 0x15: { sprintf(t, "ora $%.2x,x     [%.6x]",   op8,  wdc65816_decode(cpu, OPTYPE_DPX,   op8));  } break;
+  case 0x16: { sprintf(t, "asl $%.2x,x     [%.6x]",   op8,  wdc65816_decode(cpu, OPTYPE_DPX,   op8));  } break;
+  case 0x17: { sprintf(t, "ora [$%.2x],y   [%.6x]",   op8,  wdc65816_decode(cpu, OPTYPE_ILDPY, op8));  } break;
   case 0x18: { sprintf(t, "clc                   "); } break;
-  case 0x19: { sprintf(t, "ora $%.4x,y   [%.6x]", op16, wdc65816_decode(cpu, OPTYPE_ADDRY, op16)); } break;
+  case 0x19: { sprintf(t, "ora $%.4x,y   [%.6x]", op16, wdc65816_decode(cpu, OPTYPE_ADDRY, op16));     } break;
   case 0x1a: { sprintf(t, "inc                   "); } break;
   case 0x1b: { sprintf(t, "tcs                   "); } break;
   case 0x1c: { sprintf(t, "trb $%.4x     [%.6x]", op16, wdc65816_decode(cpu, OPTYPE_ADDR, op16)); } break;
@@ -444,26 +461,22 @@ void wdc65816_cpu_disassemble_opcode(Wdc65816Cpu* cpu, char* output, u32 addr) {
   #undef a8
   #undef x8
 
-  strcat(s, t);
-  strcat(s, " ");
-
-  sprintf(t, "A:%.4x X:%.4x Y:%.4x S:%.4x D:%.4x DB:%.2x ",
+  sprintf(u, "A:%.4x X:%.4x Y:%.4x S:%.4x D:%.4x DB:%.2x ",
     cpu->regs.a.w, cpu->regs.x.w, cpu->regs.y.w, cpu->regs.s.w, cpu->regs.d.w, cpu->regs.db);
-  strcat(s, t);
 
   if(cpu->regs.e) {
-    sprintf(t, "%c%c%c%c%c%c%c%c",
+    sprintf(v, "%c%c%c%c%c%c%c%c",
       cpu->regs.p.n ? 'N' : 'n', cpu->regs.p.v ? 'V' : 'v',
       cpu->regs.p.m ? '1' : '0', cpu->regs.p.x ? 'B' : 'b',
       cpu->regs.p.d ? 'D' : 'd', cpu->regs.p.i ? 'I' : 'i',
       cpu->regs.p.z ? 'Z' : 'z', cpu->regs.p.c ? 'C' : 'c');
   } else {
-    sprintf(t, "%c%c%c%c%c%c%c%c",
+    sprintf(v, "%c%c%c%c%c%c%c%c",
       cpu->regs.p.n ? 'N' : 'n', cpu->regs.p.v ? 'V' : 'v',
       cpu->regs.p.m ? 'M' : 'm', cpu->regs.p.x ? 'X' : 'x',
       cpu->regs.p.d ? 'D' : 'd', cpu->regs.p.i ? 'I' : 'i',
       cpu->regs.p.z ? 'Z' : 'z', cpu->regs.p.c ? 'C' : 'c');
   }
 
-  strcat(s, t);
+  sprintf(s, "%.6x %s %s%s",  (u32)pc.d, t, u, v);
 }

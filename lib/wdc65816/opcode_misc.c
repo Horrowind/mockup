@@ -11,7 +11,7 @@
 #define S 4
 #define D 5
 
-void wdc65816_op_nop(Wdc65816Cpu* cpu) { }
+void wdc65816_op_nop(Wdc65816Cpu* cpu) { (void)(cpu); }
 
 void wdc65816_op_wdm(Wdc65816Cpu* cpu) {
     wdc65816_op_readpc(cpu);
@@ -84,14 +84,11 @@ wdc65816_op_interrupt_gen(cop, 0xfff4, 0xffe4);
 
 
 void wdc65816_op_stp(Wdc65816Cpu* cpu) {
-//while(cpu->regs.wai) { }
-//cpu->regs.wai = false;
+    (void)(cpu);
 }
 
 void wdc65816_op_wai(Wdc65816Cpu* cpu) {
-//cpu->regs.wai = true;
-//while(cpu->regs.wai) { }
-//cpu->regs.wai = false;
+    (void)(cpu);
 }
 
 void wdc65816_op_xce(Wdc65816Cpu* cpu) {

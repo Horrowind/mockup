@@ -1,4 +1,5 @@
 #include "algorithms.c"
+#include "board.c"
 #include "breakpoint.c"
 #include "cpu.c"
 #include "cpu_io.c"

@@ -8,7 +8,7 @@
 #include "rom.h"
 
 typedef struct Wdc65816Cpu {
-    Wdc65816Rom* rom;
+    Wdc65816MapperBuilder* rom;
 
     Wdc65816Regs regs;
     Wdc65816Reg24 aa, rd;
@@ -16,9 +16,7 @@ typedef struct Wdc65816Cpu {
     u8 breakpoint_data;
     u8 stop_execution;
     u32 breakpoint_address;
-#ifdef DEBUG_PRINT_CPU_STATE
     u32 debug;
-#endif
     void (**opcode_table)(struct Wdc65816Cpu*);
     
     Wdc65816BreakpointList breakpoints_exec;
@@ -31,8 +29,8 @@ typedef struct Wdc65816Cpu {
     u8* sreg;
 } Wdc65816Cpu;
 
-void wdc65816_cpu_init(Wdc65816Cpu* cpu, Wdc65816Rom* rom, Arena* arena);
-void wdc65816_cpu_init2(Wdc65816Cpu* cpu, Buffer manifest, Arena* arena);
+uint wdc65816_cpu_get_work_buffer_size();
+void wdc65816_cpu_init(Wdc65816Cpu* cpu, Wdc65816MapperBuilder* rom, u8* work_buffer);
 void wdc65816_cpu_load(Wdc65816Cpu* cpu, const char* path);
 void wdc65816_cpu_clear(Wdc65816Cpu* cpu);
 void wdc65816_cpu_free(Wdc65816Cpu* cpu);

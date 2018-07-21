@@ -1,3 +1,5 @@
+#define DEBUG_PRINT_CPU_STATE
+
 #include "opcode_misc.c"
 #include "opcode_pc.c"
 #include "opcode_read.c"
@@ -5,10 +7,10 @@
 #include "opcode_write.c"
 #if 1
 #include "run_table.c"
-#ifndef NO_COMPUTED_GOTO
-#include "step.c"
-#else
+#if defined(NO_COMPUTED_GOTO)
 #include "step_switch.c"
+#else
+#include "step.c"
 #endif
 #else
 //need work
