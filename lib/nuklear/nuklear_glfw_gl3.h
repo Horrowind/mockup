@@ -10,14 +10,8 @@
 #define NK_GLFW_GL3_H_
 
 
-#ifdef __EMSCRIPTEN__
-#include <emscripten.h>
-#else
 #ifdef __MINGW32__
 #define GLEW_STATIC
-#else
-#define GLFW_INCLUDE_ES2
-#endif
 #endif
 #include "GL/glew.h"
 #include <GLFW/glfw3.h>
@@ -27,7 +21,7 @@ enum nk_glfw_init_state{
     NK_GLFW3_INSTALL_CALLBACKS
 };
 
-NK_API void                 nk_compile_shader(GLuint shader, char *name);
+NK_API void                 nk_compile_shader(GLuint shader);
 NK_API struct nk_context*   nk_glfw3_init(GLFWwindow *win, enum nk_glfw_init_state);
 NK_API void                 nk_glfw3_shutdown(void);
 NK_API void                 nk_glfw3_font_stash_begin(struct nk_font_atlas **atlas);
@@ -90,6 +84,7 @@ static struct nk_glfw {
     int text_len;
     struct nk_vec2 scroll;
     int is_fullscreen;
+    double time;
 } glfw;
 
 #ifdef __EMSCRIPTEN__
@@ -102,7 +97,7 @@ static struct nk_glfw {
 #endif
 #endif
 
-NK_API void nk_compile_shader(GLuint shader, char *name)
+NK_API void nk_compile_shader(GLuint shader)
 {
    GLint status, length, result;
    char *log;
@@ -118,7 +113,7 @@ NK_API void nk_compile_shader(GLuint shader, char *name)
    /* print an error message and the info log */
    if (status != GL_TRUE)
    {
-      fprintf(stderr, "Unable to compile %s: %s\n", name, log);
+       //fprintf(stderr, "Unable to compile %s: %s\n", name, log);
    }
    free(log);
 }
@@ -406,7 +401,7 @@ nk_glfw3_init(GLFWwindow *win, enum nk_glfw_init_state init_state)
     GLint GlewInitResult = glewInit();
 	if (GLEW_OK != GlewInitResult) 
 	{
-		printf("ERROR: %s\n",glewGetErrorString(GlewInitResult));
+		//printf("ERROR: %s\n",glewGetErrorString(GlewInitResult));
 		exit(EXIT_FAILURE);
 	}
 #endif
@@ -512,6 +507,10 @@ nk_glfw3_new_frame(void)
     nk_input_end(&glfw.ctx);
     glfw.text_len = 0;
     glfw.scroll = (struct nk_vec2){ };
+
+    double time = glfwGetTime();
+    glfw.ctx.delta_time_seconds = time - glfw.time;
+    glfw.time = time;
 }
 
 NK_API

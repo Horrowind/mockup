@@ -10,7 +10,7 @@ int main() {
         "node=test attr1=1 attr2=2\n"
         "    child1 attr1=1\n"
         "    child2\n";
-    Buffer buffer = { .begin = bml, .end = bml + sizeof(bml) - 1 };
+    Buffer bml_buffer = buffer(bml, sizeof(bml) - 1);
     BmlParser parser;
 #if 0
     bml_parse_init(buffer, &parser);
@@ -41,7 +41,7 @@ int main() {
         }
     } while(node.type != BML_NODE_EOF);
 #endif
-    bml_parse_init(buffer, &parser);
+    bml_parser_init(&parser, bml_buffer);
     bml_parse(&parser);
     for(BmlIter iter = bml_node(L("node"), &parser);
         bml_end(&iter); bml_next(&iter)) {

@@ -3,15 +3,15 @@
 #include "misc.h"
 
 void smw_init(SMW* smw, Wdc65816MapperBuilder* rom, Arena* arena) {
-    smw->arena = arena_subarena(arena, MB(96));
-    smw->temp_arena = arena_subarena(arena, MB(16));
-    
     smw->cpu = (Wdc65816Cpu){.regs.p.b = 0x24};
 
     u8* work_buffer = arena_alloc_array(arena, wdc65816_cpu_get_work_buffer_size(), u8);
     
     wdc65816_cpu_init(&smw->cpu, rom, work_buffer);
     gfx_store_init(&smw->gfx_pages, &smw->cpu.read_mapper, arena);
+
+    smw->arena = arena_subarena(arena, MB(96));
+    smw->temp_arena = arena_subarena(arena, MB(16));
 }
 
 void smw_deinit(SMW* smw) {
@@ -21,14 +21,25 @@ void smw_deinit(SMW* smw) {
 void smw_init_all(SMW* smw, Wdc65816MapperBuilder* rom, Arena* arena) {
     smw_init(smw, rom, arena);
     for(int i = 0; i < 512; i++) {
-        memset(&smw->levels[i].header, 0, 5);
+        smw->levels[i] = arena_alloc_type(&smw->arena, LevelPC);
         smw_level_load(smw, i);
-        printf("Loaded level %03x\n", i);
+        c_print_format("Loaded level %03x\n", i);
     }
 }
 
 void smw_clear(SMW* smw) {
     arena_clear(&smw->arena);
+    for(int i = 0; i < 512; i++) {
+        smw->levels[i] = NULL;
+    }
+}
+
+LevelPC* smw_get_level(SMW* smw, u16 level_num) {
+    if(!smw->levels[level_num]) {
+        smw->levels[level_num] = arena_alloc_type(&smw->arena, LevelPC);
+        smw_level_load(smw, level_num);
+    }
+    return smw->levels[level_num];
 }
 
 void smw_deinit_all(SMW* smw) {
@@ -145,7 +156,7 @@ void smw_set_sprite_table_entries(u8* ram, SpriteTableEntries entries, int sprit
 void smw_level_load(SMW* smw, u16 level_num) {
     Wdc65816Mapper* rom = &smw->cpu.read_mapper;
     GFXStore gfx_pages = smw->gfx_pages;
-    LevelPC* l = &smw->levels[level_num];
+    LevelPC* l = smw->levels[level_num];
     Arena*    arena = &smw->arena; 
     Arena*    temp_arena = &smw->temp_arena; 
 
@@ -181,182 +192,177 @@ void smw_level_load(SMW* smw, u16 level_num) {
     cpu->ram[0x68] = (level_layer2_data_addr_sfc & 0x0000FF) >> 0;
     cpu->ram[0x69] = (level_layer2_data_addr_sfc & 0x00FF00) >> 8;
     cpu->ram[0x6A] = (level_layer2_data_addr_sfc & 0xFF0000) >> 16;
-   
-    memset(cpu->ram + level_map16_low_ram, 0x25, 0x3800);
-    memset(cpu->ram + level_map16_high_ram, 0x00, 0x3800);
+
+    //TODO: memset
+    for(int i = 0; i < 0x3800; i++) {
+        cpu->ram[level_map16_low_ram + i] = 0x25;
+        cpu->ram[level_map16_high_ram + i] = 0x25;
+    }
 
     wdc65816_cpu_add_exec_bp(cpu, level_load_routine_end_sfc);
     wdc65816_cpu_run_from(cpu, level_load_routine_sfc);
     wdc65816_cpu_clear_exec_bp(cpu);
 
-
-    u8 header[5];
-    wdc65816_mapper_read_range(rom, level_layer1_data_addr_sfc,
-                               level_layer1_data_addr_sfc + 5, header);
-    int needs_full_reload = memcmp(&(l->header), header, 5);
-    if(needs_full_reload) {
-
-        // --- header init ------
-        {
-            memcpy(&(l->header), header, 5);
-            l->is_vertical_level = cpu->ram[0x5B] & 0x01;
-            switch(l->header.level_mode) {
-            case 0x00:
-            case 0x0C:
-            case 0x0E:
-            case 0x11:
-            case 0x1E:
-            case 0x0A:
-            case 0x0D:
-                l->has_layer2_objects = 0;
-                l->has_layer2_bg = 1;
-                l->is_boss_level = 0;
-                break;
+    // --- header init ------
+    {
+        wdc65816_mapper_read_range(rom, level_layer1_data_addr_sfc,
+                                   level_layer1_data_addr_sfc + 5, (u8*)&l->header);
+        l->is_vertical_level = cpu->ram[0x5B] & 0x01;
+        switch(l->header.level_mode) {
+        case 0x00: case 0x0C: case 0x0E: case 0x11:
+        case 0x1E: case 0x0A: case 0x0D:
+            l->has_layer2_objects = 0;
+            l->has_layer2_bg = 1;
+            l->is_boss_level = 0;
+            break;
             
-            case 0x09: // > 
-            case 0x0B: // >Boss level
-            case 0x10: // >
-                l->has_layer2_objects = 0;
-                l->has_layer2_bg = 0;
-                l->is_boss_level = 1;
-                l->layer1_objects.length = 0;
+        case 0x09: // > 
+        case 0x0B: // >Boss level
+        case 0x10: // >
+            l->has_layer2_objects = 0;
+            l->has_layer2_bg = 0;
+            l->is_boss_level = 1;
+            l->layer1_objects.length = 0;
 #ifdef SPRITES
-                l->sprites.length = 0;
+            l->sprites.length = 0;
 #endif
-                break;
-            default:
-                l->has_layer2_objects = 1;
-                l->has_layer2_bg = 0;
-                l->is_boss_level = 0;
-                break;
-            }
-        }
-
-
-        {   // --- background color ----
-            int bg_color_addr = level_bg_area_color_data_table_sfc + 2 * cpu->ram[level_header_bg_color_ram];
-            u16 bg_color = wdc65816_mapper_read(&cpu->read_mapper, bg_color_addr) |
-                (wdc65816_mapper_read(&cpu->read_mapper, bg_color_addr + 1) << 8);
-            int r = ((bg_color & 0x001F) << 3); r |= (r >> 5);
-            int g = ((bg_color & 0x03E0) >> 2); g |= (g >> 5);
-            int b = ((bg_color & 0x7C00) >> 7); b |= (b >> 5);
-            l->background_color = 0xFF000000 + (r) + (g << 8) + (b << 16);
-        }
-    
-
-        {   // --- tileset init -----
-            int num_tileset = cpu->ram[level_header_tileset_ram];
-            int tileset_addr = 0xA92B + num_tileset * 4;
-            u8 fg1 = wdc65816_mapper_read(&cpu->read_mapper, tileset_addr + 0);
-            u8 fg2 = wdc65816_mapper_read(&cpu->read_mapper, tileset_addr + 1);
-            u8 bg1 = wdc65816_mapper_read(&cpu->read_mapper, tileset_addr + 2);
-            u8 fg3 = wdc65816_mapper_read(&cpu->read_mapper, tileset_addr + 3);
-            if(fg1 >= gfx_pages.num_pages) return;
-            if(fg2 >= gfx_pages.num_pages) return;
-            if(bg1 >= gfx_pages.num_pages) return;
-            if(fg3 >= gfx_pages.num_pages) return;
-
-            l->tileset.fg1 = &gfx_pages.pages[fg1];
-            l->tileset.fg2 = &gfx_pages.pages[fg2];
-            l->tileset.bg1 = &gfx_pages.pages[bg1];
-            l->tileset.fg3 = &gfx_pages.pages[fg3];
-    
-            l->map8.length = 512;
-            l->map8.tiles = arena_alloc_array(arena, 512, Tile8);
-            for(int tile = 0; tile < 128; tile++) {
-                l->map8.tiles[tile] = tile8_from_3bpp(l->tileset.fg1->data + 24 * (tile % 128));
-            }
-            for(int tile = 128; tile < 256; tile++) {
-                l->map8.tiles[tile] = tile8_from_3bpp(l->tileset.fg2->data + 24 * (tile % 128));
-            }
-            for(int tile = 256; tile < 384; tile++) {
-                l->map8.tiles[tile] = tile8_from_3bpp(l->tileset.bg1->data + 24 * (tile % 128));
-            }
-            for(int tile = 384; tile < 512; tile++) {
-                l->map8.tiles[tile] = tile8_from_3bpp(l->tileset.fg3->data + 24 * (tile % 128));
-            }
-        }
-
-#ifdef SPRITES
-
-        {   // --- sprite map8
-            int num_tileset = cpu->ram[level_header_sprite_tileset_ram];
-            /* printf("num_tileset: %i\n", num_tileset); */
-            int tileset_addr = 0x00A8C3 + num_tileset * 4; //TODO: No magic numbers
-            u8 fg1 = wdc65816_mapper_read(&cpu->read_mapper, tileset_addr + 0);
-            u8 fg2 = wdc65816_mapper_read(&cpu->read_mapper, tileset_addr + 1);
-            u8 bg1 = wdc65816_mapper_read(&cpu->read_mapper, tileset_addr + 2);
-            u8 fg3 = wdc65816_mapper_read(&cpu->read_mapper, tileset_addr + 3);
-
-            if(fg1 >= gfx_pages.num_pages) return;
-            if(fg2 >= gfx_pages.num_pages) return;
-            if(bg1 >= gfx_pages.num_pages) return;
-            if(fg3 >= gfx_pages.num_pages) return;
-
-            l->sprite_tileset.fg1 = &gfx_pages.pages[fg1];
-            l->sprite_tileset.fg2 = &gfx_pages.pages[fg2];
-            l->sprite_tileset.bg1 = &gfx_pages.pages[bg1];
-            l->sprite_tileset.fg3 = &gfx_pages.pages[fg3];
-    
-            l->sprite_map8.length = 512;
-            l->sprite_map8.tiles = arena_alloc_array(arena, 512, Tile8);
-            for(int tile = 0; tile < 128; tile++) {
-                l->sprite_map8.tiles[tile] = tile8_from_3bpp(l->sprite_tileset.fg1->data + 24 * (tile % 128));
-            }
-            for(int tile = 128; tile < 256; tile++) {
-                l->sprite_map8.tiles[tile] = tile8_from_3bpp(l->sprite_tileset.fg2->data + 24 * (tile % 128));
-            }
-            for(int tile = 256; tile < 384; tile++) {
-                l->sprite_map8.tiles[tile] = tile8_from_3bpp(l->sprite_tileset.bg1->data + 24 * (tile % 128));
-            }
-            for(int tile = 384; tile < 512; tile++) {
-                l->sprite_map8.tiles[tile] = tile8_from_3bpp(l->sprite_tileset.fg3->data + 24 * (tile % 128));
-            }
-        }
-#endif
-
-
-        {   // --- map16 fg init ----
-            l->map16_fg.length = 512;
-            l->map16_fg.tiles = arena_alloc_array(arena, l->map16_fg.length, Tile16);
-            for(int i = 0; i < l->map16_fg.length; i++) {
-                int map16_lookup_sfc = map16_fg_tiles_zero_offset_sfc + cpu->ram[2 * i + 0x0FBF] * 256 + cpu->ram[2 * i + 0x0FBE];
-                for(int j = 0; j < 4; j++) {
-                    l->map16_fg.tiles[i].properties[j] =
-                        (TileProperties)wdc65816_mapper_read(&cpu->read_mapper,
-                                                             map16_lookup_sfc + j * 2 + 1);
-                    u16 num_tile =  wdc65816_mapper_read(&cpu->read_mapper,
-                                                         map16_lookup_sfc + j * 2);
-                    num_tile    |= (wdc65816_mapper_read(&cpu->read_mapper,
-                                                         map16_lookup_sfc + j * 2 + 1) & 0x03) << 8;
-                    if(num_tile == 0x3FF) num_tile = 0;
-                    l->map16_fg.tiles[i].tile8s[j] = &(l->map8.tiles[num_tile]);
-                }
-            }
-        }
-    
-
-
-        {   // --- map16 bg init ----
-            l->map16_bg.length = 512;
-            l->map16_bg.tiles = arena_alloc_array(arena, l->map16_bg.length, Tile16);
-            for(int i = 0; i < l->map16_bg.length; i++) {
-                int map16_addr_sfc = map16_bg_tiles_table_sfc + i*8;
-                for(int j = 0; j < 4; j++) {
-                    l->map16_bg.tiles[i].properties[j] =
-                        (TileProperties)(wdc65816_mapper_read(&cpu->read_mapper,
-                                                              map16_addr_sfc + j * 2 + 1));
-                    u16 num_tile =  wdc65816_mapper_read(&cpu->read_mapper, map16_addr_sfc + j * 2);
-                    num_tile    |= (wdc65816_mapper_read(&cpu->read_mapper,
-                                                         map16_addr_sfc + j * 2 + 1) & 0x03) << 8;
-                    if(num_tile >= 0x200) num_tile = 0;
-                    l->map16_bg.tiles[i].tile8s[j] = &(l->map8.tiles[num_tile]);
-                }
-            }
+            break;
+        default:
+            l->has_layer2_objects = 1;
+            l->has_layer2_bg = 0;
+            l->is_boss_level = 0;
+            break;
         }
     }
 
 
+    {   // --- background color ----
+        int bg_color_addr = level_bg_area_color_data_table_sfc + 2 * cpu->ram[level_header_bg_color_ram];
+        u16 bg_color = wdc65816_mapper_read(&cpu->read_mapper, bg_color_addr) |
+            (wdc65816_mapper_read(&cpu->read_mapper, bg_color_addr + 1) << 8);
+        int r = ((bg_color & 0x001F) << 3); r |= (r >> 5);
+        int g = ((bg_color & 0x03E0) >> 2); g |= (g >> 5);
+        int b = ((bg_color & 0x7C00) >> 7); b |= (b >> 5);
+        l->background_color = 0xFF000000 + (r) + (g << 8) + (b << 16);
+    }
+    
+
+    {   // --- tileset init -----
+        int num_tileset = cpu->ram[level_header_tileset_ram];
+        int tileset_addr = 0xA92B + num_tileset * 4;
+        u8 fg1 = wdc65816_mapper_read(&cpu->read_mapper, tileset_addr + 0);
+        u8 fg2 = wdc65816_mapper_read(&cpu->read_mapper, tileset_addr + 1);
+        u8 bg1 = wdc65816_mapper_read(&cpu->read_mapper, tileset_addr + 2);
+        u8 fg3 = wdc65816_mapper_read(&cpu->read_mapper, tileset_addr + 3);
+        if(fg1 >= gfx_pages.num_pages) return;
+        if(fg2 >= gfx_pages.num_pages) return;
+        if(bg1 >= gfx_pages.num_pages) return;
+        if(fg3 >= gfx_pages.num_pages) return;
+
+        l->tileset.fg1 = &gfx_pages.pages[fg1];
+        l->tileset.fg2 = &gfx_pages.pages[fg2];
+        l->tileset.bg1 = &gfx_pages.pages[bg1];
+        l->tileset.fg3 = &gfx_pages.pages[fg3];
+    
+        l->map8.length = 512;
+        l->map8.tiles = arena_alloc_array(arena, 512, Tile8);
+        for(int tile = 0; tile < 128; tile++) {
+            l->map8.tiles[tile] = tile8_from_3bpp(l->tileset.fg1->data + 24 * (tile % 128));
+        }
+        for(int tile = 128; tile < 256; tile++) {
+            l->map8.tiles[tile] = tile8_from_3bpp(l->tileset.fg2->data + 24 * (tile % 128));
+        }
+        for(int tile = 256; tile < 384; tile++) {
+            l->map8.tiles[tile] = tile8_from_3bpp(l->tileset.bg1->data + 24 * (tile % 128));
+        }
+        for(int tile = 384; tile < 512; tile++) {
+            l->map8.tiles[tile] = tile8_from_3bpp(l->tileset.fg3->data + 24 * (tile % 128));
+        }
+    }
+
+#ifdef SPRITES
+
+    {   // --- sprite map8
+        int num_tileset = cpu->ram[level_header_sprite_tileset_ram];
+        /* c_print_format("num_tileset: %i\n", num_tileset); */
+        int tileset_addr = 0x00A8C3 + num_tileset * 4; //TODO: No magic numbers
+        u8 fg1 = wdc65816_mapper_read(&cpu->read_mapper, tileset_addr + 0);
+        u8 fg2 = wdc65816_mapper_read(&cpu->read_mapper, tileset_addr + 1);
+        u8 bg1 = wdc65816_mapper_read(&cpu->read_mapper, tileset_addr + 2);
+        u8 fg3 = wdc65816_mapper_read(&cpu->read_mapper, tileset_addr + 3);
+
+        if(fg1 >= gfx_pages.num_pages) return;
+        if(fg2 >= gfx_pages.num_pages) return;
+        if(bg1 >= gfx_pages.num_pages) return;
+        if(fg3 >= gfx_pages.num_pages) return;
+
+        l->sprite_tileset.fg1 = &gfx_pages.pages[fg1];
+        l->sprite_tileset.fg2 = &gfx_pages.pages[fg2];
+        l->sprite_tileset.bg1 = &gfx_pages.pages[bg1];
+        l->sprite_tileset.fg3 = &gfx_pages.pages[fg3];
+    
+        l->sprite_map8.length = 512;
+        l->sprite_map8.tiles = arena_alloc_array(arena, 512, Tile8);
+        for(int tile = 0; tile < 128; tile++) {
+            l->sprite_map8.tiles[tile] = tile8_from_3bpp(l->sprite_tileset.fg1->data + 24 * (tile % 128));
+        }
+        for(int tile = 128; tile < 256; tile++) {
+            l->sprite_map8.tiles[tile] = tile8_from_3bpp(l->sprite_tileset.fg2->data + 24 * (tile % 128));
+        }
+        for(int tile = 256; tile < 384; tile++) {
+            l->sprite_map8.tiles[tile] = tile8_from_3bpp(l->sprite_tileset.bg1->data + 24 * (tile % 128));
+        }
+        for(int tile = 384; tile < 512; tile++) {
+            l->sprite_map8.tiles[tile] = tile8_from_3bpp(l->sprite_tileset.fg3->data + 24 * (tile % 128));
+        }
+    }
+#endif
+
+
+    {   // --- map16 fg init ----
+        Map16 map16_fg = {
+            .length = 512,
+            .tiles = arena_alloc_array(arena, 512, Tile16)
+        };
+        for(int i = 0; i < map16_fg.length; i++) {
+            int map16_lookup_sfc = map16_fg_tiles_zero_offset_sfc + cpu->ram[2 * i + 0x0FBF] * 256 + cpu->ram[2 * i + 0x0FBE];
+            for(int j = 0; j < 4; j++) {
+                map16_fg.tiles[i].properties[j] =
+                    (TileProperties)wdc65816_mapper_read(&cpu->read_mapper,
+                                                         map16_lookup_sfc + j * 2 + 1);
+                u16 num_tile =  wdc65816_mapper_read(&cpu->read_mapper,
+                                                     map16_lookup_sfc + j * 2);
+                num_tile    |= (wdc65816_mapper_read(&cpu->read_mapper,
+                                                     map16_lookup_sfc + j * 2 + 1) & 0x03) << 8;
+                if(num_tile == 0x3FF) num_tile = 0;
+                map16_fg.tiles[i].tile8s[j] = &(l->map8.tiles[num_tile]);
+            }
+        }
+        map16_pc_init(&l->map16_fg, &map16_fg, &smw->arena);
+    }
+    
+
+
+    {   // --- map16 bg init ----
+        Map16 map16_bg = {
+            .length = 512,
+            .tiles = arena_alloc_array(arena, 512, Tile16)
+        };
+        for(int i = 0; i < map16_bg.length; i++) {
+            int map16_addr_sfc = map16_bg_tiles_table_sfc + i*8;
+            for(int j = 0; j < 4; j++) {
+                map16_bg.tiles[i].properties[j] =
+                    (TileProperties)(wdc65816_mapper_read(&cpu->read_mapper,
+                                                          map16_addr_sfc + j * 2 + 1));
+                u16 num_tile =  wdc65816_mapper_read(&cpu->read_mapper, map16_addr_sfc + j * 2);
+                num_tile    |= (wdc65816_mapper_read(&cpu->read_mapper,
+                                                     map16_addr_sfc + j * 2 + 1) & 0x03) << 8;
+                if(num_tile >= 0x200) num_tile = 0;
+                map16_bg.tiles[i].tile8s[j] = &(l->map8.tiles[num_tile]);
+            }
+        }
+        map16_pc_init(&l->map16_bg, &map16_bg, &smw->arena);
+    }
     
     if(!l->is_boss_level) {
         if(l->is_vertical_level) {
@@ -669,13 +675,21 @@ void smw_level_load(SMW* smw, u16 level_num) {
             wdc65816_cpu_run(cpu);
             wdc65816_cpu_clear_exec_bp(cpu);
             u8* ram_copy = arena_alloc_array(temp_arena, 0x20000, u8);
-            memcpy(ram_copy, cpu->ram, 0x20000);
 
+            //TODO: memcpy
+            for(int i = 0; i < 0x20000; i++) {
+                ram_copy[i] = cpu->ram[i];
+            }
+            
             l->sprites.data = arena_alloc_array(arena, 0, SpritePC);
             int sprites_length = 0;
             
             while(wdc65816_mapper_read(&cpu->read_mapper, level_sprite_data_addr_sfc + 3*sprites_length + 1) != 0xFF) {
-                memcpy(cpu->ram, ram_copy, 0x20000);
+
+                //TODO: memcpy
+                for(int i = 0; i < 0x20000; i++) {
+                    cpu->ram[i] = ram_copy[i];
+                }
                 SpritePC* sprite = arena_alloc_type(arena, SpritePC);
 
                 u8 sprite_data_byte1 = wdc65816_mapper_read(&cpu->read_mapper, level_sprite_data_addr_sfc + 3*sprites_length + 1);
@@ -846,7 +860,9 @@ void smw_level_load(SMW* smw, u16 level_num) {
                 SpriteTile* temp_tiles = sprite->tiles;
                 sprite->tiles = arena_alloc_array(arena, sprite->num_tiles, SpriteTile);
                 //assert(sprite->tiles);
-                memcpy(sprite->tiles, temp_tiles, sizeof(SpriteTile) * sprite->num_tiles);
+                for(int i = 0; i < sprite->num_tiles; i++) {
+                    sprite->tiles[i] = temp_tiles[i];
+                }
             }
             
             wdc65816_cpu_clear_exec_bp(cpu);            
@@ -855,24 +871,26 @@ void smw_level_load(SMW* smw, u16 level_num) {
         }
 #endif    
     }
-
-    if(needs_full_reload) {
+    
+    {
         // --- palette init -----
         cpu->regs.p.b = 0x24;
         wdc65816_cpu_add_exec_bp(cpu, 0x00ACEC);
         wdc65816_cpu_run_from(cpu, 0x00ABED);
-        memcpy(l->palette.data, cpu->ram + 0x0703, 512);
-        
-        for(int i = 0; i < 256; i += 16) {
-            l->palette.data[i] = 0;
+        u8* palette_data_ptr = (u8*)l->palette.data;
+        for(int i = 0; i < 512; i++) {
+            palette_data_ptr[i] = cpu->ram[0x0703 + i];
         }
         
+        for(int i = 0; i < 16; i += 16) {
+            l->palette.data[i] = 0;
+        }
+    
         for(int i = 0; i < 8; i++) {
             smw_level_animate(smw, level_num, i);
         }
-        
     }
-
+        
     //wdc65816_cpu_free(cpu);
 }
 
@@ -880,7 +898,7 @@ void smw_level_animate(SMW* smw, u16 level_num, u8 frame) {
 
     Wdc65816Mapper* rom = &smw->cpu.read_mapper;
     GFXStore gfx_pages = smw->gfx_pages;
-    LevelPC* l = &smw->levels[level_num];
+    LevelPC* l = smw->levels[level_num];
 
     if(l->is_boss_level) return;
     
@@ -940,15 +958,15 @@ void smw_level_animate(SMW* smw, u16 level_num, u8 frame) {
 }
 
 Buffer smw_level_serialize_fast(SMW* smw, u16 level_num) {
-    uint length = smw->levels[level_num].layer1_objects.length;
+    uint length = smw->levels[level_num]->layer1_objects.length;
     u8* level_data = arena_alloc(&smw->arena, 0, 0);
     LevelHeader* level_header = arena_alloc_type(&smw->arena, LevelHeader);
-    *level_header = smw->levels[level_num].header;
+    *level_header = smw->levels[level_num]->header;
     int prev_screen = 0;
     for(int i = 0; i < length; i++) {
-        ObjectPC* object = &smw->levels[level_num].layer1_objects.objects[i];
-        printf("Object: { x: %4i, y: %4i, num: %02x, settings: %02x}\n",
-               object->x, object->y, object->num, object->settings);
+        ObjectPC* object = &smw->levels[level_num]->layer1_objects.objects[i];
+        /* c_print_format("Object: { x: %4i, y: %4i, num: %02x, settings: %02x}\n", */
+        /*        object->x, object->y, object->num, object->settings); */
         assert(!(object->y & (0xFFE0))); 
         assert(!(object->num & (0xFFC0))); 
 
@@ -971,7 +989,6 @@ Buffer smw_level_serialize_fast(SMW* smw, u16 level_num) {
         data[1] = (object->num << 4);
         data[1] |= object->x & 0x0F;
         data[2] = object->settings;
-
         prev_screen = screen;
     }
     
@@ -998,17 +1015,17 @@ Buffer smw_level_serialize_fast(SMW* smw, u16 level_num) {
     /*             if(output3 == 1) { */
     /*                 screen = output; */
     /*             } else { */
-    /*                 printf("(%2i,%2i) Extended object: %2x\n", x, y, output3); */
+    /*                 c_print_format("(%2i,%2i) Extended object: %2x\n", x, y, output3); */
     /*             } */
     /*         } else { */
     /*             data++; */
-    /*             //printf("Screen Exit (%i)\n", output4); */
+    /*             //c_print_format("Screen Exit (%i)\n", output4); */
     /*         } */
     /*     } else { */
-    /*         printf("(%2i,%2i) Normal object: %2x\n", x, y, obj); */
+    /*         c_print_format("(%2i,%2i) Normal object: %2x\n", x, y, obj); */
     /*     } */
     /* } */
-    /* printf("\n"); */
+    /* c_print_format("\n"); */
 
     int level_data_length = arena_alloc(temp_arena, 0, 0) - level_data;
 
@@ -1028,7 +1045,7 @@ Buffer smw_level_serialize_fast(SMW* smw, u16 level_num) {
 #endif
 
 void smw_level_remove_layer1_object(SMW* smw, u16 level_num, uint object_index) {
-    LevelPC* l = &smw->levels[level_num];
+    LevelPC* l = smw->levels[level_num];
     for(int i = object_index + 1; i < l->layer1_objects.length; i++) {
         l->layer1_objects.objects[i - 1] = l->layer1_objects.objects[i];
     }
@@ -1036,11 +1053,13 @@ void smw_level_remove_layer1_object(SMW* smw, u16 level_num, uint object_index) 
 }
 
 void smw_level_add_layer1_object(SMW* smw, u16 level_num, uint object_index, ObjectPC object) {
-    ObjectListPC* object_list = &smw->levels[level_num].layer1_objects;
+    ObjectListPC* object_list = &smw->levels[level_num]->layer1_objects;
     ObjectPC* old_objects = object_list->objects;
     ObjectPC* new_objects = arena_alloc_array(&smw->arena, object_list->length + 1, ObjectPC);
-    memcpy(new_objects + object_index + 1, old_objects,
-           (object_list->length - object_index) * sizeof(ObjectPC));
+    for(int i = 0; i < object_list->length - object_index; i++) {
+        new_objects[object_index + 1 + i] =  old_objects[i];
+    }
+
     //free(old_objects);
     object_list->objects = new_objects;
     object_list->objects[object_index] = object;

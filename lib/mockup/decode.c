@@ -6,11 +6,15 @@ void decode_rle1(const u8* data, u8* output) {
     while((cmd = data[pos]) != 0xFF || data[pos + 1] != 0xFF) {
         length = cmd & 0b01111111;
         if(cmd & 0x80) {
-            memset(output, data[pos + 1], length + 1);
+            for(int i = 0; i < length + 1; i++) {
+                output[i] = data[pos + 1];
+            }
             output += length + 1;
             pos += 2;
         } else {
-            memcpy(output, data + pos + 1, length + 1);
+            for(int i = 0; i < length + 1; i++) {
+                output[i] = data[pos + 1 + i];
+            }
             output += length + 1;
             pos += length + 2;
         }
@@ -34,7 +38,7 @@ void decode_lz2(const u8* data, u8* output) {
     int pos = 0, pos_out = 0, copy_pos;
         
     while((cmd = data[pos]) != 0xFF) {
-        //printf("huhu: %08x", output + pos_out);
+        //c_print_format("huhu: %08x", output + pos_out);
         if((cmd & 0xE0) == 0xE0) {
             pos++;
             length = ((cmd & 0x03) << 8) + (int)data[pos] + 1;
@@ -45,12 +49,16 @@ void decode_lz2(const u8* data, u8* output) {
         switch(cmd & 0xE0) {
 
         case 0x00:
-            memcpy(output + pos_out, data + pos + 1, length);
+            for(int i = 0; i < length + 1; i++) {
+                output[pos_out + i] = data[pos + 1 + i];
+            }
             pos += length + 1;
             break;
 
         case 0x20:
-            memset(output + pos_out, data[pos + 1], length);
+            for(int i = 0; i < length + 1; i++) {
+                output[pos_out + i] = data[pos + 1];
+            }
             pos += 2;
             break;
 
@@ -77,7 +85,7 @@ void decode_lz2(const u8* data, u8* output) {
             break;
 
         default:
-            printf("Error\n");
+            c_print_format("Error\n");
             //TODO: Error
             return;
         }
@@ -119,7 +127,7 @@ int decode_lz2_get_size(const u8* data) {
             break;
 
         default:
-            printf("Error\n");
+            c_print_format("Error\n");
             //TODO: Error
             return -1;
         }

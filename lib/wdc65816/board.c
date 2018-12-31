@@ -149,7 +149,7 @@ void wdc65816_load_board(Wdc65816Board* board, String board_name) {
         ROM_LOAD_MAP,     ROM_LOAD_MASK,    ROM_LOAD_ADDRESS,
         ROM_LOAD_TYPE,    ROM_LOAD_ERROR,   ROM_LOAD_END,
     } state = ROM_LOAD_START;
-    Buffer buffer = { .begin = boards_bml, .end = boards_bml + sizeof(boards_bml) };
+    Buffer buffer = buffer(boards_bml, sizeof(boards_bml));
     BmlParser parser;
     bml_parser_init(&parser, buffer);
     bml_parse(&parser);

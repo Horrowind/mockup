@@ -5,141 +5,69 @@
 #define NK_INCLUDE_FONT_BAKING
 #define NK_INCLUDE_DEFAULT_FONT
 #define NK_INCLUDE_STANDARD_VARARGS
-#define NK_VSNPRINTF(s,n,f,a) nk_vsnprintf(s,n,f,a)
+#define NK_VSNPRINTF format_string
+//#define NK_VSNPRINTF(s,n,f,a) nk_vsnprintf(s,n,f,a)
 #include "nuklear/nuklear.h"
 #include "nuklear/nuklear_glfw_gl3.h"
-
-#define MAX_VERTEX_BUFFER 512 * 1024
-#define MAX_ELEMENT_BUFFER 128 * 1024
-#define UNUSED(a) (void)a
-#define MIN(a,b) ((a) < (b) ? (a) : (b))
-#define MAX(a,b) ((a) < (b) ? (b) : (a))
-#define LEN(a) (sizeof(a)/sizeof(a)[0])
 
 #include "mockup/smw.h"
 #include "nuts/nuts.h"
 
+typedef struct nk_context NkContext;
+typedef struct nk_image   NkImage;
+typedef struct nk_rect    NkRect;
+typedef struct nk_color   NkColor;
+typedef struct nk_vec2    NkVec2;
+
 extern char* sprite_names[256];
 GLFWwindow* win;
-struct nk_context *ctx;
+NkContext*  ctx;
 struct nk_color background;
 
-int inFullscreen = 0;
-int wasFullscreen = 0;
-
-void render();
-void error_callback(int error, const char* description);
-
-int g_done = 0;
-
-int show_palette_window = 1,
-    show_window = 1,
-    show_map16fg_window = 1,
-    show_map16bg_window = 1,
-    show_map8_window = 1,
-    show_app_metrics = 1;
-
-int next_level;
-int prev_level;
-
-SMW         smw;
-PalettePC   palette;
-Map16PC     map16_fg, map16_bg;
-
-u32       map8_pixel_data[128*256*16];
-u32       sprite_map8_pixel_data[128*256*16];
-u32       map16_fg_pixel_data[256*512];
-u32       map16_bg_pixel_data[256*512];
-u16*      level_layer1_object_data = NULL;
-u16*      level_layer2_object_data = NULL;
-
-u16 selected_index_x;
-u16 selected_index_y;
-
-enum {
-    UNSELECTED_INDEX = 999999
-};
-int hot_index = UNSELECTED_INDEX;
-int selected_index = UNSELECTED_INDEX;
-
-uint8_t frame_num = 0;
-int current_level = 0x105;
-int sprite_map8_palette = 0;
-int map8_palette = 0;
+SMW smw;
 
 AST ast;
 Assembler assembler;
 Wdc65816Mapper rom;
 ErrorList error_list;
-//u8 level_105_data[] = { 0x33, 0x40, 0x08, 0x80, 0x27, 0x00, 0x01, 0x00, 0xFF };
+
 u8 level_105_data[] = { 0x33, 0x40, 0x08, 0x80, 0x27, 0xFF };
-
-u8 spc_engine_bin[6321] = {};
-
 Buffer level_105_buffer = {
     .begin = level_105_data,
-    .end = level_105_data + sizeof(level_105_data)
+    .end   = level_105_data + sizeof(level_105_data)
 };
 
-Buffer spc_engine_buffer = {
-    .begin = spc_engine_bin,
-    .end = spc_engine_bin + sizeof(spc_engine_bin)
-};
-
+/// Image /////////////////////////////////////////////////////////
 
 typedef struct {
-    struct nk_image nk_image_handle;
-    uchar* data;
+    GLuint texture_id;
+    u32*   data;
     int size_x;
     int size_y;
 } Image;
 
-Image palette_img;
-Image map8_img[16];
-Image sprite_map8_img[16];
-Image map16_fg_img;
-Image map16_bg_img;
-
-Image image_init(int size_x, int size_y, uchar* data) {
-    Image result;
-    GLuint texture;
-    result.size_x = size_x;
-    result.size_y = size_y;
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
+void image_init(Image* image) {
+    *image = (Image) { };
+    glGenTextures(1, &image->texture_id);
+    glBindTexture(GL_TEXTURE_2D, image->texture_id);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size_x, size_y, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-    result.nk_image_handle = nk_image_id((int)texture);
-    result.data = data;
-    return result;
 }
 
-void update_image(Image image) {
-    glBindTexture(GL_TEXTURE_2D, image.nk_image_handle.handle.id);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, image.size_x, image.size_y, GL_RGBA, GL_UNSIGNED_BYTE, image.data);
-}
-
-void gl_init_textures() {
-    palette_img = image_init(16, 16, (uchar*) palette.data);
-    for(int p = 0; p < 16; p++) {
-        map8_img[p]  = image_init(128, 256, (uchar*) &map8_pixel_data[p * 128 * 256]);
-        sprite_map8_img[p]  = image_init(128, 256, (uchar*) &sprite_map8_pixel_data[p * 128 * 256]);
+void image_update(Image* image, int size_x, int size_y, u32* data) {
+    if(data) {
+        image->size_x = size_x;
+        image->size_y = size_y;
+        image->data   = data;
+        glBindTexture(GL_TEXTURE_2D, image->texture_id);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size_x, size_y, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
     }
-    map16_fg_img  = image_init(256, 512, (uchar*) map16_fg_pixel_data);
-    map16_bg_img  = image_init(256, 512, (uchar*) map16_bg_pixel_data);
 }
 
+/// Globals ////////////////////////////////////////////////////////
 
-void gl_update_textures() {
-    update_image(palette_img);
-    for(int p = 0; p < 16; p++) {
-        update_image(map8_img[p]);
-        update_image(sprite_map8_img[p]);
-    }
-    update_image(map16_fg_img);
-    update_image(map16_bg_img);
-}
+
+#include "assets.c"
 
 
 void do_assemble(Arena* temp_arena) {
@@ -149,14 +77,13 @@ void do_assemble(Arena* temp_arena) {
     while(result != RESULT_OK) {
         result = assemble(&assembler);
         if(result == RESULT_NEED_FILE) {
-            String file_name = assembler_get_file_name(&assembler);
             Buffer file_buffer;
-            if(string_equal(file_name, L("level_105_data.bin"))) {
-                file_buffer = level_105_buffer;
-            } else if(string_equal(file_name, L("spc700_engine.bin"))) {
-                file_buffer = spc_engine_buffer;
+            String file_name = assembler_get_file_name(&assembler);
+            NamedBuffer dummy = { .name = file_name };
+            NamedBuffer* found = named_buffer_map_find(&global_buffer_map, dummy);
+            if(found) {
+                file_buffer = found->buffer;
             } else {
-                invalid_code_path;
                 Path file;
                 path_init(&file, file_name);
                 file_buffer  = path_read_file(&file, temp_arena);
@@ -169,12 +96,12 @@ void do_assemble(Arena* temp_arena) {
     }
 }
 
+#include "viewers.c"
 
-void update_and_render(Arena* arena) {
 
-    Temp full_temp = temp_begin(&smw.arena);
-    Temp temp = temp_begin(&smw.temp_arena);
-
+void update_and_render() {
+    assets_clear();
+    smw_clear(&smw);
     
     /* Input */
     int fb_width = 0;
@@ -185,596 +112,193 @@ void update_and_render(Arena* arena) {
 
     glfwGetWindowSize(win, &fb_width, &fb_height);
 
-    LevelPC* level = smw.levels + current_level;
+    smw_viewer(ctx, &global_smw_viewer);
     
-    /* Update */
-    for(int i = 0; i < 1; i++) {
-        smw_level_animate(&smw, current_level, frame_num & 0x1F);
-        frame_num++;
-    }
+#if 0
+    if(nk_begin(ctx, "Sprites", nk_rect(0, 0, 1200, 905),
+                NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|NK_WINDOW_BORDER|
+                NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE)) {
+                
+        nk_layout_row_begin(ctx, NK_STATIC, 10, 50);
+        nk_layout_row_push(ctx, 20);
+        nk_label(ctx, " ", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 200);
+        nk_label(ctx, " ", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "00", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "00", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "00", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "00", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "00", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "00", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "14", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "14", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "14", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "14", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "14", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "16", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "16", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "16", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "16", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "16", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "16", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "16", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "16", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "16", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "16", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "16", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "16", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "18", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "18", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "19", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "1F", NK_TEXT_ALIGN_RIGHT);
 
-    
-    
-    palette_to_pc(&level->palette, &palette);
-    
-    // Map8
-    for(int p = 0; p < 16; p++) {
-        for(int i = 0; i < 512; i++) {
-            for(int j = 0; j < 64; j++) {
-                map8_pixel_data[p * 128 * 256 + (i % 16) * 8 + (j % 8) + ((i / 16) * 8 + (j / 8)) * 128]
-                    = palette.data[16 * p + level->map8.tiles[i].pixels[j]];
-            }
+        nk_layout_row_begin(ctx, NK_STATIC, 20, 50);
+        nk_layout_row_push(ctx, 20);
+        nk_label(ctx, " ", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 200);
+        nk_label(ctx, " ", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "9E", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "AA", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "B6", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "C2", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "D8", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "E4", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "C8", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "D4", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "E0", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "EC", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "F8", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "04", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "10", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "1C", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "28", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "34", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "40", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "4C", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "58", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "64", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "70", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "7C", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "88", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "94", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "A0", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "AC", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "B8", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "C4", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "D0", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "DC", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "EA", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "F6", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "02", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "0E", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "1A", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "26", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "32", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "3E", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "4A", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "56", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "62", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "6E", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "7A", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "86", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "6C", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "7B", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "0F", NK_TEXT_ALIGN_RIGHT);
+        nk_layout_row_push(ctx, 15); nk_label(ctx, "E2", NK_TEXT_ALIGN_RIGHT);
+                
+                
+        for(int i = 0; i < level->sprites.length; i++) {
+            SpriteTableEntries* entries = &level->sprites.data[i].table_entries;
+            nk_layout_row_begin(ctx, NK_STATIC, 20, 50);
+            nk_layout_row_push(ctx, 20);
+            nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%i", i);
+            char sprite_name[64];
+            c_string_format_unsafe(sprite_name, "%s", sprite_names[level->sprites.data[i].number]);
+            nk_layout_row_push(ctx, 200);
+            nk_label(ctx, sprite_name, NK_TEXT_ALIGN_LEFT);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_009E);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_00AA);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_00B6);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_00C2);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_00D8);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_00E4);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_14C8);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_14D4);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_14E0);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_14EC);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_14F8);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1504);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1510);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_151C);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1528);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1534);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1540);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_154C);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1558);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1564);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1570);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_157C);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1588);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1594);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_15A0);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_15AC);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_15B8);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_15C4);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_15D0);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_15DC);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_15EA);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_15F6);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1602);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_160E);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_161A);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1626);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1632);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_163E);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_164A);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1656);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1662);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_166E);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_167A);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1686);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_186C);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_187B);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_190F);
+            nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1FE2);
+
         }
-    }
-
-    #ifdef SPRITES
-    // Sprite Map8
-    for(int p = 0; p < 16; p++) {
-        for(int i = 0; i < 512; i++) {
-            for(int j = 0; j < 64; j++) {
-                sprite_map8_pixel_data[p * 128 * 256 + (i % 16) * 8 + (j % 8) + ((i / 16) * 8 + (j / 8)) * 128]
-                    = palette.data[16 * p + level->sprite_map8.tiles[i].pixels[j]];
-            }
-        }
-    }
-    #endif
-    
-    // Map16
-    map16_pc_init(&map16_fg, &level->map16_fg, arena);
-    map16_pc_init(&map16_bg, &level->map16_bg, arena);
-    for(int i = 0; i < 2; i++) {
-        for(int k = 0; k < 512; k++) {
-            for(int j = 0; j < 256; j++) {
-                map16_fg_pixel_data[(k % 16) * 16 + (j % 16) + ((k / 16) * 16 + (j / 16)) * 256]
-                    = palette.data[map16_fg.tiles[k].data[j]];
-                map16_bg_pixel_data[(k % 16) * 16 + (j % 16) + ((k / 16) * 16 + (j / 16)) * 256]
-                    = palette.data[map16_bg.tiles[k].data[j]];
-            }
-        }
-    }
-
-    // Level objects
-    level_layer1_object_data = (u16*)realloc(level_layer1_object_data,
-                                                  level->width * level->height * sizeof(u16));
-    level_layer2_object_data = (u16*)realloc(level_layer2_object_data,
-                                                  level->width * level->height * sizeof(u16));
-
-    for(int i = 0; i < level->width * level->height; i++) {
-        level_layer1_object_data[i] = 0x25;
-        level_layer2_object_data[i] = 0x25;
-    }
-    
-    for(int i = 0; i < level->layer1_objects.length; i++) {
-        ObjectPC* obj = level->layer1_objects.objects + i;
-        if(!obj->tiles) continue;
-        int obj_width = obj->bb_xmax - obj->bb_xmin + 1;
-        int obj_height = obj->bb_ymax - obj->bb_ymin + 1;
-        for(int j = 0; j < obj_height; j++) {
-            for(int k = 0; k < obj_width; k++) {
-                if(j + obj->bb_ymin >= 0 && k + obj->bb_xmin >= 0 &&
-                   j + obj->bb_ymin < level->height &&
-                   k + obj->bb_xmin < level->width &&
-                   obj->tiles[j * obj_width + k] != 0xFFFF) {
-                    level_layer1_object_data[(j + obj->bb_ymin) * level->width + k + obj->bb_xmin]
-                        = obj->tiles[j * obj_width + k];
-                }
-            }
-        }
-    }
-
-    if(level->has_layer2_objects) {
-        for(int i = 0; i < level->layer2_objects.length; i++) {
-            ObjectPC* obj = level->layer2_objects.objects + i;
-            if(!obj->tiles) continue;
-            int obj_width = obj->bb_xmax - obj->bb_xmin + 1;
-            int obj_height = obj->bb_ymax - obj->bb_ymin + 1;
-            for(int j = 0; j < obj_height; j++) {
-                for(int k = 0; k < obj_width; k++) {
-                    if(j + obj->bb_ymin >= 0 && k + obj->bb_xmin >= 0 &&
-                       j + obj->bb_ymin < level->height &&
-                       k + obj->bb_xmin < level->width &&
-                       obj->tiles[j * obj_width + k] != 0xFFFF) {
-                        level_layer2_object_data[(j + obj->bb_ymin) * level->width + k + obj->bb_xmin]
-                            = obj->tiles[j * obj_width + k];
-                    }
-                }
-            }
-        }
-    }
-
-    gl_update_textures();
-    map16_pc_deinit(&map16_fg);
-    map16_pc_deinit(&map16_bg);
-   
-    {
-        if(nk_begin(ctx, "Map8", nk_rect(320, 620, 172, 310),
-                    NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|NK_WINDOW_BORDER|
-                    NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE)) {
+    }                
+    nk_end(ctx);
             
-            nk_layout_row_static(ctx, 25, 25, 2);
-            if(nk_button_label(ctx, "-") && map8_palette > 0) { map8_palette--; };
-            if(nk_button_label(ctx, "+") && map8_palette < 15) { map8_palette++; };
-
-            nk_layout_row_template_begin(ctx, 256);
-            nk_layout_row_template_push_dynamic(ctx);
-            nk_layout_row_template_push_static(ctx, 128);
-            nk_layout_row_template_push_dynamic(ctx);
-            nk_layout_row_template_end(ctx);
-            nk_spacing(ctx, 1);
-            nk_image(ctx, map8_img[map8_palette].nk_image_handle);
-        }
-        nk_end(ctx);
-
-#ifdef SPRITES
-        if(nk_begin(ctx, "Sprite Map8", nk_rect(620, 620, 172, 310),
-                    NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|NK_WINDOW_BORDER|
-                    NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE)) {
-            nk_layout_row_static(ctx, 25, 25, 2);
-            if(nk_button_label(ctx, "-") && sprite_map8_palette > 0) { sprite_map8_palette--; };
-            if(nk_button_label(ctx, "+") && sprite_map8_palette < 15) { sprite_map8_palette++; };
-                
-            nk_layout_row_template_begin(ctx, 256);
-            nk_layout_row_template_push_dynamic(ctx);
-            nk_layout_row_template_push_static(ctx, 128);
-            nk_layout_row_template_push_dynamic(ctx);
-            nk_layout_row_template_end(ctx);
-            nk_spacing(ctx, 1);
-            nk_image(ctx, sprite_map8_img[sprite_map8_palette].nk_image_handle);
-        }
-        nk_end(ctx);
-#endif        
-        if(nk_begin(ctx, "Palette", nk_rect(0, 620, 300, 310),
-                    NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|NK_WINDOW_BORDER|
-                    NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE)) {
-            nk_layout_row_template_begin(ctx, 256);
-            nk_layout_row_template_push_dynamic(ctx);
-            nk_layout_row_template_push_static(ctx, 256);
-            nk_layout_row_template_push_dynamic(ctx);
-            nk_layout_row_template_end(ctx);
-            nk_spacing(ctx, 1);
-            nk_image(ctx, palette_img.nk_image_handle);
-        }
-        nk_end(ctx);
-
-        if(nk_begin(ctx, "Map16 FG", nk_rect(0, 30, 300, 566),
-                    NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|NK_WINDOW_BORDER|
-                    NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE)) {
-            nk_layout_row_template_begin(ctx, 512);
-            nk_layout_row_template_push_dynamic(ctx);
-            nk_layout_row_template_push_static(ctx, 256);
-            nk_layout_row_template_push_dynamic(ctx);
-            nk_layout_row_template_end(ctx);
-            nk_spacing(ctx, 1);
-            nk_image(ctx, map16_fg_img.nk_image_handle);
-        }
-        nk_end(ctx);
-
-        if(nk_begin(ctx, "Map16 BG", nk_rect(320, 30, 300, 566),
-                    NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|NK_WINDOW_BORDER|
-                    NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE)) {
-            nk_layout_row_template_begin(ctx, 512);
-            nk_layout_row_template_push_dynamic(ctx);
-            nk_layout_row_template_push_static(ctx, 256);
-            nk_layout_row_template_push_dynamic(ctx);
-            nk_layout_row_template_end(ctx);
-            nk_spacing(ctx, 1);
-            nk_image(ctx, map16_bg_img.nk_image_handle);
-        }
-        nk_end(ctx);
-        
-
-        char window_title[64];
-        sprintf(window_title, "Level %x", current_level);
-        if(nk_begin_titled(ctx, "Level", window_title, nk_rect(640, 30, 500, 566),
-                           NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|NK_WINDOW_BORDER|
-                           NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE)) {
-
-            static int show_layer1 = 1;
-            static int show_layer2 = 1;
-            static int show_layer3 = 1;
-
-            nk_layout_row_static(ctx, 30, 70, 4);
-            nk_checkbox_label(ctx, "Layer 1", &show_layer1);
-            nk_checkbox_label(ctx, "Layer 2", &show_layer2);
-            nk_checkbox_label(ctx, "Layer 3", &show_layer3);
-#ifdef SPRITES
-            static int show_sprites = 1;
-            nk_checkbox_label(ctx, "Sprites", &show_sprites);
-#endif
-            nk_layout_row_static(ctx, 30, 120, 3);
-
-            int current_level_old = current_level;
-            nk_property_int(ctx, "Level:", 0, &current_level, 511, 1, 1);
-
-            if(nk_button_label(ctx, "Prev") && current_level > 0)     {
-                current_level--;
-            }
-            if(nk_button_label(ctx, "Next") && current_level < 0x1FF) {
-                current_level++;
-            }
-            if(current_level_old != current_level)
-                smw_level_load(&smw, current_level);
-                                
-            int width = level->width;
-            int height = level->height;
-                
-            struct nk_command_buffer *canvas;
-            //struct nk_input *input = &ctx->input;
-            canvas = nk_window_get_canvas(ctx);
-
-                
-            struct nk_rect space;
-            enum nk_widget_layout_states state;
-            nk_layout_row_template_begin(ctx, height * 16);
-            nk_layout_row_template_push_dynamic(ctx);
-            nk_layout_row_template_push_static(ctx, width * 16);
-            nk_layout_row_template_push_dynamic(ctx);
-            nk_layout_row_template_end(ctx);
-            nk_spacing(ctx, 1);
-
-                
-            state = nk_widget(&space, ctx);
-            if (state) {
-                if (state != NK_WIDGET_ROM) {
-                    // @TODO: Handle input
-                }
-
-                // Layer 3
-                if(show_layer3) {
-                    nk_fill_rect(canvas, space, 0, nk_rgba_u32(level->background_color));
-                }
-                    
-                // Layer 2
-                if(show_layer2) {
-                    if(level->has_layer2_bg) {
-                        for(int j = 0; j < height; j++) {
-                            for(int i = 0; i < width; i++) {
-                                u16 tile_num;
-                                if(level->is_vertical_level) {
-                                    tile_num = level->layer2_background.data[((i & 0x10) * 27) + ((j % 27) * 16) + (i & 0x0F)];
-                                } else {
-                                    tile_num = level->layer2_background.data[((i & 0x10) * 27) + (j << 4) + (i & 0x0F)];
-                                }
-                                int tile_x = tile_num & 0x00F;
-                                int tile_y = (tile_num & 0xFF0) >> 4;
-                                struct nk_image tile_img = nk_subimage_handle(
-                                    map16_bg_img.nk_image_handle.handle,
-                                    256, 512,
-                                    nk_rect(16 * tile_x, 16 * tile_y, 16, 16));
-                                nk_draw_image(canvas, nk_rect(space.x + 16 * i, space.y + 16 * j, 16, 16),
-                                              &tile_img, nk_rgba_u32(0xFFFFFFFF));
-                            }
-                        }
-                    } else if(level->has_layer2_objects) {
-                        for(int j = 0; j < height; j++) {
-                            for(int i = 0; i < width; i++) {
-                                u16 tile_num = level_layer2_object_data[j * width + i];
-                                int tile_x = tile_num & 0x00F;
-                                int tile_y = (tile_num & 0xFF0) >> 4;
-                                struct nk_image tile_img = nk_subimage_handle(
-                                    map16_fg_img.nk_image_handle.handle,
-                                    256, 512,
-                                    nk_rect(16 * tile_x, 16 * tile_y, 16, 16));
-                                nk_draw_image(canvas, nk_rect(space.x + 16 * i, space.y + 16 * j, 16, 16),
-                                              &tile_img, nk_rgba_u32(0xFFFFFFFF));
-                            }
-                        }
-                    }
-                }
-                // Layer 1
-                if(show_layer1) {
-                    for(int j = 0; j < height; j++) {
-                        for(int i = 0; i < width; i++) {
-                            u16 tile_num = level_layer1_object_data[j * width + i];
-                            int tile_x = tile_num & 0x00F;
-                            int tile_y = (tile_num & 0xFF0) >> 4;
-                            struct nk_image tile_img = nk_subimage_handle(
-                                map16_fg_img.nk_image_handle.handle,
-                                256, 512,
-                                nk_rect(16 * tile_x, 16 * tile_y, 16, 16));
-                            nk_draw_image(canvas, nk_rect(space.x + 16 * i, space.y + 16 * j, 16, 16),
-                                          &tile_img, nk_rgba_u32(0xFFFFFFFF));
-                        }
-                    }
-                }
-#ifdef SPRITES
-                if(show_sprites) {
-                    for(int i = 0; i < level->sprites.length; i++) {
-                        int num_tiles = level->sprites.data[i].num_tiles;
-                        for(int j = 0; j < num_tiles; j++) {
-                            SpriteTile* tile = &level->sprites.data[i].tiles[j];
-                            u16 tile_num = tile->tile_num;
-                            int tile_x = tile_num & 0x00F;
-                            int tile_y = (tile_num & 0xFF0) >> 4;
-                            struct nk_rect tile_rect;
-                            if(tile->flip_x) {
-                                if(tile->flip_y) {
-                                    tile_rect = nk_rect(8 * tile->x + 8, 8 * tile_y + 8, -8, -8);
-                                } else {
-                                    tile_rect = nk_rect(8 * tile_x + 8, 8 * tile_y + 0, -8,  8);
-                                }
-                            } else {
-                                if(tile->flip_y) {
-                                    tile_rect = nk_rect(8 * tile_x + 0, 8 * tile_y + 8,  8, -8);
-                                } else {
-                                    tile_rect = nk_rect(8 * tile_x + 0, 8 * tile_y + 0,  8,  8);
-                                }
-                            }
-
-
-                                
-                            struct nk_image tile_img = nk_subimage_handle(
-                                sprite_map8_img[tile->palette].nk_image_handle.handle,
-                                128, 256, tile_rect);
-                            nk_draw_image(canvas, nk_rect(space.x + tile->x, space.y + tile->y, 8, 8),
-                                          &tile_img, nk_rgba_u32(0xFFFFFFFF));
-                        }
-
-                        int sprite_x = space.x + 16 * level->sprites.data[i].x;
-                        int sprite_y = space.y + 16 * level->sprites.data[i].y;
-                        char* sprite_name = sprite_names[level->sprites.data[i].number];
-                        int   sprite_name_length = strlen(sprite_name);
-                        float sprite_name_width = ctx->style.font->width(ctx->style.font->userdata,
-                                                                         ctx->style.font->height,
-                                                                         sprite_name,
-                                                                         sprite_name_length);
-                        struct nk_rect sprite_rect =  nk_rect(sprite_x, sprite_y, sprite_name_width, 16);
-                        nk_fill_rect(canvas, sprite_rect, 0, nk_rgba_u32(0x80FF0000));
-                        nk_draw_text(canvas, sprite_rect, sprite_name, sprite_name_length, ctx->style.font,
-                                     nk_rgba_u32(0x80FF0000), nk_rgba_u32(0x80FFFFFF));
-
-                    }
-                }
-#endif
-            }                
-            nk_end(ctx);
-
-
-#ifdef SPRITES
-            if(nk_begin(ctx, "Sprites", nk_rect(0, 0, 1200, 905),
-                        NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|NK_WINDOW_BORDER|
-                        NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE)) {
-                
-                nk_layout_row_begin(ctx, NK_STATIC, 10, 50);
-                nk_layout_row_push(ctx, 20);
-                nk_label(ctx, " ", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 200);
-                nk_label(ctx, " ", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "00", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "00", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "00", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "00", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "00", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "00", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "14", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "14", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "14", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "14", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "14", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "15", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "16", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "16", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "16", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "16", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "16", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "16", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "16", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "16", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "16", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "16", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "16", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "16", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "18", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "18", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "19", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "1F", NK_TEXT_ALIGN_RIGHT);
-
-                nk_layout_row_begin(ctx, NK_STATIC, 20, 50);
-                nk_layout_row_push(ctx, 20);
-                nk_label(ctx, " ", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 200);
-                nk_label(ctx, " ", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "9E", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "AA", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "B6", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "C2", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "D8", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "E4", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "C8", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "D4", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "E0", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "EC", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "F8", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "04", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "10", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "1C", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "28", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "34", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "40", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "4C", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "58", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "64", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "70", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "7C", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "88", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "94", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "A0", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "AC", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "B8", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "C4", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "D0", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "DC", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "EA", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "F6", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "02", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "0E", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "1A", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "26", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "32", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "3E", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "4A", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "56", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "62", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "6E", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "7A", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "86", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "6C", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "7B", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "0F", NK_TEXT_ALIGN_RIGHT);
-                nk_layout_row_push(ctx, 15); nk_label(ctx, "E2", NK_TEXT_ALIGN_RIGHT);
-                
-                
-                for(int i = 0; i < level->sprites.length; i++) {
-                    SpriteTableEntries* entries = &level->sprites.data[i].table_entries;
-                    nk_layout_row_begin(ctx, NK_STATIC, 20, 50);
-                    nk_layout_row_push(ctx, 20);
-                    nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%i", i);
-                    char sprite_name[64];
-                    sprintf(sprite_name, "%s", sprite_names[level->sprites.data[i].number]);
-                    nk_layout_row_push(ctx, 200);
-                    nk_label(ctx, sprite_name, NK_TEXT_ALIGN_LEFT);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_009E);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_00AA);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_00B6);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_00C2);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_00D8);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_00E4);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_14C8);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_14D4);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_14E0);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_14EC);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_14F8);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1504);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1510);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_151C);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1528);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1534);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1540);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_154C);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1558);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1564);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1570);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_157C);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1588);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1594);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_15A0);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_15AC);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_15B8);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_15C4);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_15D0);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_15DC);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_15EA);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_15F6);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1602);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_160E);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_161A);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1626);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1632);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_163E);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_164A);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1656);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1662);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_166E);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_167A);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1686);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_186C);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_187B);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_190F);
-                    nk_layout_row_push(ctx, 15); nk_labelf(ctx, NK_TEXT_ALIGN_RIGHT, "%02x", entries->entry_1FE2);
-
-                }
-            }                
-            nk_end(ctx);
-            
-            static int do_once = 1;
-            if(do_once) {
-                nk_window_collapse(ctx, "Sprites", NK_MINIMIZED);
-                do_once = 0;
-            }
-#endif
-
-            if(nk_begin(ctx, "Objects", nk_rect(1200, 30, 400, 400),
-                        NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|NK_WINDOW_BORDER|
-                        NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE)) {
-                nk_layout_row_static(ctx, 30, 120, 3);
-                if(nk_button_label(ctx, "New Object")) {
-                    ObjectPC new_object = {
-                        .x = 5,
-                        .y = 5,
-                        .num = 1,
-                        .settings = 0,
-                        .tiles = NULL
-                    };
-                    smw_level_add_layer1_object(&smw, current_level, 0, new_object);
-                    selected_index = 0;
-                    printf("%i\n", selected_index);
-                    //debug_break;
-                }
-                if(selected_index != UNSELECTED_INDEX) {
-                    int x    = smw.levels[current_level].layer1_objects.objects[selected_index].x;
-                    int y    = smw.levels[current_level].layer1_objects.objects[selected_index].y;
-                    int num  = smw.levels[current_level].layer1_objects.objects[selected_index].num;
-                    int type = smw.levels[current_level].layer1_objects.objects[selected_index].settings;
-                    //if(num != 0 || (type != 0 && type != 1)) {
-                    nk_property_int(ctx, "x",    0, &x,    smw.levels[current_level].width, 1, 0.4);
-                    smw.levels[current_level].layer1_objects.objects[selected_index].x = x;
-                    nk_property_int(ctx, "y",    0, &y,    smw.levels[current_level].height, 1, 0.4);
-                    smw.levels[current_level].layer1_objects.objects[selected_index].y = y;
-                    nk_property_int(ctx, "num",  0, &num,  0x3F, 1, 0.4);
-                    smw.levels[current_level].layer1_objects.objects[selected_index].num = num;
-                    nk_property_int(ctx, "type", 0, &type, 255, 1, 0.4);
-                    smw.levels[current_level].layer1_objects.objects[selected_index].settings = type;
-                }
-            }
-            nk_end(ctx);
-                
-            /* if(nk_begin(ctx, "Main", nk_rect(0, 0, 200, 400), */
-            /*             NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|NK_WINDOW_BORDER| */
-            /*             NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE)) { */
-
-            /*     nk_layout_row_static(ctx, 25, 70, 3); */
-            /*     nk_button_label(ctx, "Open"); */
-            /* } */
-            /* nk_end(ctx); */
-        }
+    static int do_once = 1;
+    if(do_once) {
+        nk_window_collapse(ctx, "Sprites", NK_MINIMIZED);
+        do_once = 0;
     }
+#endif
     
-    /* printf("length: %i\n", smw.levels[current_level].layer1_objects.length); */
-    level_105_buffer = smw_level_serialize_fast(&smw, 0x105);
-    do_assemble(&smw.temp_arena);
-    /* for(u8* ptr = level_105_buffer.begin; ptr < (u8*)level_105_buffer.end; ptr++) { */
-    /*     printf("%02x ", *ptr); */
-    /* } */
-    /* printf("\n"); */
-    /* for(int i = 0; i < smw.levels[current_level].layer1_objects.length; i++) { */
-    /*     printf("Object: { x: %4i, y: %4i, num: %02x, settings: %02x}\n", */
-    /*            smw.levels[current_level].layer1_objects.objects[i].x, */
-    /*            smw.levels[current_level].layer1_objects.objects[i].y, */
-    /*            smw.levels[current_level].layer1_objects.objects[i].num, */
-    /*            smw.levels[current_level].layer1_objects.objects[i].settings); */
-    /* } */
-    smw_level_load(&smw, current_level);
-
+    /* c_print_format("length: %i\n", smw.levels[current_level].layer1_objects.length); */
+    
     /* Draw */
     {
         float bg[4];
@@ -788,27 +312,39 @@ void update_and_render(Arena* arena) {
          * defaults everything back into a default state.
          * Make sure to either a.) save and restore or b.) reset your own state after
          * rendering the UI. */
+
+        enum {
+            MAX_VERTEX_BUFFER  = 512 * 1024,
+            MAX_ELEMENT_BUFFER = 128 * 1024
+        };
         nk_glfw3_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
         glfwSwapBuffers(win);
+        //c_print_format("%.2fms\n", ctx->delta_time_seconds * 1000);
     }
-
-    temp_end(temp);
-    temp_end(full_temp);
-
 }
 
 void error_callback(int error, const char* description)
 {
-    fprintf(stderr, "Error %d: %s\n", error, description);
+    c_error_format("Error %d: %s\n", error, description);
 }
 
 int main(int argc, char** argv)
 {
+
+    if(argc != 2 && argc != 3) {
+        c_print_format("Usage: mockup FILE [FOLDER]\n"
+               "\n"
+               "FILE contains a path to the main asm file of a diassembly\n"
+               "[FOLDER] is an optional path to a Cartridge folder\n"
+            );
+        return -1;
+    }
+
     /* Setup win */
     glfwSetErrorCallback(error_callback);
     if (!glfwInit())
     {
-        printf("Could not create window. Test failed.\n");
+        c_print_format("Could not create window. Test failed.\n");
         return -1;
     }
     glfwWindowHint(GLFW_RESIZABLE , 1);
@@ -819,7 +355,7 @@ int main(int argc, char** argv)
     win = glfwCreateWindow(width, height, "Mockup", NULL, NULL);
     if (!win)
     {
-        printf("Could not create window.\n");
+        c_print_format("Could not create window.\n");
         glfwTerminate();
         return -1;
     }
@@ -830,14 +366,7 @@ int main(int argc, char** argv)
     /* Load Fonts: if none of these are loaded a default font will be used  */
     struct nk_font_atlas *atlas;
     nk_glfw3_font_stash_begin(&atlas);
-    /*struct nk_font *droid = nk_font_atlas_add_from_file(atlas, "../../../extra_font/DroidSans.ttf", 14, 0);*/
-    /*struct nk_font *roboto = nk_font_atlas_add_from_file(atlas, "../../../extra_font/Roboto-Regular.ttf", 14, 0);*/
-    /*struct nk_font *future = nk_font_atlas_add_from_file(atlas, "../../../extra_font/kenvector_future_thin.ttf", 13, 0);*/
-    /*struct nk_font *clean = nk_font_atlas_add_from_file(atlas, "../../../extra_font/ProggyClean.ttf", 12, 0);*/
-    /*struct nk_font *tiny = nk_font_atlas_add_from_file(atlas, "../../../extra_font/ProggyTiny.ttf", 10, 0);*/
-    /*struct nk_font *cousine = nk_font_atlas_add_from_file(atlas, "../../../extra_font/Cousine-Regular.ttf", 13, 0);*/
     nk_glfw3_font_stash_end();
-    /*nk_style_set_font(ctx, &droid->handle);*/
     background = nk_rgb(190,205,255);
 
 
@@ -869,7 +398,6 @@ int main(int argc, char** argv)
         }
         wdc65816_rom_loader_set_buffer(&loader, file_buffer);
     }
-    (void)rom_buffer;
 
     uint mapper_buffer_size = wdc65816_mapper_get_buffer_size();
     u8* work_buffer = arena_alloc_array(&arena, mapper_buffer_size, u8);
@@ -883,11 +411,6 @@ int main(int argc, char** argv)
 
     nuts_global_init();
     ast_init(&ast, &arena);
-
-    Path spc_engine_file;
-    path_init(&spc_engine_file, L("spc700_engine.bin"));
-    spc_engine_buffer  = path_read_file(&spc_engine_file, &arena);
-
     
     String file_name = string_from_c_string(argv[1]); 
     
@@ -899,7 +422,7 @@ int main(int argc, char** argv)
         path_init(&file, file_name);
         Buffer file_buffer = path_read_file(&file, &arena);
         TokenList token_list;
-        //printf("read %.*s\n", file_name.length, file_name.data);
+        //c_print_format("read %.*s\n", file_name.length, file_name.data);
         Text file_text = {
             .buffer = file_buffer,
             .name   = file_name
@@ -928,18 +451,18 @@ int main(int argc, char** argv)
         }
     }
 
+    named_buffer_map_init(&global_buffer_map, 128);
     do_assemble(&arena);
     for(int i = 0; i < error_list.length; i++) {
         describe_error(error_list.errors[i]);
     }
 
+    global_init(&arena);
     smw_init(&smw, &rom_builder, &arena);
-    smw_level_load(&smw, current_level);
 
-    gl_init_textures();
-
+    
     while(!glfwWindowShouldClose(win)) {
-        update_and_render(&arena);
+        update_and_render();
     }
 
 

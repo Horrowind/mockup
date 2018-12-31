@@ -29,7 +29,7 @@
 
 int main(int argc, char** argv) {
     if(argc != 2 && argc != 3) {
-        printf("Usage: %s FILE [cartridge/folder]\n", argv[0]);
+        c_print_format("Usage: %s FILE [cartridge/folder]\n", argv[0]);
         return 0;
     }
     Arena arena = arena_create(MB(512));
@@ -95,7 +95,7 @@ int main(int argc, char** argv) {
         path_init(&file, file_name);
         Buffer file_buffer = path_read_file(&file, &arena);
         TokenList token_list;
-        //printf("read %.*s\n", file_name.length, file_name.data);
+        //c_print_format("read %.*s\n", file_name.length, file_name.data);
         Text file_text = {
             .buffer = file_buffer,
             .name   = file_name
@@ -155,10 +155,10 @@ int main(int argc, char** argv) {
     /* parser_deinit(&parser); */
     /* clock_gettime(CLOCK_REALTIME, &all_end); */
     /* all_time = timespec_sub(all_start, all_end); */
-    /* printf("Lex:      %li.%06lims\n",      lex_time.tv_sec * 1000 +      lex_time.tv_nsec / 1000000,      lex_time.tv_nsec % 1000000); */
-    /* printf("Parse:    %li.%06lims\n",    parse_time.tv_sec * 1000 +    parse_time.tv_nsec / 1000000,    parse_time.tv_nsec % 1000000); */
-    /* printf("Assemble: %li.%06lims\n", assemble_time.tv_sec * 1000 + assemble_time.tv_nsec / 1000000, assemble_time.tv_nsec % 1000000); */
-    /* printf("All:      %li.%06lims\n",      all_time.tv_sec * 1000 +      all_time.tv_nsec / 1000000,      all_time.tv_nsec % 1000000); */
+    /* c_print_format("Lex:      %li.%06lims\n",      lex_time.tv_sec * 1000 +      lex_time.tv_nsec / 1000000,      lex_time.tv_nsec % 1000000); */
+    /* c_print_format("Parse:    %li.%06lims\n",    parse_time.tv_sec * 1000 +    parse_time.tv_nsec / 1000000,    parse_time.tv_nsec % 1000000); */
+    /* c_print_format("Assemble: %li.%06lims\n", assemble_time.tv_sec * 1000 + assemble_time.tv_nsec / 1000000, assemble_time.tv_nsec % 1000000); */
+    /* c_print_format("All:      %li.%06lims\n",      all_time.tv_sec * 1000 +      all_time.tv_nsec / 1000000,      all_time.tv_nsec % 1000000); */
 
     Path rom_path;
     path_create_from(&rom_path, &cartridge_folder_path, L("program.rom"));

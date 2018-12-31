@@ -7,7 +7,7 @@
 #include "level.h"
 
 typedef struct {
-    LevelPC      levels[512];
+    LevelPC*     levels[512];
     GFXStore     gfx_pages;
     Wdc65816Cpu  cpu;
     Arena        arena;
@@ -18,6 +18,8 @@ void smw_init(SMW* smw, Wdc65816MapperBuilder* rom, Arena* arena);
 void smw_deinit(SMW* smw);
 
 void smw_init_all(SMW* smw, Wdc65816MapperBuilder* rom, Arena* arena);
+void smw_clear(SMW* smw);
+LevelPC* smw_get_level(SMW* smw, u16 level_num);
 
 void smw_level_load(SMW* smw, u16 level_num);
 void smw_level_animate(SMW* smw, u16 level_num, u8 frame);

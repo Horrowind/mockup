@@ -1,4 +1,3 @@
-
 #include "algorithms.h"
 #include "disassembler.h"
 #include "memory.h"
@@ -41,7 +40,7 @@ void wdc65816_cpu_step(Wdc65816Cpu* cpu) {
     if(cpu->debug) {
         char output[256];
         wdc65816_cpu_disassemble_opcode(cpu, output, cpu->regs.pc.d);
-        printf("%s\n", output);
+        c_print_format("%s\n", output);
     }
 #endif //DEBUG_PRINT_CPU_STATE
     

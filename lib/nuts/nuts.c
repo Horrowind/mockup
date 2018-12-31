@@ -433,9 +433,9 @@ static char opcodes_lower[][4] = { OPCODES_LIST };
 #undef X
 
 void error_at_pos(TextPos text_pos) {
-    printf("%.*s:%i:%i: error\n", text_pos.name.length, text_pos.name.data,
+    c_print_format("%.*s:%i:%i: error\n", (int)text_pos.name.length, text_pos.name.data,
         text_pos.line_number, text_pos.line_pos);
-    /* fprintf(stderr, "%.*s:%i:%i: error\n", text_pos.name.length, text_pos.name.data, */
+    /* fstderr, "%.*s:%i:%i: error\n", text_pos.name.length, text_pos.name.data, */
     /*     text_pos.line_number, text_pos.line_pos); */
     char* line_end = text_pos.line_start;
     int length = 0;
@@ -449,16 +449,16 @@ void error_at_pos(TextPos text_pos) {
         }
         line_end++;
     }
-    /* fprintf(stderr, "%.*s\n", (int)(line_end - text_pos.line_start), text_pos.line_start); */
-    /* for(int i = 1; i < length; i++) fprintf(stderr, "~"); */
-    /* fprintf(stderr, "^\n"); */
-    printf("%.*s\n", (int)(line_end - text_pos.line_start), text_pos.line_start);
-    for(int i = 1; i < length; i++) printf("~");
-    printf("^\n");
+    /* c_error_format("%.*s\n", (int)(line_end - text_pos.line_start), text_pos.line_start); */
+    /* for(int i = 1; i < length; i++) c_error_format("~"); */
+    /* c_error_format("^\n"); */
+    c_print_format("%.*s\n", (int)(line_end - text_pos.line_start), text_pos.line_start);
+    for(int i = 1; i < length; i++) c_print_format("~");
+    c_print_format("^\n");
 }
 
 void warn_at_pos(TextPos text_pos) {
-    fprintf(stderr, "%.*s:%i:%i: warning\n", text_pos.name.length, text_pos.name.data,
+    c_print_format("%.*s:%i:%i: warning\n", (int)text_pos.name.length, text_pos.name.data,
         text_pos.line_number, text_pos.line_pos);
     char* line_end = text_pos.line_start;
     int length = 0;
@@ -472,9 +472,9 @@ void warn_at_pos(TextPos text_pos) {
         }
         line_end++;
     }
-    fprintf(stderr, "%.*s\n", (int)(line_end - text_pos.line_start), text_pos.line_start);
-    for(int i = 0; i < length; i++) fprintf(stderr, "~");
-    fprintf(stderr, "^\n");
+    c_print_format("%.*s\n", (int)(line_end - text_pos.line_start), text_pos.line_start);
+    for(int i = 0; i < length; i++) c_print_format("~");
+    c_print_format("^\n");
 }
 
 
@@ -549,8 +549,8 @@ void error_add(ErrorList* error_list, Error error) {
 
 void describe_error(Error error) {
     if(error.text_pos.name.data) error_at_pos(error.text_pos);
-    printf("%s\n", error_names[error.type]);
-    //fprintf(stderr, "%s\n", error_names[error.type]);
+    c_print_format("%s\n", error_names[error.type]);
+    //c_error_format("%s\n", error_names[error.type]);
 }
 
 static
@@ -793,9 +793,9 @@ Result get_token(ByteStream* stream, Token* token, ErrorList* error_list,
             }
             token->name.length = stream->pos - token->name.data + 1;
             token->type = TOKEN_DEFINE;
-            /* fprintf(stderr, "%.*s:%i:%i ", stream->text_pos.file_name.length, stream->text_pos.file_name.data, */
+            /* c_error_format("%.*s:%i:%i ", stream->text_pos.file_name.length, stream->text_pos.file_name.data, */
             /*         stream->text_pos.line_number, stream->text_pos.line_pos); */
-            /* fprintf(stderr, "define: %.*s\n", token->string.length, token->string.data); */
+            /* c_error_format("define: %.*s\n", token->string.length, token->string.data); */
             break;
         }
 
@@ -864,8 +864,8 @@ Result get_token(ByteStream* stream, Token* token, ErrorList* error_list,
 void token_list_print(TokenList token_list) {
     for(int i = 0; i < token_list.length; i++) {
         Token token = token_list.data[i];
-        printf("%s(%.*s)\n", token_names[token.type],
-               token.string.length, token.string.data);
+        c_print_format("%s(%.*s)\n", token_names[token.type],
+               (int)token.string.length, token.string.data);
     }
 }
 
@@ -922,7 +922,10 @@ Result lex(Text text, TokenList* list, Arena* arena, ErrorList* error_list,
             return RESULT_ERROR;
         }
 
-        memcpy(tokens, token_buffer, BATCH_SIZE * sizeof(Token));
+        // memcpy
+        for(int i = 0; i < BATCH_SIZE; i++) {
+            tokens[i] = token_buffer[i];
+        }
     }
     list->length = length;
     return RESULT_OK;
@@ -934,7 +937,7 @@ u32 define_equal(Define e1, Define e2) {
 }
 
 u32 define_hash(Define e) {
-    return SuperFastHash(e.name);
+    return hash_murmur3_string(e.name);
 }
 implement_hashmap(DefineMap, define_map, Define, define_hash, define_equal);
 
@@ -943,15 +946,16 @@ u32 identifier_equal(Identifier e1, Identifier e2) {
 }
 
 u32 identifier_hash(Identifier e) {
-    return SuperFastHash(e.name);
+    return hash_murmur3_string(e.name);
 }
 
 Identifier* identifier_copy(Arena* arena, Identifier e) {
     Identifier* copy = arena_alloc_type(arena, Identifier);
     *copy = e;
-    char* data = arena_alloc_array(arena, e.name.length, char);
-    memcpy(data, e.name.data, e.name.length);
-    copy->name.data = data;
+
+    Buffer buffer = arena_alloc_buffer(arena, e.name.length, 1);
+    copy_buffer(buffer_from_string(e.name), buffer);
+    copy->name = string_from_buffer(buffer);
     return copy;
 }
 
@@ -1560,7 +1564,7 @@ void parser_update_stream(Parser* parser, int expand_defines) {
             };
             Define* found = define_map_find(&parser->define_map, define);
             if(found) {
-                //printf("Read !%.*s\n", define.name.length, define.name.data);
+                //c_print_format("Read !%.*s\n", define.name.length, define.name.data);
                 token_stream_advance(parser->stream_stack_top);
                 TokenStream token_stream;
                 token_stream_init(&token_stream, found->token_list);
@@ -1569,7 +1573,7 @@ void parser_update_stream(Parser* parser, int expand_defines) {
                 parser->token = token_stream_current_token(parser->stream_stack_top);
                 continue;
             } else {
-                fprintf(stderr, "Define \"%.*s\" not found\n", parser->token.name.length, parser->token.name.data);
+                c_error_format("Define \"%.*s\" not found\n", (int)parser->token.name.length, parser->token.name.data);
                 debug_break;
             }
         } else if(parser->token.type == TOKEN_EOF) {
@@ -1590,7 +1594,7 @@ static
 void parser_advance_stream(Parser* parser) {
     token_stream_advance(parser->stream_stack_top);
     parser_update_stream(parser, DO_EXPAND_DEFINES);
-    /* printf("%s(%.*s)\n", token_names[parser->token.type], */
+    /* c_print_format("%s(%.*s)\n", token_names[parser->token.type], */
     /*        parser->token.string.length, parser->token.string.data); */
 }
 
@@ -2205,7 +2209,7 @@ Result parse(Parser* parser, TokenList token_list) {
 #define LABEL_ADDR_UNSPECIFIED 0xFFFFFFFF
 
 u32 label_hash(Label e) {
-    return SuperFastHash(e.name);
+    return hash_murmur3_string(e.name);
 }
 
 u32 label_equal(Label e1, Label e2) {
@@ -2315,7 +2319,7 @@ Result assemble(Assembler* assembler) {
                     return RESULT_ERROR;
                 }
                 assembler->addr = value.i;
-                /* printf("org %06x\n", assembler->addr); */
+                /* c_print_format("org %06x\n", assembler->addr); */
                 break;
             }
             case STATEMENT_TYPE_LABEL_DEF: {

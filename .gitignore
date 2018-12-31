@@ -8,6 +8,7 @@ bogus
 bogus_cred.h
 
 *~
+*.bak
 # Compiled Object files
 *.slo
 *.lo

@@ -173,8 +173,8 @@ typedef struct {
     Palette palette;
     Tileset tileset;
     Map8    map8;
-    Map16   map16_fg;
-    Map16   map16_bg;
+    Map16PC map16_fg;
+    Map16PC map16_bg;
     int     num_level;
     int     height;
     int     width;
