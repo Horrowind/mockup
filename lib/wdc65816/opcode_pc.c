@@ -1,15 +1,13 @@
-#include "algorithms.h"
-#include "memory.h"
-#include "table.h"
+#include "opcode_pc.h"
 
-#define wdc65816_op_branch_gen(name, bit, val)                  \
-    void wdc65816_op_branch_##name(Wdc65816Cpu* cpu) {          \
-        if((1 && (cpu->regs.p.b & bit)) != val) {               \
-            cpu->rd.l = wdc65816_op_readpc(cpu);                \
-        } else {                                                \
-            cpu->rd.l = wdc65816_op_readpc(cpu);                \
-            cpu->regs.pc.w = cpu->regs.pc.d + (i8)cpu->rd.l;    \
-        }                                                       \
+#define wdc65816_op_branch_gen(name, bit, val)                                  \
+    void wdc65816_op_branch_##name(Wdc65816Cpu* cpu) {                          \
+        if((1 && (cpu->regs.p.b & bit)) != val) {                               \
+            cpu->rd.l = wdc65816_op_readpc(cpu);                                \
+        } else {                                                                \
+            cpu->rd.l = wdc65816_op_readpc(cpu);                                \
+            cpu->regs.pc.w = cpu->regs.pc.d + (i8)cpu->rd.l;                    \
+        }                                                                       \
     }
 
 wdc65816_op_branch_gen(bpl, 0x80, 0);

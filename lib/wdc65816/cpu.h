@@ -36,7 +36,7 @@ void wdc65816_cpu_clear(Wdc65816Cpu* cpu);
 void wdc65816_cpu_free(Wdc65816Cpu* cpu);
 
 void wdc65816_cpu_write(Wdc65816Cpu* cpu, u32 addr, u8 data);
-u8 wdc65816_cpu_read(Wdc65816Cpu* cpu, u32 addr);
+u8   wdc65816_cpu_read(Wdc65816Cpu* cpu, u32 addr);
 
 void wdc65816_cpu_step(Wdc65816Cpu* cpu);
 void wdc65816_cpu_run(Wdc65816Cpu* cpu);

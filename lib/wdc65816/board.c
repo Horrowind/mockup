@@ -1,5 +1,6 @@
 #include "board.h"
 
+static
 Wdc65816Board board_shvc_1a1b_06 = {
     .name = L("SHVC-1A1B-06"),
     .maps_length = 4,
@@ -384,7 +385,8 @@ void wdc65816_load_board(Wdc65816Board* board, String board_name) {
 #endif
 }
 
-
+#if 0
+static
 char boards_bml[] =
     "database\n"
     "  revision: 2018-06-01\n"
@@ -1290,3 +1292,4 @@ char boards_bml[] =
     "    ram\n"
     "      map address=70-7d,f0-ff:0000-ffff\n"
     "\n";
+#endif

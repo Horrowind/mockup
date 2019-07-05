@@ -9,17 +9,14 @@ void nuts_global_deinit();
 typedef struct {
     String name;
     Buffer buffer;
-} Text;
+} NutsText;
 
 typedef struct {
     String   name;
     int      line_number;
     int      line_pos;
     char*    line_start;
-} TextPos;
-
-void error_at_pos(TextPos text_pos);
-void warn_at_pos(TextPos text_pos);
+} NutsTextPos;
 
 #define COMMANDS_LIST                                                   \
     X(INCSRC) X(FILLBYTE) X(INCBIN) X(FREEDATA) X(DB) X(DW) X(DL) X(DD) \
@@ -43,7 +40,7 @@ typedef enum {
     IDENTIFIER  = 0x100,
     COMMAND     = 0x200, 
     OPCODE      = 0x400
-} IdentifierType;
+} NutsIdentifierType;
 
 typedef enum {
     WIDTH_0, // Unused, but it is nice to have WIDTH_1 = 1, etc.
@@ -53,20 +50,20 @@ typedef enum {
     WIDTH_4,
     WIDTH_UNSPECIFIED,
     WIDTH_MAX,
-} Width;
+} NutsWidth;
 
 typedef struct {
     String name;
-    IdentifierType type;
-    Width width;
-} Identifier;
+    NutsIdentifierType type;
+    NutsWidth width;
+} NutsIdentifier;
 
 typedef enum {
 #define X(c) COMMAND_##c,
     COMMANDS_LIST
 #undef X
     COMMAND_MAX
-} CommandType;
+} NutsCommandType;
 
 
 typedef enum {
@@ -74,7 +71,7 @@ typedef enum {
     OPCODES_LIST
 #undef X
     OPCODE_MAX
-} OpcodeType;
+} NutsOpcodeType;
 
 #define TOKEN_LIST                                                      \
     X(NULL) X(CMD_DELIM) X(ANON_LABEL) X(STRING) X(DEFINE)              \
@@ -84,7 +81,7 @@ typedef enum {
 typedef enum {
     TOKEM_ASCII_RANGE_ = 127,
     TOKEN_LIST
-} TokenType;
+} NutsTokenType;
 #undef X
 
 #define ERROR_LIST                                                      \
@@ -108,88 +105,85 @@ typedef enum {
 #define X(c) WARNING_##c,
     WARNING_LIST
 #undef X
-} ErrorType;
+} NutsErrorType;
 
 typedef struct {
     char* begin;
     char* end;
     char* pos;
-    Text  text;
-} ByteStream;
+    NutsText  text;
+} NutsByteStream;
 
 #define BYTE_STREAM_EOF 0xFFFFFFFF
-typedef u32 Rune;
+typedef u32 NutsRune;
 
 typedef enum {
     VALUE_INT,
     VALUE_FLOAT,
     VALUE_STRING,
     VALUE_LABEL,
-} ValueType;
+} NutsValueType;
 
 
 typedef struct {
-    ValueType type;
+    NutsValueType type;
     union {
         u64    i;
         f64    f;
         String s;
-        Identifier* l;
+        NutsIdentifier* l;
     };
-} Value;
+} NutsValue;
 
-
-u32 identifier_equal(Identifier e1, Identifier e2);
-u32 identifier_hash(Identifier e);
-define_intern_hashmap(IdentifierMap, identifier_map, Identifier);
+define_intern_hashmap(NutsIdentifierMap, nuts_identifier_map, NutsIdentifier);
 
 typedef struct {
-    int         type;
+    uint        type;
     String      string;
     union {
         String      name;
-        Identifier* identifier;
+        NutsIdentifier* identifier;
         struct {
             u64 num;
             u8  width;
         };
     };
-} Token;
+} NutsToken;
 
 
 typedef struct {
-    Text   text;
-    Token* data;
+    NutsText   text;
+    NutsToken* data;
     uint   length;
-} TokenList;
+} NutsTokenList;
 
 
-void token_list_print(TokenList token_list);
+void nuts_token_list_print(NutsTokenList token_list);
 
 typedef enum {
     ERROR_LEVEL_OK,
     ERROR_LEVEL_NOTE,
     ERROR_LEVEL_WARNING,
     ERROR_LEVEL_ERROR,
-} ErrorLevel;
+} NutsErrorLevel;
 
 typedef struct {
-    ErrorType type;
-    TextPos   text_pos;
+    NutsErrorType type;
+    NutsTextPos   text_pos;
     union {
         struct { uint base; } not_a_n_ary_digit;
         struct {
-            TokenType expected_type;
-            TokenType actual_type;
+            NutsTokenType expected_type;
+            NutsTokenType actual_type;
         } expected_token;
     };
-} Error;
+} NutsError;
 
 typedef struct {
     Arena  arena;
-    Error* errors;
+    NutsError* errors;
     int   length;
-} ErrorList;
+} NutsErrorList;
 
 typedef enum {
     RESULT_OK,
@@ -198,136 +192,276 @@ typedef enum {
     RESULT_NEED_FILE,
     RESULT_NOT_AN_EXPR,
     RESULT_UNDEFINED_LABEL,
-} Result;
+} NutsResult;
 
-void error_list_init(ErrorList* error_list, Arena arena);
-void error_add(ErrorList* error_list, Error error);
+void nuts_error_list_init(NutsErrorList* error_list, Arena arena);
+void nuts_error_add(NutsErrorList* error_list, NutsError error);
 
-void describe_error(Error error);
+void nuts_describe_error(NutsError error);
 
-Result lex(Text text, TokenList* list, Arena* arena, ErrorList* error_list,
-           IdentifierMap* identifier_map);
+NutsResult nuts_lex(NutsText text, NutsTokenList* list, Arena* arena, NutsErrorList* error_list,
+                    NutsIdentifierMap* identifier_map);
     
 typedef struct {
-    Text   text;
-    Token* begin;
-    Token* end;
-    Token* pos;
-} TokenStream;
+    NutsText   text;
+    NutsToken* begin;
+    NutsToken* end;
+    NutsToken* pos;
+} NutsTokenStream;
 
-define_stack(TokenStreamStack, token_stream_stack, TokenStream);
-
-typedef struct {
-    String    name;
-    TokenList token_list;
-} Define;
-
-u32 define_equal(Define e1, Define e2);
-u32 define_hash(Define e);
-define_hashmap(DefineMap, define_map, Define, define_hash, define_equal);
-
-typedef struct Statement_ Statement;
+define_stack(NutsTokenStreamStack, nuts_token_stream_stack, NutsTokenStream);
 
 typedef struct {
-    Statement* data;
+    String        name;
+    NutsTokenList token_list;
+} NutsDefine;
+
+define_hashmap(NutsDefineMap, nuts_define_map, NutsDefine);
+
+typedef enum {
+    EXPR_NULL,
+    /* Binary operands */
+    EXPR_MUL,
+    EXPR_DIV,
+    EXPR_ADD,
+    EXPR_SUB,
+    EXPR_LSH,
+    EXPR_RSH,
+    EXPR_BAN,
+    EXPR_BOR,
+    EXPR_DOT,
+    /* Unary operands */
+    EXPR_NEG,
+    /* Nullary operands */
+    EXPR_LABEL,
+    EXPR_VALUE,
+} NutsExprType;
+
+typedef struct Expr_ {
+    NutsExprType  type;
+    NutsValueType value_type;
+    String    string;
+    NutsWidth     width;
+    union {
+        /* Binary operands */
+        struct {
+            struct Expr_* op1;
+            struct Expr_* op2;
+        };
+        /* Unary operands */
+        struct Expr_* op;
+        /* Number */
+        NutsValue value;
+    };
+} NutsExpr;
+
+typedef struct ExprList_{
+    NutsExpr* expr;
+    struct ExprList_* next;
+} NutsExprList;
+
+typedef enum {
+    PARSE_MODE_DIRECT,
+    PARSE_MODE_DIRECT_X,
+    PARSE_MODE_DIRECT_Y,
+    PARSE_MODE_DIRECT_S,
+    PARSE_MODE_IMMEDIATE,
+    PARSE_MODE_INDIRECT,
+    PARSE_MODE_X_INDIRECT,
+    PARSE_MODE_INDIRECT_Y,
+    PARSE_MODE_S_INDIRECT_Y,
+    PARSE_MODE_LONG_INDIRECT,
+    PARSE_MODE_LONG_INDIRECT_Y,
+    PARSE_MODE_IMPLIED,
+    PARSE_MODE_ACCUMULATOR,
+    PARSE_MODE_SRC_DEST,
+    PARSE_MODE_MAX,
+} NutsOpcodeParseMode;
+
+typedef struct {
+    u8 byte;
+    u8 mode;
+} NutsOpcodeAssembleData;
+
+typedef enum {
+    ASSEMBLE_MODE_ERROR,
+    ASSEMBLE_MODE_0,
+    ASSEMBLE_MODE_1,
+    ASSEMBLE_MODE_2,
+    ASSEMBLE_MODE_3,
+    ASSEMBLE_MODE_R, // Repeat
+    ASSEMBLE_MODE_J, // Long jump
+    ASSEMBLE_MODE_K, // Short jump
+    ASSEMBLE_MODE_S,
+    ASSEMBLE_MODE_X,
+} NutsAssembleMode;
+
+
+typedef enum {
+    STATEMENT_TYPE_NULL,
+    STATEMENT_TYPE_EMPTY,
+    STATEMENT_TYPE_INCSRC,
+    STATEMENT_TYPE_INCBIN,
+    STATEMENT_TYPE_DB,
+    STATEMENT_TYPE_ORG,
+    STATEMENT_TYPE_LABEL_DEF,
+    STATEMENT_TYPE_WDC65816,
+#if 0
+    STATEMENT_TYPE_TABLE,
+    STATEMENT_TYPE_CLEARTABLE,
+    STATEMENT_TYPE_FILLBYTE,
+    STATEMENT_TYPE_WARNPC,
+    STATEMENT_TYPE_FILL,
+    STATEMENT_TYPE_BASE,
+#endif
+} NutsStatementType;
+
+typedef struct {
+    u8    op_type;
+    NutsOpcodeParseMode parse_mode;
+    NutsExpr  expr1;
+    NutsExpr  expr2;
+    NutsWidth width;
+} NutsOpEncoding;
+
+
+typedef struct {
+    NutsStatementType type;
+    NutsTokenList     tokens;
+    String            comment;
+    union {
+        struct {
+            String file_name;
+        } incsrc;
+        struct {
+            String file_name;
+            NutsExpr location;
+            u8 include_somewhere_else : 1;
+        } incbin;
+        struct {
+            String file_name;
+        } table;
+        struct { } cleartable;
+        struct {
+            NutsExpr length;
+        } fill;
+        struct {
+            NutsExpr expr;
+        } fillbyte;
+        struct {
+            NutsExprList list_sentinel;
+            NutsWidth width;
+        } db;
+        struct {
+            NutsExpr addr;
+        } org;
+        struct {
+            NutsExpr addr;
+            u8  off : 1;
+        } base;
+        struct {
+            NutsExpr expr;
+        } warnpc;
+        struct {
+            String name;
+        } label_def;
+        NutsOpEncoding wdc65816;
+    };
+} NutsStatement;
+
+typedef struct {
+    NutsStatement* data;
     uint length;
-} StatementList;
+} NutsStatementList;
 
 typedef struct {
-    IdentifierMap identifier_map;
-    StatementList statement_list;
-} AST;
+    NutsIdentifierMap identifier_map;
+    NutsStatementList statement_list;
+    FreeList*         free_list;
+} NutsAST;
 
-void ast_init(AST* ast, Arena* arena);
-
-typedef struct {
-    // Lexing statements
-    u32 insert_incsrc     : 1;
-    u32 insert_label_def  : 1;
-    // Parsing statements
-    u32 insert_table      : 1;
-    u32 insert_cleartable : 1;
-} ParserOptions;
+void nuts_ast_init(NutsAST* ast, FreeList* free_list);
 
 typedef struct {
-    TokenStreamStack stream_stack;
+    NutsTokenStreamStack stream_stack;
     // Short-hand for token_stream_stack_top(.token_stream_stack)
-    TokenStream*     stream_stack_top;
+    NutsTokenStream*     stream_stack_top;
     // Short-hand for .token_stream_stack->pos[0]
-    Token            token;
-    Arena*           arena;
-    Arena            statement_arena;
-    FreeList*        free_list;
-    DefineMap        define_map;
-    AST*             ast;
-    ErrorList*       error_list;
+    NutsToken            token;
+    uint                 token_count;
+    Arena*               arena;
+    Arena                statement_arena;
+    FreeList*            free_list;
+    NutsDefineMap        define_map;
+    NutsAST*             ast;
+    NutsErrorList*       error_list;
     
-    String           needed_token_stream_file_name;
-    ParserOptions    options;
-    Statement*       current_stmt;
+    String               needed_token_stream_file_name;
+    NutsStatement*       current_stmt;
 
-    String           last_label_name;
-} Parser;
+    String               last_label_name;
+} NutsParser;
 
-void parser_init(Parser* parser, Arena* arena, FreeList* free_list,
-                 ErrorList* error_list, AST* ast);
-void parser_deinit(Parser* parser);
-Result parse(Parser* parser, TokenList list);
+void nuts_parser_init(NutsParser* parser, Arena* arena, FreeList* free_list,
+                      NutsErrorList* error_list, NutsAST* ast);
+void nuts_parser_deinit(NutsParser* parser);
+NutsResult nuts_parse(NutsParser* parser, NutsTokenList list);
 
-typedef struct Expr_ Expr;
+typedef struct NutsExpr_ NutsNutsExpr;
 
 typedef struct {
-    Expr* expr;
+    NutsExpr* expr;
     uint  offset;
     uint  width;
-} Relocation;
+} NutsRelocation;
 
 typedef struct {
     u32         base_addr;
     Buffer      buffer; //64k buffer?
     u8*         current;
-    Relocation* relocations;
-} Block;
+    NutsRelocation* relocations;
+} NutsBlock;
 
+
+//TODO: Cleanup
 void wdc65816_rom_write_bytes(Wdc65816MapperBuilder* rom, u32 addr, u32 bytes, uint width);
-void wdc65816_rom_write_expr(Wdc65816MapperBuilder* rom, u32 addr, Expr* expr, uint width);
+void wdc65816_rom_write_expr(Wdc65816MapperBuilder* rom, u32 addr, NutsExpr* expr, uint width);
 void wdc65816_rom_write_buffer(Wdc65816MapperBuilder* rom, u32 addr, Buffer buffer);
 
 typedef struct {
     String name;
     u32    addr;
     u32    pass;
-} Label;
+} NutsLabel;
 
-u32 label_hash(Label e);
-u32 label_equal(Label e1, Label e2);
-define_hashmap(LabelMap, label_map, Label, label_hash, label_equal);
+define_hashmap(NutsLabelMap, nuts_label_map, NutsLabel);
 
 typedef struct {
-    ErrorList* error_list;
-    AST*       ast;
-    Statement* current_statement;
+    NutsErrorList* error_list;
+    NutsAST*       ast;
+    NutsStatement* current_statement;
 
     Wdc65816Mapper* rom;
     
-    LabelMap label_map;
-    Expr*  fill_byte;
+    NutsLabelMap label_map;
+    NutsExpr*  fill_byte;
     String file_name;
     Buffer buffer;
 
     u32 addr;
 
-    int pass;
-    int last_pass;
-    int max_num_passes;
-    int rerun;
-} Assembler;
+    u32 pass;
+    u32 last_pass;
+    u32 max_num_passes;
+    b32 rerun;
+} NutsAssembler;
 
-void assembler_init(Assembler* assembler,
-                    ErrorList* error_list,
-                    AST* ast,
-                    Wdc65816Mapper* rom);
+void nuts_assembler_init(NutsAssembler* assembler,
+                         NutsErrorList* error_list,
+                         NutsAST* ast,
+                         Wdc65816Mapper* rom,
+                         FreeList* free_list);
 
-Result assemble(Assembler* assembler);
-String assembler_get_file_name(Assembler* assembler);
-void   assembler_give_buffer(Assembler* assembler, Buffer buffer);
+NutsResult nuts_assemble(NutsAssembler* assembler);
+String nuts_assembler_get_file_name(NutsAssembler* assembler);
+void   nuts_assembler_give_buffer(NutsAssembler* assembler, Buffer buffer);

@@ -3,6 +3,7 @@
 
 #include "mapper.h"
 
+static
 u32 wdc65816_mapper_reduce(u32 addr, u32 mask) {
     while(mask) {
         u32 bits = (mask & -mask) - 1;
@@ -12,6 +13,7 @@ u32 wdc65816_mapper_reduce(u32 addr, u32 mask) {
     return addr;
 }
 
+static
 u32 wdc65816_mapper_mirror(uint addr, uint size) {
     if(size == 0) return 0;
     u32 base = 0;
@@ -39,7 +41,7 @@ u8* wdc65816_mapper_read_range(Wdc65816Mapper* mapper, u32 addr_low, u32 addr_hi
     for(u32 full_addr = addr_low; full_addr < addr_high; full_addr++) {
         u8  bank = full_addr >> 16;
         u16 addr = full_addr & 0xFFFF;
-        for(int i = 0; i < mapper->entries_length; i++) {
+        for(uint i = 0; i < mapper->entries_length; i++) {
             Wdc65816MapperEntry* entry = &mapper->entries[i];
             if(entry->map.bank_low <= bank && bank <= entry->map.bank_high
                && entry->map.addr_low <= addr && addr <= entry->map.addr_high) {
@@ -56,7 +58,7 @@ u8* wdc65816_mapper_write_range(Wdc65816Mapper* mapper, u32 addr_low, u32 addr_h
     for(u32 full_addr = addr_low; full_addr < addr_high; full_addr++) {
         u8  bank = full_addr >> 16;
         u16 addr = full_addr & 0xFFFF;
-        for(int i = 0; i < mapper->entries_length; i++) {
+        for(uint i = 0; i < mapper->entries_length; i++) {
             Wdc65816MapperEntry* entry = &mapper->entries[i];
             if(entry->map.bank_low <= bank && bank <= entry->map.bank_high
                && entry->map.addr_low <= addr && addr <= entry->map.addr_high) {
@@ -75,7 +77,9 @@ void wdc65816_mapper_builder_init(Wdc65816MapperBuilder* mapper_builder) {
     };
 }
 
-void wdc65816_mapper_builder_deinit(Wdc65816MapperBuilder* mapper) { (void)mapper; }
+void wdc65816_mapper_builder_deinit(Wdc65816MapperBuilder* mapper_builder) {
+    unused(mapper_builder);
+}
 
 
 void wdc65816_mapper_init(Wdc65816Mapper* mapper, Wdc65816MapperBuilder* builder, u8** buffer) {
@@ -84,7 +88,7 @@ void wdc65816_mapper_init(Wdc65816Mapper* mapper, Wdc65816MapperBuilder* builder
         .data = buffer
     };
     
-    for(int i = 0; i < mapper->entries_length; i++) {
+    for(uint i = 0; i < mapper->entries_length; i++) {
         Wdc65816MapperEntry* entry = builder->entries + i;
         mapper->entries[i] = builder->entries[i];
         for(u32 bank = entry->map.bank_low; bank <= entry->map.bank_high; bank++) {

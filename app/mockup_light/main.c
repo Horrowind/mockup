@@ -2,6 +2,7 @@
 
 int main(int argc, char** argv) {
     Arena arena = arena_create(MB(1024));
+    Arena temp_arena = arena_subarena(&arena, MB(256));
 
     String path_name = (argc > 1)
         ? string_from_c_string(argv[1])
@@ -33,7 +34,7 @@ int main(int argc, char** argv) {
     }
     
     SMW smw;
-    smw_init_all(&smw, &rom, &arena);
+    smw_init_all(&smw, &rom, &arena, &temp_arena);
     smw_deinit(&smw);
     return 0;
 }

@@ -1,5 +1,8 @@
 #define DEBUG_PRINT_CPU_STATE
 
+#include "algorithms.c"
+#include "disassembler.c"
+#include "memory.c"
 #include "opcode_misc.c"
 #include "opcode_pc.c"
 #include "opcode_read.c"

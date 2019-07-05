@@ -1,42 +1,6 @@
 #include "nuts.h"
 
-typedef enum {
-    PARSE_MODE_DIRECT,
-    PARSE_MODE_DIRECT_X,
-    PARSE_MODE_DIRECT_Y,
-    PARSE_MODE_DIRECT_S,
-    PARSE_MODE_IMMEDIATE,
-    PARSE_MODE_INDIRECT,
-    PARSE_MODE_X_INDIRECT,
-    PARSE_MODE_INDIRECT_Y,
-    PARSE_MODE_S_INDIRECT_Y,
-    PARSE_MODE_LONG_INDIRECT,
-    PARSE_MODE_LONG_INDIRECT_Y,
-    PARSE_MODE_IMPLIED,
-    PARSE_MODE_ACCUMULATOR,
-    PARSE_MODE_SRC_DEST,
-    PARSE_MODE_MAX,
-} OpcodeParseMode;
-
-typedef struct {
-    u8 byte;
-    u8 mode;
-} OpcodeAssembleData;
-
-typedef enum {
-    ASSEMBLE_MODE_ERROR,
-    ASSEMBLE_MODE_0,
-    ASSEMBLE_MODE_1,
-    ASSEMBLE_MODE_2,
-    ASSEMBLE_MODE_3,
-    ASSEMBLE_MODE_R, // Repeat
-    ASSEMBLE_MODE_J, // Long jump
-    ASSEMBLE_MODE_K, // Short jump
-    ASSEMBLE_MODE_S,
-    ASSEMBLE_MODE_X,
-} AssembleMode;
-
-OpcodeAssembleData opcode_assemble_data_table[][PARSE_MODE_MAX][4] = {
+NutsOpcodeAssembleData opcode_assemble_data_table[][PARSE_MODE_MAX][4] = {
     [ OPCODE_ADC ][ PARSE_MODE_DIRECT          ][1] = { .byte = 0x65, .mode = ASSEMBLE_MODE_1 },
     [ OPCODE_ADC ][ PARSE_MODE_DIRECT          ][2] = { .byte = 0x6D, .mode = ASSEMBLE_MODE_2 },
     [ OPCODE_ADC ][ PARSE_MODE_DIRECT          ][3] = { .byte = 0x6F, .mode = ASSEMBLE_MODE_3 },
@@ -432,7 +396,8 @@ static char* opcodes[]         = { OPCODES_LIST };
 static char opcodes_lower[][4] = { OPCODES_LIST };
 #undef X
 
-void error_at_pos(TextPos text_pos) {
+static
+void error_at_pos(NutsTextPos text_pos) {
     c_print_format("%.*s:%i:%i: error\n", (int)text_pos.name.length, text_pos.name.data,
         text_pos.line_number, text_pos.line_pos);
     /* fstderr, "%.*s:%i:%i: error\n", text_pos.name.length, text_pos.name.data, */
@@ -457,7 +422,9 @@ void error_at_pos(TextPos text_pos) {
     c_print_format("^\n");
 }
 
-void warn_at_pos(TextPos text_pos) {
+#if 0
+static
+void warn_at_pos(NutsTextPos text_pos) {
     c_print_format("%.*s:%i:%i: warning\n", (int)text_pos.name.length, text_pos.name.data,
         text_pos.line_number, text_pos.line_pos);
     char* line_end = text_pos.line_start;
@@ -476,7 +443,7 @@ void warn_at_pos(TextPos text_pos) {
     for(int i = 0; i < length; i++) c_print_format("~");
     c_print_format("^\n");
 }
-
+#endif
 
 #define X(c) #c,
 static char* commands[] = { COMMANDS_LIST };
@@ -487,11 +454,11 @@ static char commands_lower[][12] = { COMMANDS_LIST };
 #undef X
 
 void nuts_global_init() {
-    for(int i = 0; i < array_length(opcodes); i++) {
+    for(uint i = 0; i < array_length(opcodes); i++) {
         for(char* p = opcodes_lower[i]; *p; p++) *p = *p + ('a' - 'A');
     }
     
-    for(int i = 0; i < array_length(commands); i++) {
+    for(uint i = 0; i < array_length(commands); i++) {
         for(char* p = commands_lower[i]; *p; p++) *p = *p + ('a' - 'A');
     }
 
@@ -505,9 +472,10 @@ void nuts_global_init() {
     }
 }
 
-TextPos get_text_pos(Text text, String string) {
+static
+NutsTextPos get_text_pos(NutsText text, String string) {
     char* pos = text.buffer.begin;
-    TextPos result = {
+    NutsTextPos result = {
         .name = text.name,
         .line_number = 1,
         .line_pos    = 0,
@@ -529,14 +497,15 @@ TextPos get_text_pos(Text text, String string) {
     return result;
 }
 
-void error_list_init(ErrorList* error_list, Arena arena) {
+void nuts_error_list_init(NutsErrorList* error_list, Arena arena) {
     error_list->arena = arena;
-    error_list->errors = arena_alloc_array(&arena, 0, Error);
+    error_list->errors = arena_alloc_array(&arena, 0, NutsError);
     error_list->length = 0;
 }
 
-void error_add(ErrorList* error_list, Error error) {
-    Error* new_error_in_list = arena_alloc_array(&error_list->arena, 1, Error);
+static
+void error_add(NutsErrorList* error_list, NutsError error) {
+    NutsError* new_error_in_list = arena_alloc_array(&error_list->arena, 1, NutsError);
     if(new_error_in_list) {
         *new_error_in_list = error;
         error_list->length++;
@@ -547,14 +516,14 @@ void error_add(ErrorList* error_list, Error error) {
 #define return_on_error(error) do {if(error == RESULT_ERROR) return RESULT_ERROR;} while(0)
 
 
-void describe_error(Error error) {
+void nuts_describe_error(NutsError error) {
     if(error.text_pos.name.data) error_at_pos(error.text_pos);
     c_print_format("%s\n", error_names[error.type]);
     //c_error_format("%s\n", error_names[error.type]);
 }
 
 static
-void byte_stream_init(ByteStream* stream, Text text) {
+void byte_stream_init(NutsByteStream* stream, NutsText text) {
     stream->begin = text.buffer.begin;
     stream->end   = text.buffer.end;
     stream->pos   = text.buffer.begin;
@@ -562,7 +531,7 @@ void byte_stream_init(ByteStream* stream, Text text) {
 }
 
 static
-Rune byte_stream_advance(ByteStream* stream) {
+NutsRune byte_stream_advance(NutsByteStream* stream) {
     if(stream->pos < (char*)stream->end) {
         stream->pos++;
         return *stream->pos;
@@ -572,7 +541,7 @@ Rune byte_stream_advance(ByteStream* stream) {
 }
 
 static
-Rune byte_stream_current(ByteStream* byte_stream) {
+NutsRune byte_stream_current(NutsByteStream* byte_stream) {
     if(byte_stream->pos < (char*)byte_stream->end) {
         return byte_stream->pos[0];
     } else {
@@ -582,7 +551,7 @@ Rune byte_stream_current(ByteStream* byte_stream) {
 
 
 static
-Rune byte_stream_lookahead(ByteStream* byte_stream) {
+NutsRune byte_stream_lookahead(NutsByteStream* byte_stream) {
     if(byte_stream->pos + 1 < (char*)byte_stream->end) {
         return byte_stream->pos[1];
     } else {
@@ -591,7 +560,7 @@ Rune byte_stream_lookahead(ByteStream* byte_stream) {
 }
 
 static inline
-int is_ident_char(Rune c) {
+int is_ident_char(NutsRune c) {
     return (c >= 'a' && c <= 'z')
         || (c >= 'A' && c <= 'Z')
         || (c >= '0' && c <= '9')
@@ -599,17 +568,17 @@ int is_ident_char(Rune c) {
 }
 
 static inline
-int is_whitespace(Rune c) {
+int is_whitespace(NutsRune c) {
     return c == ' ' || c == '\t';
 }
 
 static inline
-int is_ascii(Rune c) {
+int is_ascii(NutsRune c) {
     return c & 0xFFFFFF80 ? 0 : 1;
 }
 
 static inline
-int is_eof(Rune c) {
+int is_eof(NutsRune c) {
     return c == BYTE_STREAM_EOF;
 }
 
@@ -619,9 +588,9 @@ int is_eof(Rune c) {
 // take the number of bytes which this max_num needs.
 // Example: 000512 -> 999999 = 0xF423F -> five bytes are used.
 // TODO: Parse floats
-static
-Result get_token_number(ByteStream* stream, int base, Token* result, ErrorList* error_list) {
-    Rune r = byte_stream_current(stream);
+static warn_unused_result
+NutsResult get_token_number(NutsByteStream* stream, int base, NutsToken* result, NutsErrorList* error_list) {
+    NutsRune r = byte_stream_current(stream);
     // TODO: Check if each digit is smaller than base.
     u64 num = { 0 };
     if(r >= '0' && r <= '9') {
@@ -632,7 +601,7 @@ Result get_token_number(ByteStream* stream, int base, Token* result, ErrorList* 
         num = r - 'a' + 10;
     } else {
         result->string.length = stream->pos - result->string.data + 1;
-        error_add(error_list, (Error){
+        error_add(error_list, (NutsError){
            .type = ERROR_NOT_A_N_ARY_DIGIT,
            .text_pos = get_text_pos(stream->text, result->string),
            .not_a_n_ary_digit.base = base,
@@ -659,22 +628,26 @@ Result get_token_number(ByteStream* stream, int base, Token* result, ErrorList* 
     result->type  = TOKEN_NUM;
     result->num   = num;
     result->string.length = stream->pos - result->string.data + 1;
-    //TODO: Make the following platform agnostic.
-    result->width = (sizeof(u64) * 8 - __builtin_clzl(max_num - 1) + 7) / 8;
+
+    result->width = WIDTH_1;
+    if(max_num > 0x0000100) result->width = WIDTH_2;
+    if(max_num > 0x0010000) result->width = WIDTH_3;
+    if(max_num > 0x1000000) result->width = WIDTH_4;
     return RESULT_OK;
 }
 
 static const
-Token token_eof = { .type = TOKEN_EOF };
+NutsToken token_eof = { .type = TOKEN_EOF };
 
-Result get_token(ByteStream* stream, Token* token, ErrorList* error_list,
-                 IdentifierMap* identifier_map) {
-    *token = (Token) {
+static warn_unused_result
+NutsResult get_token(NutsByteStream* stream, NutsToken* token, NutsErrorList* error_list,
+                 NutsIdentifierMap* identifier_map) {
+    *token = (NutsToken) {
         .string.data = stream->pos,
         .type        = TOKEN_NULL,
     };
     while(token->type == TOKEN_NULL) {
-        Rune r = byte_stream_current(stream);
+        NutsRune r = byte_stream_current(stream);
         if(is_eof(r)) {
             *token = token_eof;
             return RESULT_OK;
@@ -692,7 +665,7 @@ Result get_token(ByteStream* stream, Token* token, ErrorList* error_list,
         }
 
         case ';': {
-            Rune r = byte_stream_lookahead(stream);
+            NutsRune r = byte_stream_lookahead(stream);
             while(!is_eof(r) && r != '\n') {
                 byte_stream_advance(stream);
                 r = byte_stream_lookahead(stream);
@@ -706,7 +679,7 @@ Result get_token(ByteStream* stream, Token* token, ErrorList* error_list,
                 token->type = TOKEN_CMD_DELIM;
                 byte_stream_advance(stream);
             } else {
-                error_add(error_list, (Error){
+                error_add(error_list, (NutsError){
                     .type = ERROR_UNEXPECTED_CHARACTER,
                     .text_pos = get_text_pos(stream->text, token->string)
                 });
@@ -733,11 +706,11 @@ Result get_token(ByteStream* stream, Token* token, ErrorList* error_list,
                 .length = end - start + 1
             };
             token->identifier =
-                identifier_map_find_or_insert(identifier_map,
-                                              (Identifier){
-                                                  .name = token->string,
-                                                  .type = IDENTIFIER,
-                                              });
+                nuts_identifier_map_find_or_insert(identifier_map,
+                                                   (NutsIdentifier){
+                                                       .name = token->string,
+                                                       .type = IDENTIFIER,
+                                                   });
             token->type = TOKEN_IDENTIFIER;
             break;
         }
@@ -804,7 +777,7 @@ Result get_token(ByteStream* stream, Token* token, ErrorList* error_list,
             token->name.data = stream->pos;
             while(r != '"') {
                 if(r == '\0') {
-                    error_add(error_list, (Error){
+                    error_add(error_list, (NutsError){
                         .type = ERROR_UNTERMINATED_STRING,
                         .text_pos = get_text_pos(stream->text, token->string)
                     });
@@ -848,7 +821,7 @@ Result get_token(ByteStream* stream, Token* token, ErrorList* error_list,
         }
 
         default: {
-            error_add(error_list, (Error){
+            error_add(error_list, (NutsError){
                 .type = ERROR_UNEXPECTED_CHARACTER,
                 .text_pos = get_text_pos(stream->text, token->string)
             });
@@ -861,15 +834,19 @@ Result get_token(ByteStream* stream, Token* token, ErrorList* error_list,
     return RESULT_OK;
 }
 
-void token_list_print(TokenList token_list) {
-    for(int i = 0; i < token_list.length; i++) {
-        Token token = token_list.data[i];
+#if 0
+static
+void token_list_print(NutsTokenList token_list) {
+    for(uint i = 0; i < token_list.length; i++) {
+        NutsToken token = token_list.data[i];
         c_print_format("%s(%.*s)\n", token_names[token.type],
                (int)token.string.length, token.string.data);
     }
 }
+#endif
 
-void token_stream_init(TokenStream* stream, TokenList list) {
+static
+void token_stream_init(NutsTokenStream* stream, NutsTokenList list) {
     stream->begin = list.data;
     stream->end   = list.data + list.length;
     stream->pos   = list.data;
@@ -877,14 +854,14 @@ void token_stream_init(TokenStream* stream, TokenList list) {
 }
 
 static
-void token_stream_advance(TokenStream* stream) {
+void token_stream_advance(NutsTokenStream* stream) {
     if(stream->pos < stream->end) {
         stream->pos++;
     }
 }
 
 static
-Token token_stream_current_token(TokenStream* stream) {
+NutsToken token_stream_current_token(NutsTokenStream* stream) {
     if(stream->pos < stream->end) {
         return stream->pos[0];
     } else {
@@ -894,16 +871,16 @@ Token token_stream_current_token(TokenStream* stream) {
 
 
 #define BATCH_SIZE 16
-Result lex(Text text, TokenList* list, Arena* arena, ErrorList* error_list,
-           IdentifierMap* identifier_map) {
-    *list = (TokenList) {
+NutsResult nuts_lex(NutsText text, NutsTokenList* list, Arena* arena, NutsErrorList* error_list,
+           NutsIdentifierMap* identifier_map) {
+    *list = (NutsTokenList) {
         .text   = text,
-        .data   = arena_alloc_array(arena, 0, Token),
+        .data   = arena_alloc_array(arena, 0, NutsToken),
         .length = 0
     };
-    ByteStream stream;
+    NutsByteStream stream;
     byte_stream_init(&stream, text);
-    Token token_buffer[BATCH_SIZE];
+    NutsToken token_buffer[BATCH_SIZE];
     int length = 0;
     int eof = 0;
     while(!eof) {
@@ -912,9 +889,9 @@ Result lex(Text text, TokenList* list, Arena* arena, ErrorList* error_list,
             length++;
             if(token_buffer[i].type == TOKEN_EOF) eof = 1;
         }
-        Token* tokens = arena_alloc_array(arena, BATCH_SIZE, Token);
+        NutsToken* tokens = arena_alloc_array(arena, BATCH_SIZE, NutsToken);
         if(!tokens) {
-            error_add(error_list, (Error) {
+            error_add(error_list, (NutsError) {
                 .type     = ERROR_TO_MANY_TOKENS,
                 //.text_pos = get_text_pos(token_text, token_string)
             });
@@ -931,26 +908,32 @@ Result lex(Text text, TokenList* list, Arena* arena, ErrorList* error_list,
     return RESULT_OK;
 }
 
-implement_stack(TokenStreamStack, token_stream_stack, TokenStream);
-u32 define_equal(Define e1, Define e2) {
+implement_stack(NutsTokenStreamStack, nuts_token_stream_stack, NutsTokenStream);
+
+static
+u32 define_equal(NutsDefine e1, NutsDefine e2) {
     return string_equal(e1.name, e2.name);
 }
 
-u32 define_hash(Define e) {
+static
+u32 define_hash(NutsDefine e) {
     return hash_murmur3_string(e.name);
 }
-implement_hashmap(DefineMap, define_map, Define, define_hash, define_equal);
+implement_hashmap(NutsDefineMap, nuts_define_map, NutsDefine, define_hash, define_equal);
 
-u32 identifier_equal(Identifier e1, Identifier e2) {
+static
+u32 identifier_equal(NutsIdentifier e1, NutsIdentifier e2) {
     return string_equal(e1.name, e2.name);
 }
 
-u32 identifier_hash(Identifier e) {
+static
+u32 identifier_hash(NutsIdentifier e) {
     return hash_murmur3_string(e.name);
 }
 
-Identifier* identifier_copy(Arena* arena, Identifier e) {
-    Identifier* copy = arena_alloc_type(arena, Identifier);
+static
+NutsIdentifier* identifier_copy(Arena* arena, NutsIdentifier e) {
+    NutsIdentifier* copy = arena_alloc_type(arena, NutsIdentifier);
     *copy = e;
 
     Buffer buffer = arena_alloc_buffer(arena, e.name.length, 1);
@@ -959,54 +942,17 @@ Identifier* identifier_copy(Arena* arena, Identifier e) {
     return copy;
 }
 
-implement_intern_hashmap(IdentifierMap, identifier_map, Identifier,
+implement_intern_hashmap(NutsIdentifierMap, nuts_identifier_map, NutsIdentifier,
                          identifier_hash, identifier_equal, identifier_copy);
 
 
 static
-void parser_advance_stream(Parser* parser);
-static
-Result parser_expect(Parser* parser, TokenType token_type);
+void parser_advance_stream(NutsParser* parser);
+static warn_unused_result
+NutsResult parser_expect(NutsParser* parser, NutsTokenType token_type);
     
-typedef enum {
-    EXPR_NULL,
-    /* Binary operands */
-    EXPR_MUL,
-    EXPR_DIV,
-    EXPR_ADD,
-    EXPR_SUB,
-    EXPR_LSH,
-    EXPR_RSH,
-    EXPR_BAN,
-    EXPR_BOR,
-    EXPR_DOT,
-    /* Unary operands */
-    EXPR_NEG,
-    /* Nullary operands */
-    EXPR_LABEL,
-    EXPR_VALUE,
-} ExprType;
-
-typedef struct Expr_ {
-    ExprType  type;
-    ValueType value_type;
-    String    string;
-    Width     width;
-    union {
-        /* Binary operands */
-        struct {
-            struct Expr_* op1;
-            struct Expr_* op2;
-        };
-        /* Unary operands */
-        struct Expr_* op;
-        /* Number */
-        Value value;
-    };
-} Expr;
-
 static const
-Expr null_expr = { 0 };
+NutsExpr null_expr = { 0 };
 
 static const
 struct bin_op_hierarchy_entry {
@@ -1025,13 +971,14 @@ struct bin_op_hierarchy_entry {
 
 
 
-Identifier* label_full_name(String sublabel_name,
+static
+NutsIdentifier* label_full_name(String sublabel_name,
                             String label_name,
-                            IdentifierMap* identifier_map) {
+                            NutsIdentifierMap* identifier_map) {
     char full_name[4096] = {};
     int pos = 0;
-    int num_dots = 0;
-    int copy_index = 0;
+    uint num_dots = 0;
+    uint copy_index = 0;
     while(num_dots < sublabel_name.length) {
         if(sublabel_name.data[num_dots] != '.') break;
         while(label_name.data[copy_index] != '.' &&
@@ -1043,20 +990,20 @@ Identifier* label_full_name(String sublabel_name,
         num_dots++;
     }
     
-    for(int j = num_dots; j < sublabel_name.length; j++) {
+    for(uint j = num_dots; j < sublabel_name.length; j++) {
         full_name[pos++] = sublabel_name.data[j];
     }
    
-    return identifier_map_find_or_insert(identifier_map, (Identifier) {
+    return nuts_identifier_map_find_or_insert(identifier_map, (NutsIdentifier) {
         .name.data = full_name, .name.length = pos
     });
 }
 
 
-static
-Result parse_expr_(Parser* parser, Expr* expr, int level) {
-    Expr op1 = { 0 };
-    Expr op2 = { 0 };
+static warn_unused_result
+NutsResult parse_expr_(NutsParser* parser, NutsExpr* expr, uint level) {
+    NutsExpr op1 = { 0 };
+    NutsExpr op2 = { 0 };
     String string = {
         .data = parser->token.string.data
     };
@@ -1066,27 +1013,27 @@ Result parse_expr_(Parser* parser, Expr* expr, int level) {
         return_on_error(parser_expect(parser, ')'));
         parser_advance_stream(parser);
     } else if(parser->token.type == '+') {
-        parse_expr_(parser, &op1, 14);
+        return_on_error(parse_expr_(parser, &op1, 14));
     } else if(parser->token.type == '-') {
-        Text token_text = parser->stream_stack_top->text;
+        NutsText token_text = parser->stream_stack_top->text;
         String token_string = parser->token.string;
-        parse_expr_(parser, &op1, 14);
+        return_on_error(parse_expr_(parser, &op1, 14));
         if(op1.value.type != VALUE_INT) {
-            error_add(parser->error_list, (Error) {
+            error_add(parser->error_list, (NutsError) {
                 .type     = ERROR_INCOMPATIBLE_OPERANDS,
                 .text_pos = get_text_pos(token_text, token_string)
             });
             return RESULT_ERROR;
         }
-        Expr* neg_expr = arena_alloc_type(parser->arena, Expr);
+        NutsExpr* neg_expr = arena_alloc_type(parser->arena, NutsExpr);
         *neg_expr = op1;
-        op1 = (Expr) {
+        op1 = (NutsExpr) {
             .type = EXPR_NEG,
             .value_type = VALUE_INT,
             .op1  = neg_expr,
         };
     } else if(parser->token.type == TOKEN_NUM) {
-        op1 = (Expr) {
+        op1 = (NutsExpr) {
             .type       = EXPR_VALUE,
             .value.type = VALUE_INT,
             .value.i    = parser->token.num,
@@ -1094,7 +1041,7 @@ Result parse_expr_(Parser* parser, Expr* expr, int level) {
         };
         parser_advance_stream(parser);
     } else if(parser->token.type == TOKEN_STRING) {
-        op1 = (Expr) {
+        op1 = (NutsExpr) {
             .type        = EXPR_VALUE,
             .value.type  = VALUE_STRING,
             .value.s     = parser->token.name,
@@ -1102,10 +1049,10 @@ Result parse_expr_(Parser* parser, Expr* expr, int level) {
         };
         parser_advance_stream(parser);
     } else if(parser->token.type == TOKEN_IDENTIFIER) {
-        Identifier* ident = label_full_name(parser->token.identifier->name,
+        NutsIdentifier* ident = label_full_name(parser->token.identifier->name,
                                             parser->last_label_name,
                                             &parser->ast->identifier_map);
-        op1 = (Expr){
+        op1 = (NutsExpr){
             .type        = EXPR_LABEL,
             .value.type  = VALUE_LABEL,
             .value.l     = ident,
@@ -1116,32 +1063,32 @@ Result parse_expr_(Parser* parser, Expr* expr, int level) {
         return RESULT_NOT_AN_EXPR;
     }
 
-#define parse_binary_operator(expr_type) {                              \
-        if(level >= hierarchy[expr_type].level) break;                  \
-        Text token_text = parser->stream_stack_top->text;               \
-        String token_string = parser->token.string;                     \
-        parser_advance_stream(parser);                                  \
-        parse_expr_(parser, &op2, hierarchy[expr_type].level);          \
-        if((op1.value_type != VALUE_INT && op1.value_type != VALUE_LABEL) || \
-           (op2.value_type != VALUE_INT && op2.value_type != VALUE_LABEL)) { \
-            error_add(parser->error_list, (Error) {                     \
-                .type = ERROR_INCOMPATIBLE_OPERANDS,                    \
-                .text_pos = get_text_pos(token_text, token_string)      \
-            });                                                         \
-            return RESULT_ERROR;                                        \
-        }                                                               \
-        Expr* ops = arena_alloc_array(parser->arena, 2, Expr);          \
-        ops[0] = op1; ops[1] = op2;                                     \
-        op1 = (Expr){                                                \
-            .type = expr_type,                                          \
-            .value_type = VALUE_INT,                                    \
-            .op1 = ops + 0,                                             \
-            .op2 = ops + 1,                                             \
-            .width = max(op1.width, op2.width),                         \
-        };                                                              \
-        continue;                                                       \
+#define parse_binary_operator(expr_type) {                                      \
+        if(level >= hierarchy[expr_type].level) break;                          \
+        NutsText token_text = parser->stream_stack_top->text;                   \
+        String token_string = parser->token.string;                             \
+        parser_advance_stream(parser);                                          \
+        return_on_error(parse_expr_(parser, &op2, hierarchy[expr_type].level)); \
+        if((op1.value_type != VALUE_INT && op1.value_type != VALUE_LABEL) ||    \
+           (op2.value_type != VALUE_INT && op2.value_type != VALUE_LABEL)) {    \
+            error_add(parser->error_list, (NutsError) {                         \
+                .type = ERROR_INCOMPATIBLE_OPERANDS,                            \
+                .text_pos = get_text_pos(token_text, token_string)              \
+            });                                                                 \
+            return RESULT_ERROR;                                                \
+        }                                                                       \
+        NutsExpr* ops = arena_alloc_array(parser->arena, 2, NutsExpr);          \
+        ops[0] = op1; ops[1] = op2;                                             \
+        op1 = (NutsExpr){                                                       \
+            .type = expr_type,                                                  \
+            .value_type = VALUE_INT,                                            \
+            .op1 = ops + 0,                                                     \
+            .op2 = ops + 1,                                                     \
+            .width = max(op1.width, op2.width),                                 \
+        };                                                                      \
+        continue;                                                               \
     }
-
+            
     while(1) {
         if(parser->token.type == '*') parse_binary_operator(EXPR_MUL);
         if(parser->token.type == '/') parse_binary_operator(EXPR_DIV);
@@ -1162,16 +1109,16 @@ Result parse_expr_(Parser* parser, Expr* expr, int level) {
     return RESULT_OK;
 }
 
-static
-Result parse_expr(Parser* parser, Expr* expr) {
+static warn_unused_result
+NutsResult parse_expr(NutsParser* parser, NutsExpr* expr) {
     return parse_expr_(parser, expr, 0);
 }
 
-static
-Result eval_expr(Expr* expr, Value* value,
-                 LabelMap* label_map,
-                 ErrorList* error_list) {
-    Value val1, val2;
+static warn_unused_result
+NutsResult eval_expr(NutsExpr* expr, NutsValue* value,
+                 NutsLabelMap* label_map,
+                 NutsErrorList* error_list) {
+    NutsValue val1, val2;
     switch(expr->type) {
     case EXPR_ADD: {
         return_on_error(eval_expr(expr->op1, &val1, label_map, error_list));
@@ -1258,7 +1205,7 @@ Result eval_expr(Expr* expr, Value* value,
         break;
     }
     case EXPR_LABEL: {
-        Label* found = label_map_find(label_map, (Label) { .name = expr->value.l->name });
+        NutsLabel* found = nuts_label_map_find(label_map, (NutsLabel) { .name = expr->value.l->name });
         if(found) {
             value->i = found->addr;
             value->type = VALUE_LABEL;
@@ -1273,10 +1220,10 @@ Result eval_expr(Expr* expr, Value* value,
     return RESULT_OK;
 }
 
-static
-Result static_eval_expr(Expr* expr, Value* value,
-                        ErrorList* error_list) {
-    Value val1, val2;
+static warn_unused_result
+NutsResult static_eval_expr(NutsExpr* expr, NutsValue* value,
+                        NutsErrorList* error_list) {
+    NutsValue val1, val2;
     switch(expr->type) {
     case EXPR_ADD: {
         return_on_error(static_eval_expr(expr->op1, &val1, error_list));
@@ -1365,7 +1312,7 @@ Result static_eval_expr(Expr* expr, Value* value,
 
     case EXPR_LABEL: {
         //TODO: Add text_pos;
-        error_add(error_list, (Error) {
+        error_add(error_list, (NutsError) {
             .type     = ERROR_EXPR_NOT_STATIC,
             //.text_pos = text_pos
         });
@@ -1377,109 +1324,35 @@ Result static_eval_expr(Expr* expr, Value* value,
     return RESULT_OK;
 }
 
-typedef struct ExprList_{
-    Expr* expr;
-    struct ExprList_* next;
-} ExprList;
-
-int token_seperates_statements(Token token) {
+static
+int token_seperates_statements(NutsToken token) {
     return token.type == TOKEN_CMD_DELIM
         || token.type == TOKEN_COMMENT
         || token.type == ':'
         || token.type == TOKEN_EOF;
 }
 
-typedef enum {
-    STATEMENT_TYPE_NULL,
-    STATEMENT_TYPE_EMPTY,
-    STATEMENT_TYPE_INCSRC,
-    STATEMENT_TYPE_INCBIN,
-    STATEMENT_TYPE_DB,
-    STATEMENT_TYPE_ORG,
-    STATEMENT_TYPE_LABEL_DEF,
-    STATEMENT_TYPE_WDC65816,
-#if 0
-    STATEMENT_TYPE_TABLE,
-    STATEMENT_TYPE_CLEARTABLE,
-    STATEMENT_TYPE_FILLBYTE,
-    STATEMENT_TYPE_WARNPC,
-    STATEMENT_TYPE_FILL,
-    STATEMENT_TYPE_BASE,
-#endif
-} StatementType;
-
-typedef struct {
-    u8    op_type;
-    OpcodeParseMode parse_mode;
-    Expr  expr1;
-    Expr  expr2;
-    Width width;
-} OpEncoding;
-
-typedef struct Statement_ {
-    StatementType type;
-    TokenList     tokens;
-    String        comment;
-    union {
-        struct {
-            String file_name;
-        } incsrc;
-        struct {
-            String file_name;
-            Expr location;
-            u8 include_somewhere_else : 1;
-        } incbin;
-        struct {
-            String file_name;
-        } table;
-        struct { } cleartable;
-        struct {
-            Expr length;
-        } fill;
-        struct {
-            Expr expr;
-        } fillbyte;
-        struct {
-            ExprList list_sentinel;
-            Width width;
-        } db;
-        struct {
-            Expr addr;
-        } org;
-        struct {
-            Expr addr;
-            u8  off : 1;
-        } base;
-        struct {
-            Expr expr;
-        } warnpc;
-        struct {
-            String name;
-        } label_def;
-        OpEncoding wdc65816;
-    };
-} Statement;
-
-void ast_init(AST* ast, Arena* arena) {
+void nuts_ast_init(NutsAST* ast, FreeList* free_list) {
+    ast->free_list = free_list;
     ast->statement_list.length = 0;
-    ast->statement_list.data = arena_alloc_array(arena, 512*1024, Statement);
-    identifier_map_init(&ast->identifier_map, 4096);
+    ast->statement_list.data = free_list_alloc_array(free_list, 512*1024, NutsStatement);
+    nuts_identifier_map_init(&ast->identifier_map, free_list, 4096, MB(1));
     
-    for(int i = 0; i < array_length(commands); i++) {
-        Identifier entry = {
+    for(uint i = 0; i < array_length(commands); i++) {
+        NutsIdentifier entry = {
             .name = string_from_c_string(commands[i]),
             .type = COMMAND | i,
         };
-        identifier_map_insert(&ast->identifier_map, entry);
+        nuts_identifier_map_insert(&ast->identifier_map, entry);
 
-        entry = (Identifier){
+        entry = (NutsIdentifier){
             .name = string_from_c_string(commands_lower[i]),
             .type = COMMAND | i,
         };
-        identifier_map_insert(&ast->identifier_map, entry);
+        nuts_identifier_map_insert(&ast->identifier_map, entry);
     }
 
-    for(int i = 0; i < array_length(opcodes); i++) {
+    for(uint i = 0; i < array_length(opcodes); i++) {
         u8 widths[7] = { WIDTH_UNSPECIFIED,
                          WIDTH_1, WIDTH_2, WIDTH_3,
                          WIDTH_1, WIDTH_2, WIDTH_3 };
@@ -1490,64 +1363,77 @@ void ast_init(AST* ast, Arena* arena) {
             buffer[j][0] = opcodes_lower[i][0];
             buffer[j][1] = opcodes_lower[i][1];
             buffer[j][2] = opcodes_lower[i][2];
-            Identifier entry = (Identifier){
+            NutsIdentifier entry = (NutsIdentifier){
                 .name = string_from_c_string(buffer[j]),
                 .type = OPCODE | i,
                 .width = widths[j]
             };
-            identifier_map_insert(&ast->identifier_map, entry);
+            nuts_identifier_map_insert(&ast->identifier_map, entry);
             buffer[j][0] = opcodes[i][0];
             buffer[j][1] = opcodes[i][1];
             buffer[j][2] = opcodes[i][2];
-            entry = (Identifier){
+            entry = (NutsIdentifier){
                 .name = string_from_c_string(buffer[j]),
                 .type = OPCODE | i,
                 .width = widths[j]
             };
-            identifier_map_insert(&ast->identifier_map, entry);
+            nuts_identifier_map_insert(&ast->identifier_map, entry);
         }
     }
 }
 
-int identifier_type_is_command(IdentifierType type) {
+void ast_deinit(NutsAST* ast) {
+    free_list_dealloc_array(ast->free_list, ast->statement_list.data, 512*1024, NutsStatement);
+    nuts_identifier_map_deinit(&ast->identifier_map);
+}
+
+static
+int identifier_type_is_command(NutsIdentifierType type) {
     return type & COMMAND;
 }
 
-int identifier_is_command(IdentifierType type, CommandType cmd_type) {
+static
+int identifier_is_command(NutsIdentifierType type, NutsCommandType cmd_type) {
     return type == (COMMAND | cmd_type);
 }
 
-int identifier_type_is_opcode(IdentifierType type) {
+static
+int identifier_type_is_opcode(NutsIdentifierType type) {
     return type & OPCODE;
 }
 
-int identifier_is_opcode(IdentifierType type, OpcodeType op_type) {
+#if 0
+static
+int identifier_is_opcode(NutsIdentifierType type, NutsOpcodeType op_type) {
     return type == (OPCODE | op_type);
 }
+#endif
 
-int identifier_type_is_identifier(IdentifierType type) {
+static
+int identifier_type_is_identifier(NutsIdentifierType type) {
     return type == IDENTIFIER;
 }
 
 
 
-void parser_init(Parser* parser, Arena* arena, FreeList* free_list,
-                 ErrorList* error_list, AST* ast) {
-    parser->token = (Token){ 0 };
+void nuts_parser_init(NutsParser* parser, Arena* arena, FreeList* free_list,
+                      NutsErrorList* error_list, NutsAST* ast) {
+    parser->token = (NutsToken){ 0 };
+    parser->token_count = 0;
     parser->arena = arena;
     parser->free_list = free_list;
     parser->error_list = error_list;
     parser->ast = ast;
 
-    token_stream_stack_init(&parser->stream_stack, free_list, 8);
-    define_map_init(&parser->define_map, 512);
+    nuts_token_stream_stack_init(&parser->stream_stack, free_list, 8);
+    nuts_define_map_init(&parser->define_map, free_list, 512);
 
     parser->last_label_name.length = 0;
 }
 
-void parser_deinit(Parser* parser) {
-    token_stream_stack_deinit(&parser->stream_stack, parser->free_list);
-    define_map_deinit(&parser->define_map);
+void parser_deinit(NutsParser* parser) {
+    nuts_token_stream_stack_deinit(&parser->stream_stack, parser->free_list);
+    nuts_define_map_deinit(&parser->define_map);
 }
 
 
@@ -1555,21 +1441,21 @@ void parser_deinit(Parser* parser) {
 #define DONT_EXPAND_DEFINES 0
 
 static
-void parser_update_stream(Parser* parser, int expand_defines) {
+void parser_update_stream(NutsParser* parser, int expand_defines) {
     parser->token = token_stream_current_token(parser->stream_stack_top);
     while(1) {
         if(parser->token.type == TOKEN_DEFINE && expand_defines == DO_EXPAND_DEFINES) {
-            Define define = {
+            NutsDefine define = {
                 .name = parser->token.name,
             };
-            Define* found = define_map_find(&parser->define_map, define);
+            NutsDefine* found = nuts_define_map_find(&parser->define_map, define);
             if(found) {
                 //c_print_format("Read !%.*s\n", define.name.length, define.name.data);
                 token_stream_advance(parser->stream_stack_top);
-                TokenStream token_stream;
+                NutsTokenStream token_stream;
                 token_stream_init(&token_stream, found->token_list);
-                token_stream_stack_push(&parser->stream_stack, token_stream);
-                parser->stream_stack_top = token_stream_stack_top(&parser->stream_stack);
+                nuts_token_stream_stack_push(&parser->stream_stack, token_stream);
+                parser->stream_stack_top = nuts_token_stream_stack_top(&parser->stream_stack);
                 parser->token = token_stream_current_token(parser->stream_stack_top);
                 continue;
             } else {
@@ -1577,11 +1463,11 @@ void parser_update_stream(Parser* parser, int expand_defines) {
                 debug_break;
             }
         } else if(parser->token.type == TOKEN_EOF) {
-            token_stream_stack_pop(&parser->stream_stack);
-            if(token_stream_stack_is_empty(&parser->stream_stack)) {
+            nuts_token_stream_stack_pop(&parser->stream_stack);
+            if(nuts_token_stream_stack_is_empty(&parser->stream_stack)) {
                 return;
             }
-            parser->stream_stack_top = token_stream_stack_top(&parser->stream_stack);
+            parser->stream_stack_top = nuts_token_stream_stack_top(&parser->stream_stack);
             parser->token = token_stream_current_token(parser->stream_stack_top);
             continue;
         }
@@ -1591,18 +1477,19 @@ void parser_update_stream(Parser* parser, int expand_defines) {
 
 
 static
-void parser_advance_stream(Parser* parser) {
+void parser_advance_stream(NutsParser* parser) {
     token_stream_advance(parser->stream_stack_top);
     parser_update_stream(parser, DO_EXPAND_DEFINES);
+    parser->token_count++;
     /* c_print_format("%s(%.*s)\n", token_names[parser->token.type], */
     /*        parser->token.string.length, parser->token.string.data); */
 }
 
 
-static
-Result parser_expect(Parser* parser, TokenType token_type) {
+static warn_unused_result
+NutsResult parser_expect(NutsParser* parser, NutsTokenType token_type) {
     if(parser->token.type != token_type) {
-        error_add(parser->error_list, (Error) {
+        error_add(parser->error_list, (NutsError) {
                 .type = ERROR_EXPECTED_TOKEN,
                 //.text_pos = parser->token.text_pos,
                 .expected_token.expected_type = token_type,
@@ -1614,25 +1501,19 @@ Result parser_expect(Parser* parser, TokenType token_type) {
 }
 
 
-static
-Result parse_incsrc(Parser* parser, Statement* stmt) {
+static warn_unused_result
+NutsResult parse_incsrc(NutsParser* parser, NutsStatement* stmt) {
     (void)stmt;
     parser_advance_stream(parser);
     return_on_error(parser_expect(parser, TOKEN_STRING));
     parser->needed_token_stream_file_name = parser->token.name;
-#if 0
-    if(parser->options.insert_incsrc) {
-        stmt->type = STATEMENT_TYPE_EMPTY;
-        stmt->incsrc.file_name = parser->token.name;
-    }
-#endif
     parser_advance_stream(parser);
     return RESULT_OK;
 }
 
 
-static
-Result parse_incbin(Parser* parser, Statement* stmt) {
+static warn_unused_result
+NutsResult parse_incbin(NutsParser* parser, NutsStatement* stmt) {
     parser_advance_stream(parser);
     return_on_error(parser_expect(parser, TOKEN_STRING));
 
@@ -1645,12 +1526,12 @@ Result parse_incbin(Parser* parser, Statement* stmt) {
     if(parser->token.type == TOKEN_ARROW) {
         parser_advance_stream(parser);
         //TextPos text_pos = parser->token.text_pos;
-        Expr expr;
+        NutsExpr expr;
         return_on_error(parse_expr(parser, &expr));
-        Value value;
+        NutsValue value;
         return_on_error(static_eval_expr(&expr, &value, parser->error_list));
         if(value.type != VALUE_INT) {
-            error_add(parser->error_list, (Error) {
+            error_add(parser->error_list, (NutsError) {
                     .type = ERROR_EXPR_NOT_INT
                     //.text_pos = text_pos
                 });
@@ -1733,22 +1614,22 @@ Result parse_base(Parser* parser, Statement* stmt) {
 }
 
 static
-Result parse_cleartable(Parser* parser, Statement* stmt) {
+NutsResult parse_cleartable(Parser* parser, Statement* stmt) {
     parser_advance_stream(parser);
     stmt->type = STATEMENT_TYPE_CLEARTABLE;
     return RESULT_OK;
 }
 #endif
 
-static
-Result parse_org(Parser* parser, Statement* stmt) {
+static warn_unused_result
+NutsResult parse_org(NutsParser* parser, NutsStatement* stmt) {
     parser_advance_stream(parser);
-    Expr expr;
+    NutsExpr expr;
     return_on_error(parse_expr(parser, &expr));
-    Value value = { 0 };
+    NutsValue value = { 0 };
     return_on_error(static_eval_expr(&expr, &value, parser->error_list));
     if(value.type != VALUE_INT) {
-        error_add(parser->error_list, (Error) {
+        error_add(parser->error_list, (NutsError) {
             .type = ERROR_EXPR_NOT_INT,
             //.text_pos = text_pos
         });
@@ -1760,22 +1641,22 @@ Result parse_org(Parser* parser, Statement* stmt) {
     return RESULT_OK;
 }
 
-static
-Result parse_db(Parser* parser, Width width, Statement* stmt) {
+static warn_unused_result
+NutsResult parse_db(NutsParser* parser, NutsWidth width, NutsStatement* stmt) {
     stmt->db.list_sentinel.next = &stmt->db.list_sentinel;
-    ExprList* node = stmt->db.list_sentinel.next;
+    NutsExprList* node = stmt->db.list_sentinel.next;
     parser_advance_stream(parser);
-    Expr expr;
+    NutsExpr expr;
     return_on_error(parse_expr(parser, &expr));
-    Expr* new_expr = arena_alloc_array(parser->arena, 1, Expr);
+    NutsExpr* new_expr = arena_alloc_array(parser->arena, 1, NutsExpr);
     *new_expr = expr;
-    ExprList* new_node = arena_alloc_array(parser->arena, 1, ExprList);
+    NutsExprList* new_node = arena_alloc_array(parser->arena, 1, NutsExprList);
     new_node->expr = new_expr;
     node->next = new_node;
     node = new_node;
     while(!token_seperates_statements(parser->token)) {
         if(parser->token.type != ',') {
-            error_add(parser->error_list, (Error) {
+            error_add(parser->error_list, (NutsError) {
                 .type = ERROR_UNEXPECTED_TOKEN,
                 .text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
             });
@@ -1783,9 +1664,9 @@ Result parse_db(Parser* parser, Width width, Statement* stmt) {
         } else {
             parser_advance_stream(parser);
             return_on_error(parse_expr(parser, &expr));
-            new_expr = arena_alloc_array(parser->arena, 1, Expr);
+            new_expr = arena_alloc_array(parser->arena, 1, NutsExpr);
             *new_expr = expr;
-            ExprList* new_node = arena_alloc_array(parser->arena, 1, ExprList);
+            NutsExprList* new_node = arena_alloc_array(parser->arena, 1, NutsExprList);
             new_node->expr = new_expr;
             node->next = new_node;
             node = new_node;
@@ -1797,25 +1678,25 @@ Result parse_db(Parser* parser, Width width, Statement* stmt) {
     return RESULT_OK;
 }
 
-static
-Result parse_statement(Parser* parser, Statement* stmt);
+static warn_unused_result
+NutsResult parse_statement(NutsParser* parser, NutsStatement* stmt);
 
-static
-Result parse_if(Parser* parser) {
+static warn_unused_result
+NutsResult parse_if(NutsParser* parser) {
     parser_advance_stream(parser);
-    Expr expr;
+    NutsExpr expr;
     return_on_error(parse_expr(parser, &expr));
-    Value value;
+    NutsValue value;
     return_on_error(static_eval_expr(&expr, &value, /*text_pos,*/ parser->error_list));
     if(value.type != VALUE_INT) {
-        error_add(parser->error_list, (Error) {
+        error_add(parser->error_list, (NutsError) {
             .type = ERROR_EXPR_NOT_INT,
             //.text_pos = text_pos
         });
         return RESULT_ERROR;
     }
     if(!token_seperates_statements(parser->token)) {
-        error_add(parser->error_list, (Error) {
+        error_add(parser->error_list, (NutsError) {
             .type = ERROR_UNTERMINATED_STATEMENT,
             .text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string),
         });
@@ -1827,15 +1708,17 @@ Result parse_if(Parser* parser) {
         if(parser->token.type == TOKEN_EOF) {
             // TODO: Better error handling.
             //       The error location is the unclosed if branch
-            error_add(parser->error_list, (Error) {
+            error_add(parser->error_list, (NutsError) {
                 .type = ERROR_UNTERMINATED_IF,
                 .text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string),
             });
             return RESULT_ERROR;
         }
         if(value.i) {
-            Statement stmt;
-            parse_statement(parser, &stmt);
+            NutsStatement stmt;
+            // BUG: This should be used.
+            NutsResult result = parse_statement(parser, &stmt);
+            unused(result);
         } else {
             parser_advance_stream(parser);
         }
@@ -1849,15 +1732,17 @@ Result parse_if(Parser* parser) {
                 // TODO: Better error handling.
                 //       The error location is the unclosed if branch
                 //error_at_pos(parser->token.text_pos);
-                error_add(parser->error_list, (Error) {
+                error_add(parser->error_list, (NutsError) {
                     .type = ERROR_UNTERMINATED_IF,
                     .text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string),
                 });
                 return RESULT_ERROR;
             }
             if(!value.i) {
-                Statement stmt;
-                parse_statement(parser, &stmt);
+                NutsStatement stmt;
+                // BUG: This should be used.
+                NutsResult result = parse_statement(parser, &stmt);
+                unused(result);
             } else {
                 parser_advance_stream(parser);
             }
@@ -1867,14 +1752,15 @@ Result parse_if(Parser* parser) {
     return RESULT_OK;
 }
 
-Result statement_wdc65816(Parser* parser,
-                          Statement* stmt,
-                          Token opcode,
-                          OpcodeParseMode parse_mode,
-                          Expr expr1, Expr expr2) {
+static warn_unused_result
+NutsResult statement_wdc65816(NutsParser* parser,
+                          NutsStatement* stmt,
+                          NutsToken opcode,
+                          NutsOpcodeParseMode parse_mode,
+                          NutsExpr expr1, NutsExpr expr2) {
     (void)parser;
     u8 op_type = opcode.identifier->type;
-    stmt->wdc65816 = (OpEncoding) {
+    stmt->wdc65816 = (NutsOpEncoding) {
         .op_type = op_type,
         .parse_mode = parse_mode,
         .expr1   = expr1,
@@ -1887,8 +1773,9 @@ Result statement_wdc65816(Parser* parser,
     return RESULT_OK;
 }
 
-Result parse_wdc65816(Parser* parser, Statement* stmt) {
-    Token opcode = parser->token;
+static warn_unused_result
+NutsResult parse_wdc65816(NutsParser* parser, NutsStatement* stmt) {
+    NutsToken opcode = parser->token;
     (void)opcode;
     parser_advance_stream(parser);
 
@@ -1902,13 +1789,13 @@ Result parse_wdc65816(Parser* parser, Statement* stmt) {
                                            null_expr, null_expr));
     } else if(parser->token.type ==  '#') {
         parser_advance_stream(parser);
-        Expr expr;
+        NutsExpr expr;
         return_on_error(parse_expr(parser, &expr));
         return_on_error(statement_wdc65816(parser, stmt, opcode, PARSE_MODE_IMMEDIATE,
                                            expr, null_expr));
     } else if(parser->token.type == '(') {
         parser_advance_stream(parser);
-        Expr expr;
+        NutsExpr expr;
         return_on_error(parse_expr(parser, &expr));
         if(parser->token.type == ',') {
             parser_advance_stream(parser);
@@ -1927,7 +1814,7 @@ Result parse_wdc65816(Parser* parser, Statement* stmt) {
                 parser_advance_stream(parser);
                 if(parser->token.type != TOKEN_IDENTIFIER ||
                    !identifier_is_command(parser->token.identifier->type, COMMAND_Y)) {
-                    error_add(parser->error_list, (Error) {
+                    error_add(parser->error_list, (NutsError) {
                         .type = ERROR_UNEXPECTED_TOKEN,
                         .text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
                     });
@@ -1936,7 +1823,7 @@ Result parse_wdc65816(Parser* parser, Statement* stmt) {
                 return_on_error(statement_wdc65816(parser, stmt, opcode, PARSE_MODE_S_INDIRECT_Y,
                                                    expr, null_expr));
             } else {
-                error_add(parser->error_list, (Error) {
+                error_add(parser->error_list, (NutsError) {
                     .type = ERROR_UNEXPECTED_TOKEN,
                     .text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
                 });
@@ -1953,7 +1840,7 @@ Result parse_wdc65816(Parser* parser, Statement* stmt) {
                 parser_advance_stream(parser);
                 if(parser->token.type != TOKEN_IDENTIFIER ||
                    !identifier_is_command(parser->token.identifier->type, COMMAND_Y)) {
-                    error_add(parser->error_list, (Error) {
+                    error_add(parser->error_list, (NutsError) {
                         .type = ERROR_UNEXPECTED_TOKEN,
                         .text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
                     });
@@ -1964,7 +1851,7 @@ Result parse_wdc65816(Parser* parser, Statement* stmt) {
                                                    expr, null_expr));
             }
         } else {
-            error_add(parser->error_list, (Error) {
+            error_add(parser->error_list, (NutsError) {
                 .type = ERROR_UNEXPECTED_TOKEN,
                 .text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
             });
@@ -1972,7 +1859,7 @@ Result parse_wdc65816(Parser* parser, Statement* stmt) {
         }
     } else if(parser->token.type == '[') {
         parser_advance_stream(parser);
-        Expr expr;
+        NutsExpr expr;
         return_on_error(parse_expr(parser, &expr));
         return_on_error(parser_expect(parser, ']'));
         parser_advance_stream(parser);
@@ -1980,7 +1867,7 @@ Result parse_wdc65816(Parser* parser, Statement* stmt) {
             parser_advance_stream(parser);
             if(parser->token.type != TOKEN_IDENTIFIER ||
                !identifier_is_command(parser->token.identifier->type, COMMAND_Y)) {
-                error_add(parser->error_list, (Error) {
+                error_add(parser->error_list, (NutsError) {
                     .type = ERROR_UNEXPECTED_TOKEN,
                     .text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
                 });
@@ -1993,14 +1880,14 @@ Result parse_wdc65816(Parser* parser, Statement* stmt) {
             return_on_error(statement_wdc65816(parser, stmt, opcode, PARSE_MODE_LONG_INDIRECT,
                                                expr, null_expr));
         } else {
-            error_add(parser->error_list, (Error) {
+            error_add(parser->error_list, (NutsError) {
                 .type = ERROR_UNEXPECTED_TOKEN,
                 .text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
             });
             return RESULT_ERROR;
         }
     } else {
-        Expr expr;
+        NutsExpr expr;
         return_on_error(parse_expr(parser, &expr));
         if(parser->token.type == ',') {
             parser_advance_stream(parser);
@@ -2020,7 +1907,7 @@ Result parse_wdc65816(Parser* parser, Statement* stmt) {
                 return_on_error(statement_wdc65816(parser, stmt, opcode, PARSE_MODE_DIRECT_S,
                                                    expr, null_expr));
             } else {
-                Expr expr2;
+                NutsExpr expr2;
                 return_on_error(parse_expr(parser, &expr2));
                 return_on_error(statement_wdc65816(parser, stmt, opcode, PARSE_MODE_SRC_DEST,
                                                    expr, expr2));
@@ -2033,11 +1920,12 @@ Result parse_wdc65816(Parser* parser, Statement* stmt) {
     return RESULT_OK;
 }
 
-Result parse_label_def(Parser* parser,
-                      Statement* stmt) {
+static warn_unused_result
+NutsResult parse_label_def(NutsParser* parser,
+                           NutsStatement* stmt) {
     stmt->type = STATEMENT_TYPE_LABEL_DEF;
-    Token label = parser->token;
-    Identifier* ident = label_full_name(label.string,
+    NutsToken label = parser->token;
+    NutsIdentifier* ident = label_full_name(label.string,
                                         parser->last_label_name,
                                         &parser->ast->identifier_map);
     stmt->label_def.name = ident->name;
@@ -2046,11 +1934,12 @@ Result parse_label_def(Parser* parser,
     return RESULT_OK;
 }
 
-static
-Result parse_statement(Parser* parser, Statement* stmt) {
+static warn_unused_result
+NutsResult parse_statement(NutsParser* parser, NutsStatement* stmt) {
     stmt->type = STATEMENT_TYPE_NULL;
     stmt->tokens.data = parser->stream_stack_top->pos;
-    
+    stmt->tokens.text = parser->stream_stack_top->text;
+    uint token_begin_count = parser->token_count;
     switch(parser->token.type) {
     case TOKEN_IDENTIFIER: {
         if(identifier_type_is_command(parser->token.identifier->type)) {
@@ -2077,21 +1966,21 @@ Result parse_statement(Parser* parser, Statement* stmt) {
 
             case COMMAND_IF:         { return_on_error(parse_if(parser));               break; }
             case COMMAND_ELSE: {
-                error_add(parser->error_list, (Error) {
+                error_add(parser->error_list, (NutsError) {
                     .type = ERROR_ELSE_WITHOUT_IF,
                     .text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
                 });
                 return RESULT_ERROR;
             }
             case COMMAND_ENDIF: {
-                error_add(parser->error_list, (Error) {
+                error_add(parser->error_list, (NutsError) {
                     .type = ERROR_ENDIF_WITHOUT_IF,
                     .text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
                 });
                 return RESULT_ERROR;
             }
             default:
-                error_add(parser->error_list, (Error) {
+                error_add(parser->error_list, (NutsError) {
                     .type = ERROR_UNEXPECTED_TOKEN,
                     .text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
                 });
@@ -2108,13 +1997,13 @@ Result parse_statement(Parser* parser, Statement* stmt) {
         break;
     }
     case TOKEN_DEFINE: {
-        Text text = parser->stream_stack_top->text;
+        NutsText text = parser->stream_stack_top->text;
         String name = parser->token.name;
         parser_advance_stream(parser);
-        TokenStream* stream = parser->stream_stack_top;
+        NutsTokenStream* stream = parser->stream_stack_top;
         if(parser->token.type == '=') {
             stream->pos++;
-            Define define = {
+            NutsDefine define = {
                 .name = name,
                 .token_list.data = stream->pos
             };
@@ -2122,10 +2011,10 @@ Result parse_statement(Parser* parser, Statement* stmt) {
                 stream->pos++;
                 define.token_list.length++;
             }
-            define_map_insert(&parser->define_map, define);
+            nuts_define_map_insert(&parser->define_map, define);
             parser_update_stream(parser, DO_EXPAND_DEFINES);
         } else {
-            error_add(parser->error_list, (Error) {
+            error_add(parser->error_list, (NutsError) {
                 .type = ERROR_UNDEFINED_DEFINE,
                 .text_pos = get_text_pos(text, name)
             });
@@ -2150,7 +2039,7 @@ Result parse_statement(Parser* parser, Statement* stmt) {
     }
 
     default: {
-        error_add(parser->error_list, (Error) {
+        error_add(parser->error_list, (NutsError) {
             .type = ERROR_UNEXPECTED_TOKEN,
             .text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
         });
@@ -2162,7 +2051,7 @@ Result parse_statement(Parser* parser, Statement* stmt) {
         parser_advance_stream(parser);
     }
     if(!token_seperates_statements(parser->token)) {
-        error_add(parser->error_list, (Error) {
+        error_add(parser->error_list, (NutsError) {
             .type = ERROR_UNTERMINATED_STATEMENT,
             .text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
         });
@@ -2173,24 +2062,28 @@ Result parse_statement(Parser* parser, Statement* stmt) {
     // the start of a new statement to
     // distinguish between define definition
     // and define expansion.
+    uint token_end_count = parser->token_count;
+    stmt->tokens.length = token_end_count - token_begin_count;
+
     token_stream_advance(parser->stream_stack_top);
     parser_update_stream(parser, DONT_EXPAND_DEFINES);
-    
+
     return RESULT_OK;
 }
 
-Result parse(Parser* parser, TokenList token_list) {
-    TokenStream stream;
+warn_unused_result
+NutsResult nuts_parse(NutsParser* parser, NutsTokenList token_list) {
+    NutsTokenStream stream;
     token_stream_init(&stream, token_list);
-    token_stream_stack_push(&parser->stream_stack, stream);
-    parser->stream_stack_top = token_stream_stack_top(&parser->stream_stack);
+    nuts_token_stream_stack_push(&parser->stream_stack, stream);
+    parser->stream_stack_top = nuts_token_stream_stack_top(&parser->stream_stack);
     parser_update_stream(parser, DONT_EXPAND_DEFINES);
-    StatementList* stmt_list = &parser->ast->statement_list;
-    Result parse_result = RESULT_OK;
+    NutsStatementList* stmt_list = &parser->ast->statement_list;
+    NutsResult parse_result = RESULT_OK;
     while(parser->token.type != TOKEN_EOF) {
-        Statement* stmt = stmt_list->data + stmt_list->length;
+        NutsStatement* stmt = stmt_list->data + stmt_list->length;
         assert(stmt_list->length < 512 * 1024);
-        Result parse_statement_result = parse_statement(parser, stmt);
+        NutsResult parse_statement_result = parse_statement(parser, stmt);
         if(parse_statement_result == RESULT_ERROR) {
             do {
                 token_stream_advance(parser->stream_stack_top);
@@ -2208,18 +2101,21 @@ Result parse(Parser* parser, TokenList token_list) {
 
 #define LABEL_ADDR_UNSPECIFIED 0xFFFFFFFF
 
-u32 label_hash(Label e) {
+static
+u32 nuts_label_hash(NutsLabel e) {
     return hash_murmur3_string(e.name);
 }
 
-u32 label_equal(Label e1, Label e2) {
+static
+u32 nuts_label_equal(NutsLabel e1, NutsLabel e2) {
     return string_equal(e1.name, e2.name);
 }
 
-implement_hashmap(LabelMap, label_map, Label, label_hash, label_equal);
+implement_hashmap(NutsLabelMap, nuts_label_map, NutsLabel, nuts_label_hash, nuts_label_equal);
 
 
-Result assembler_write_bytes(Assembler* assembler, u32 bytes, uint width) {
+static
+NutsResult assembler_write_bytes(NutsAssembler* assembler, u32 bytes, int width) {
     for(int i = 0; i < width; i++) {
         if(assembler->last_pass) {
             wdc65816_mapper_write(assembler->rom, assembler->addr, bytes);
@@ -2231,13 +2127,14 @@ Result assembler_write_bytes(Assembler* assembler, u32 bytes, uint width) {
 }
 
 
-Result assembler_write_expr(Assembler* assembler, Expr* expr, uint width) {
-    Value value = { };
-    eval_expr(expr, &value, &assembler->label_map, assembler->error_list);
+static
+NutsResult assembler_write_expr(NutsAssembler* assembler, NutsExpr* expr, uint width) {
+    NutsValue value = { };
+    return_on_error(eval_expr(expr, &value, &assembler->label_map, assembler->error_list));
     if(value.type == VALUE_INT) {
         return assembler_write_bytes(assembler, value.i, width);
     } else if(value.type == VALUE_STRING) {
-        for(int i = 0; i < value.s.length; i++) {
+        for(uint i = 0; i < value.s.length; i++) {
             return_on_error(assembler_write_bytes(assembler, value.s.data[i], width));
         }
         return RESULT_OK;
@@ -2249,7 +2146,8 @@ Result assembler_write_expr(Assembler* assembler, Expr* expr, uint width) {
     }
 }
 
-Result assembler_write_buffer(Assembler* assembler, Buffer buffer) {
+static
+NutsResult assembler_write_buffer(NutsAssembler* assembler, Buffer buffer) {
     uint length = buffer_length(buffer);
     if(assembler->last_pass) {
         wdc65816_mapper_write_range(assembler->rom, assembler->addr, assembler->addr + length, buffer.begin);
@@ -2259,15 +2157,16 @@ Result assembler_write_buffer(Assembler* assembler, Buffer buffer) {
 }
 
 
-void assembler_init(Assembler* assembler,
-                    ErrorList* error_list,
-                    AST* ast,
-                    Wdc65816Mapper* rom) {
+void nuts_assembler_init(NutsAssembler* assembler,
+                         NutsErrorList* error_list,
+                         NutsAST* ast,
+                         Wdc65816Mapper* rom,
+                         FreeList* free_list) {
     assembler->ast = ast;
     assembler->current_statement = ast->statement_list.data;
     assembler->error_list = error_list;
     assembler->rom = rom;
-    label_map_init(&assembler->label_map, 4096);
+    nuts_label_map_init(&assembler->label_map, free_list, 4096);
     assembler->buffer = (Buffer) { }; 
     assembler->addr = 0; 
     assembler->last_pass = 0;
@@ -2276,15 +2175,15 @@ void assembler_init(Assembler* assembler,
     assembler->max_num_passes = 2;
 }
 
-Result assemble(Assembler* assembler) {
-    StatementList* stmt_list = &assembler->ast->statement_list;
-    Statement* stmt_end = stmt_list->data + stmt_list->length;
+NutsResult nuts_assemble(NutsAssembler* assembler) {
+    NutsStatementList* stmt_list = &assembler->ast->statement_list;
+    NutsStatement* stmt_end = stmt_list->data + stmt_list->length;
     for(;assembler->pass <= assembler->max_num_passes; assembler->pass++) {
         if(assembler->pass == assembler->max_num_passes) {
             assembler->last_pass = 1;
         }
         for(; assembler->current_statement < stmt_end; assembler->current_statement++) {
-            Statement* stmt = assembler->current_statement;
+            NutsStatement* stmt = assembler->current_statement;
             switch(stmt->type) {
             case STATEMENT_TYPE_EMPTY: { break; };
             case STATEMENT_TYPE_INCBIN: {
@@ -2299,9 +2198,9 @@ Result assemble(Assembler* assembler) {
                 break;
             }
             case STATEMENT_TYPE_DB: {
-                Width width  = stmt->db.width;
+                NutsWidth width  = stmt->db.width;
                 
-                for(ExprList* node = stmt->db.list_sentinel.next;
+                for(NutsExprList* node = stmt->db.list_sentinel.next;
                     node != &stmt->db.list_sentinel;
                     node = node->next) {
                     assembler_write_expr(assembler, node->expr, width);
@@ -2309,10 +2208,10 @@ Result assemble(Assembler* assembler) {
                 break;
             }
             case STATEMENT_TYPE_ORG: {
-                Value value = { 0 };
+                NutsValue value = { 0 };
                 return_on_error(static_eval_expr(&stmt->org.addr, &value, assembler->error_list));
                 if(value.type != VALUE_INT) {
-                    error_add(assembler->error_list, (Error) {
+                    error_add(assembler->error_list, (NutsError) {
                         .type = ERROR_EXPR_NOT_INT,
                         //.text_pos = text_pos
                     });
@@ -2324,18 +2223,18 @@ Result assemble(Assembler* assembler) {
             }
             case STATEMENT_TYPE_LABEL_DEF: {
                 String label_name = stmt->label_def.name;
-                Label* found = label_map_find(&assembler->label_map,
-                                              (Label){ .name = label_name });
+                NutsLabel* found = nuts_label_map_find(&assembler->label_map,
+                                              (NutsLabel){ .name = label_name });
                 if(found) {
                     if(found->pass == assembler->pass) {
-                        error_add(assembler->error_list, (Error) {
+                        error_add(assembler->error_list, (NutsError) {
                             .type = ERROR_LABEL_ALREADY_DEFINED,
                             //.text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
                         });
                     }
                     if(found->addr != assembler->addr) {
                         if(assembler->last_pass) {
-                            error_add(assembler->error_list, (Error) {
+                            error_add(assembler->error_list, (NutsError) {
                                 .type = ERROR_FLOATING_LABEL,
                                 //.text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
                             });
@@ -2345,16 +2244,16 @@ Result assemble(Assembler* assembler) {
                     found->addr = assembler->addr;
                     found->pass = assembler->pass;
                 } else {
-                    label_map_insert(&assembler->label_map,
-                                     (Label){ .name = stmt->label_def.name, .pass = assembler->pass, .addr = assembler->addr });
+                    nuts_label_map_insert(&assembler->label_map,
+                                     (NutsLabel){ .name = stmt->label_def.name, .pass = assembler->pass, .addr = assembler->addr });
                 }
                 break;
             }
             case STATEMENT_TYPE_WDC65816: {
                 u8 op_type = stmt->wdc65816.op_type;
-                OpcodeParseMode parse_mode = stmt->wdc65816.parse_mode;
-                Width width = stmt->wdc65816.width;
-                OpcodeAssembleData opcode_data = opcode_assemble_data_table[op_type][parse_mode][width];
+                NutsOpcodeParseMode parse_mode = stmt->wdc65816.parse_mode;
+                NutsWidth width = stmt->wdc65816.width;
+                NutsOpcodeAssembleData opcode_data = opcode_assemble_data_table[op_type][parse_mode][width];
                 switch(opcode_data.mode) {
                 case ASSEMBLE_MODE_0: {
                     assembler_write_bytes(assembler, opcode_data.byte, 1);
@@ -2376,12 +2275,12 @@ Result assemble(Assembler* assembler) {
                     break;
                 }
                 case ASSEMBLE_MODE_R: {
-                    Value value = { };
-                    Result result = eval_expr(&stmt->wdc65816.expr1, &value,
+                    NutsValue value = { };
+                    NutsResult result = eval_expr(&stmt->wdc65816.expr1, &value,
                                               &assembler->label_map, assembler->error_list);
                     if(result == RESULT_UNDEFINED_LABEL) {
                         if(assembler->last_pass) {
-                            error_add(assembler->error_list, (Error) {
+                            error_add(assembler->error_list, (NutsError) {
                                 .type = ERROR_UNDEFINED_LABEL,
                                 //.text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
                             });
@@ -2396,19 +2295,19 @@ Result assemble(Assembler* assembler) {
                         });
                     }
 #endif
-                    for(int i = 0; i < value.i; i++) {
+                    for(u32 i = 0; i < value.i; i++) {
                         assembler_write_bytes(assembler, opcode_data.byte, 1);
                     }
                     break;
                 }
 
                 case ASSEMBLE_MODE_J: {
-                    Value value = { };
-                    Result result = eval_expr(&stmt->wdc65816.expr1, &value,
+                    NutsValue value = { };
+                    NutsResult result = eval_expr(&stmt->wdc65816.expr1, &value,
                                               &assembler->label_map, assembler->error_list);
                     if(result == RESULT_UNDEFINED_LABEL) {
                         if(assembler->last_pass) {
-                            error_add(assembler->error_list, (Error) {
+                            error_add(assembler->error_list, (NutsError) {
                                 .type = ERROR_UNDEFINED_LABEL,
                                 //.text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
                             });
@@ -2419,7 +2318,7 @@ Result assemble(Assembler* assembler) {
                     if(value.type == VALUE_LABEL) {
                         if(diff < -128 || diff > 127) {
                             if(assembler->last_pass) {
-                                error_add(assembler->error_list, (Error) {
+                                error_add(assembler->error_list, (NutsError) {
                                    .type = ERROR_JUMP_TO_LONG,
                                    //.text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
                                 });
@@ -2435,12 +2334,12 @@ Result assemble(Assembler* assembler) {
                     break;
                 }
                 case ASSEMBLE_MODE_K: {
-                    Value value = { };
-                    Result result = eval_expr(&stmt->wdc65816.expr1, &value,
+                    NutsValue value = { };
+                    NutsResult result = eval_expr(&stmt->wdc65816.expr1, &value,
                                               &assembler->label_map, assembler->error_list);
                     if(result == RESULT_UNDEFINED_LABEL) {
                         if(assembler->last_pass) {
-                            error_add(assembler->error_list, (Error) {
+                            error_add(assembler->error_list, (NutsError) {
                                 .type = ERROR_UNDEFINED_LABEL,
                                 //.text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
                             });
@@ -2451,7 +2350,7 @@ Result assemble(Assembler* assembler) {
                     if(value.type == VALUE_LABEL) {
                         if(diff < -32768 || diff > 32767) {
                             if(assembler->last_pass) {
-                                error_add(assembler->error_list, (Error) {
+                                error_add(assembler->error_list, (NutsError) {
                                    .type = ERROR_JUMP_TO_LONG,
                                    //.text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
                                 });
@@ -2473,12 +2372,12 @@ Result assemble(Assembler* assembler) {
                     break;
                 }
                 case ASSEMBLE_MODE_X: {
-                    Value value = { };
-                    Result result = eval_expr(&stmt->wdc65816.expr1, &value,
+                    NutsValue value = { };
+                    NutsResult result = eval_expr(&stmt->wdc65816.expr1, &value,
                                               &assembler->label_map, assembler->error_list);
                     if(result == RESULT_UNDEFINED_LABEL) {
                         if(assembler->last_pass) {
-                            error_add(assembler->error_list, (Error) {
+                            error_add(assembler->error_list, (NutsError) {
                                 .type = ERROR_UNDEFINED_LABEL,
                                 //.text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
                             });
@@ -2488,7 +2387,7 @@ Result assemble(Assembler* assembler) {
                     u32 bank = value.i >> 16;
                     if(bank != 0 && bank != assembler->addr >> 16) {
                         if(assembler->last_pass) {
-                            error_add(assembler->error_list, (Error) {
+                            error_add(assembler->error_list, (NutsError) {
                                 .type = ERROR_WRONG_BANK,
                                 //.text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
                             });
@@ -2500,9 +2399,9 @@ Result assemble(Assembler* assembler) {
                     break;
                 }
                 default: {
-                    error_add(assembler->error_list, (Error) {
+                    error_add(assembler->error_list, (NutsError) {
                         .type = ERROR_WRONG_OPCODE_USAGE,
-                        //.text_pos = get_text_pos(parser->stream_stack_top->text, parser->token.string)
+                        .text_pos = get_text_pos(stmt->tokens.text, stmt->tokens.data[0].string)
                     });
                     break;
                 }
@@ -2513,7 +2412,7 @@ Result assemble(Assembler* assembler) {
             }
         }
         if(assembler->last_pass && assembler->rerun) {
-            error_add(assembler->error_list, (Error) {
+            error_add(assembler->error_list, (NutsError) {
                 .type = ERROR_TO_MANY_PASSES,
             });
             return RESULT_ERROR;
@@ -2525,12 +2424,12 @@ Result assemble(Assembler* assembler) {
     return RESULT_OK;
 }
 
-void assembler_give_buffer(Assembler* assembler, Buffer buffer) {
+void nuts_assembler_give_buffer(NutsAssembler* assembler, Buffer buffer) {
     assert(buffer.begin);
     assembler->buffer = buffer;
 }
 
-String assembler_get_file_name(Assembler* assembler) {
+String nuts_assembler_get_file_name(NutsAssembler* assembler) {
     return assembler->file_name;
 }
 

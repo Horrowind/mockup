@@ -2,7 +2,7 @@
 #include "addresses.h"
 #include "misc.h"
 
-void smw_init(SMW* smw, Wdc65816MapperBuilder* rom, Arena* arena) {
+void smw_init(SMW* smw, Wdc65816MapperBuilder* rom, Arena* arena, Arena* temp_arena) {
     smw->cpu = (Wdc65816Cpu){.regs.p.b = 0x24};
 
     u8* work_buffer = arena_alloc_array(arena, wdc65816_cpu_get_work_buffer_size(), u8);
@@ -11,15 +11,16 @@ void smw_init(SMW* smw, Wdc65816MapperBuilder* rom, Arena* arena) {
     gfx_store_init(&smw->gfx_pages, &smw->cpu.read_mapper, arena);
 
     smw->arena = arena_subarena(arena, MB(96));
-    smw->temp_arena = arena_subarena(arena, MB(16));
+    smw->temp_arena = temp_arena;
+    free_list_init(&smw->free_list, arena_subarena(arena, MB(64)), 4096);
 }
 
 void smw_deinit(SMW* smw) {
     (void)smw;
 }
 
-void smw_init_all(SMW* smw, Wdc65816MapperBuilder* rom, Arena* arena) {
-    smw_init(smw, rom, arena);
+void smw_init_all(SMW* smw, Wdc65816MapperBuilder* rom, Arena* arena, Arena* temp_arena) {
+    smw_init(smw, rom, arena, temp_arena);
     for(int i = 0; i < 512; i++) {
         smw->levels[i] = arena_alloc_type(&smw->arena, LevelPC);
         smw_level_load(smw, i);
@@ -152,13 +153,18 @@ void smw_set_sprite_table_entries(u8* ram, SpriteTableEntries entries, int sprit
 }
 #endif
 
+void smw_level_deinit(SMW* smw, u16 level_num) {
+    LevelPC* l = smw->levels[level_num];
+    map16_pc_deinit(&l->map16_fg, &smw->free_list);
+    map16_pc_deinit(&l->map16_bg, &smw->free_list);
+}
 
 void smw_level_load(SMW* smw, u16 level_num) {
     Wdc65816Mapper* rom = &smw->cpu.read_mapper;
     GFXStore gfx_pages = smw->gfx_pages;
     LevelPC* l = smw->levels[level_num];
     Arena*    arena = &smw->arena; 
-    Arena*    temp_arena = &smw->temp_arena; 
+    Arena*    temp_arena = smw->temp_arena;
 
     Wdc65816Cpu* cpu = &smw->cpu;
     wdc65816_cpu_clear(cpu);
@@ -338,7 +344,7 @@ void smw_level_load(SMW* smw, u16 level_num) {
                 map16_fg.tiles[i].tile8s[j] = &(l->map8.tiles[num_tile]);
             }
         }
-        map16_pc_init(&l->map16_fg, &map16_fg, &smw->arena);
+        map16_pc_init(&l->map16_fg, &map16_fg, &smw->free_list);
     }
     
 
@@ -361,7 +367,7 @@ void smw_level_load(SMW* smw, u16 level_num) {
                 map16_bg.tiles[i].tile8s[j] = &(l->map8.tiles[num_tile]);
             }
         }
-        map16_pc_init(&l->map16_bg, &map16_bg, &smw->arena);
+        map16_pc_init(&l->map16_bg, &map16_bg, &smw->free_list);
     }
     
     if(!l->is_boss_level) {
@@ -963,7 +969,7 @@ Buffer smw_level_serialize_fast(SMW* smw, u16 level_num) {
     LevelHeader* level_header = arena_alloc_type(&smw->arena, LevelHeader);
     *level_header = smw->levels[level_num]->header;
     int prev_screen = 0;
-    for(int i = 0; i < length; i++) {
+    for(uint i = 0; i < length; i++) {
         ObjectPC* object = &smw->levels[level_num]->layer1_objects.objects[i];
         /* c_print_format("Object: { x: %4i, y: %4i, num: %02x, settings: %02x}\n", */
         /*        object->x, object->y, object->num, object->settings); */
@@ -1056,7 +1062,7 @@ void smw_level_add_layer1_object(SMW* smw, u16 level_num, uint object_index, Obj
     ObjectListPC* object_list = &smw->levels[level_num]->layer1_objects;
     ObjectPC* old_objects = object_list->objects;
     ObjectPC* new_objects = arena_alloc_array(&smw->arena, object_list->length + 1, ObjectPC);
-    for(int i = 0; i < object_list->length - object_index; i++) {
+    for(uint i = 0; i < object_list->length - object_index; i++) {
         new_objects[object_index + 1 + i] =  old_objects[i];
     }
 

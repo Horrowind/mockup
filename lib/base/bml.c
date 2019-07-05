@@ -30,6 +30,7 @@ BmlNode bml_skip(BmlParser* parser) {
     return bml_parse(parser);
 }
 
+static
 void bml_parser_advance(BmlParser* parser) {
     if(parser->pos < (char*)parser->buffer.end) {
         parser->pos++;
@@ -38,6 +39,7 @@ void bml_parser_advance(BmlParser* parser) {
     }
 }
 
+static
 int bml_is_valid_char(char c)  {  //A-Z, a-z, 0-9, -.
     return (c >= 'a' && c <= 'z')
         || (c >= 'A' && c <= 'Z')
@@ -46,6 +48,7 @@ int bml_is_valid_char(char c)  {  //A-Z, a-z, 0-9, -.
 }
 
 
+static
 void bml_parse_name(BmlParser* parser, BmlNode* node) {
     if(parser->pos >= (char*)parser->buffer.end) {
         parser->state = BML_PARSER_STATE_EOF;
@@ -65,6 +68,7 @@ void bml_parse_name(BmlParser* parser, BmlNode* node) {
     };
 }
 
+static
 void bml_parse_data(BmlParser* parser, BmlNode* node) {
     char* begin = NULL, *end = NULL;
     if(parser->pos[0] == '=' && parser->pos[1] == '"') {
@@ -143,6 +147,7 @@ void bml_parse_data(BmlParser* parser, BmlNode* node) {
     };
 }
 
+static
 int bml_parse_indent(BmlParser* parser) {
     int result = 0;
     while(parser->state != BML_PARSER_STATE_EOF &&
@@ -152,6 +157,7 @@ int bml_parse_indent(BmlParser* parser) {
     }
     return result;
 }
+
 
 void bml_parser_init(BmlParser* parser, Buffer buffer) {
     *parser = (BmlParser) {

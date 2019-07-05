@@ -116,9 +116,9 @@ Wdc65816RomLoader wdc65816_rom_loader_begin(Wdc65816MapperBuilder* rom, String m
     }
     result.length = index;
 
-    for(int i = 0; i < result.board.maps_length; i++) {
+    for(uint i = 0; i < result.board.maps_length; i++) {
         int found = 0;
-        for(int j = 0; j < result.length; j++) {
+        for(uint j = 0; j < result.length; j++) {
             if(string_equal(result.board.map_properties[i].content, result.contents[j])
                && result.board.map_properties[i].type == result.types[j]) {
                 found = 1;
@@ -168,8 +168,8 @@ int wdc65816_rom_loader_end(Wdc65816RomLoader* loader) {
     if(loader->index < loader->length) {
         return 1;
     } else {
-        for(int i = 0; i < loader->board.maps_length; i++) {
-            for(int j = 0; j < loader->length; j++) {
+        for(uint i = 0; i < loader->board.maps_length; i++) {
+            for(uint j = 0; j < loader->length; j++) {
                 if(string_equal(loader->board.map_properties[i].content, loader->contents[j])
                    && loader->board.map_properties[i].type == loader->types[j]) {
                     Wdc65816MapperEntry read_entry = {

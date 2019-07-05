@@ -1,6 +1,4 @@
-#include <time.h>
 #include "nuts/nuts.h"
-
 
 /* struct timespec timespec_add(struct timespec start, struct timespec end) { */
 /* 	struct timespec tmp; */
@@ -32,8 +30,7 @@ int main(int argc, char** argv) {
         c_print_format("Usage: %s FILE [cartridge/folder]\n", argv[0]);
         return 0;
     }
-    Arena arena = arena_create(MB(512));
-
+    Arena arena = arena_create(MB(1024));
     String cartridge_folder_path_name = (argc > 2)
         ? string_from_c_string(argv[2])
         : L("SuperMarioWorld.sfc");
@@ -43,7 +40,7 @@ int main(int argc, char** argv) {
     path_init_from_c(&manifest_path, &cartridge_folder_path, "manifest.bml");
     Buffer manifest_buffer = path_read_file(&manifest_path, &arena);
 
-    Wdc65816MapperBuilder rom_builder = { };
+    Wdc65816MapperBuilder rom_builder = { 0 };
     
     char name[256];
     Buffer name_buffer = buffer(name, 256);
@@ -71,14 +68,17 @@ int main(int argc, char** argv) {
 
     Path working_dir;
     path_init_working_directory(&working_dir);
-    FreeList sentinel;
-    free_list_init(&sentinel);
-    ErrorList error_list;
-    error_list_init(&error_list, arena_subarena(&arena, MB(10)));
+    FreeList free_list;
+    Arena free_list_arena = arena_subarena(&arena, MB(512));
+    free_list_init(&free_list, free_list_arena, 4096);
+    Arena error_list_arena = arena_subarena(&arena, MB(10));
+    NutsErrorList error_list;
+    
+    nuts_error_list_init(&error_list, error_list_arena);
 
 
-    AST ast;
-    ast_init(&ast, &arena);
+    NutsAST ast;
+    nuts_ast_init(&ast, &free_list);
     String file_name = string_from_c_string(argv[1]); 
     /* struct timespec lex_start,      lex_end,      lex_time = { 0 }; */
     /* struct timespec parse_start,    parse_end,    parse_time = { 0 }; */
@@ -87,30 +87,30 @@ int main(int argc, char** argv) {
     
 
     /* clock_gettime(CLOCK_REALTIME, &all_start); */
-    Parser parser;
-    parser_init(&parser, &arena, &sentinel, &error_list, &ast);
+    NutsParser parser;
+    nuts_parser_init(&parser, &arena, &free_list, &error_list, &ast);
     int error_num = 0;
     while(1) {
         Path file;
         path_init(&file, file_name);
         Buffer file_buffer = path_read_file(&file, &arena);
-        TokenList token_list;
+        NutsTokenList token_list;
         //c_print_format("read %.*s\n", file_name.length, file_name.data);
-        Text file_text = {
+        NutsText file_text = {
             .buffer = file_buffer,
             .name   = file_name
         };
         /* clock_gettime(CLOCK_REALTIME, &lex_start); */
-        Result result = lex(file_text, &token_list, &arena, &error_list, &ast.identifier_map);
+        NutsResult result = nuts_lex(file_text, &token_list, &arena, &error_list, &ast.identifier_map);
         if(result == RESULT_ERROR) {
             for(;error_num < error_list.length; error_num++) {
-                describe_error(error_list.errors[error_num]);
+                nuts_describe_error(error_list.errors[error_num]);
             }
         }
         /* clock_gettime(CLOCK_REALTIME, &lex_end); */
         /* lex_time = timespec_add(lex_time, timespec_sub(lex_start, lex_end)); */
         /* clock_gettime(CLOCK_REALTIME, &parse_start); */
-        /* result = parse(&parser, token_list); */
+        result = nuts_parse(&parser, token_list);
         /* clock_gettime(CLOCK_REALTIME, &parse_end); */
         /* parse_time = timespec_add(parse_time, timespec_sub(parse_start, parse_end)); */
 
@@ -121,7 +121,7 @@ int main(int argc, char** argv) {
             break;
         } else if(result == RESULT_ERROR) {
             for(;error_num < error_list.length; error_num++) {
-                describe_error(error_list.errors[error_num]);
+                nuts_describe_error(error_list.errors[error_num]);
             }
             return 1;
         } else {
@@ -129,18 +129,31 @@ int main(int argc, char** argv) {
         }
     }
 
+#if 0
+    for(int i = 0; i < ast.statement_list.length; i++) {
+        Statement* stmt = ast.statement_list.data + i;
+        c_print_format("%6i: ", i);
+        for(int j = 0; j < stmt->tokens.length; j++) {
+            Token token = stmt->tokens.data[j];
+            c_print_format("%.*s ", token.string.length, token.string.data);
+        }
+        c_print_format("\n");
+    }
+    c_print_format("Finished.\n");
+#endif    
+
     /* clock_gettime(CLOCK_REALTIME, &assemble_start); */
-    Assembler assembler;
-    assembler_init(&assembler, &error_list, &ast, &rom);
-    Result result = RESULT_ERROR;
+    NutsAssembler assembler;
+    nuts_assembler_init(&assembler, &error_list, &ast, &rom, &free_list);
+    NutsResult result = RESULT_ERROR;
     while(result != RESULT_OK) {
-        result = assemble(&assembler);
+        result = nuts_assemble(&assembler);
         if(result == RESULT_NEED_FILE) {
-            String file_name = assembler_get_file_name(&assembler);
+            String file_name = nuts_assembler_get_file_name(&assembler);
             Path file;
             path_init(&file, file_name);
             Buffer file_buffer = path_read_file(&file, &arena);
-            assembler_give_buffer(&assembler, file_buffer);
+            nuts_assembler_give_buffer(&assembler, file_buffer);
         } else if(result == RESULT_ERROR) {
             break;
         }
@@ -149,7 +162,7 @@ int main(int argc, char** argv) {
     /* assemble_time = timespec_add(assemble_time, timespec_sub(assemble_start, assemble_end)); */
 
     for(int i = 0; i < error_list.length; i++) {
-        describe_error(error_list.errors[i]);
+        nuts_describe_error(error_list.errors[i]);
     }
 
     /* parser_deinit(&parser); */

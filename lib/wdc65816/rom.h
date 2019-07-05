@@ -23,6 +23,7 @@ typedef struct {
     String name;
     Wdc65816MemoryType type;
     ulong  size;
+    char name_buffer[256];
 } Wdc65816MemoryBufferRequest;
 
 Wdc65816RomLoader wdc65816_rom_loader_begin(Wdc65816MapperBuilder* rom, String manifest);
@@ -30,7 +31,7 @@ void wdc65816_rom_loader_next(Wdc65816RomLoader* loader);
 Wdc65816MemoryBufferRequest wdc65816_rom_loader_get_buffer_request(Wdc65816RomLoader* loader,
                                                                    Buffer string_buffer);
 void wdc65816_rom_loader_set_buffer(Wdc65816RomLoader* loader, Buffer buffer);
-int wdc65816_rom_loader_end(Wdc65816RomLoader* loader);
+int  wdc65816_rom_loader_end(Wdc65816RomLoader* loader);
 void wdc65816_rom_deinit(Wdc65816MapperBuilder* rom);
 void wdc65816_rom_save(Wdc65816MapperBuilder* rom, char* path);
 #endif //R65816_ROM_H

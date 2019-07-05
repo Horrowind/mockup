@@ -1,5 +1,3 @@
-#include "stdlib.h"
-
 #include "breakpoint.h"
 
 //TODO: Implement a better allocation strategy.
@@ -24,7 +22,7 @@ void wdc65816_breakpoint_list_init(Wdc65816BreakpointList* brk) {
 b32 wdc65816_breakpoint_list_is_hit(Wdc65816BreakpointList* brk, u32 address) {
 //    for(int i = 0; i < BP_MAX_LENGTH; i++) {
     for(int i = 0; i < brk->length && brk->address[i].low <= address; i++) {
-      if(brk->address[i].high >= address) return 1; 
+        if(brk->address[i].high >= address) return 1; 
     } 
     /* if((brk.address[0].low <= address && brk.address[0].high >= address) */
     /*    || (brk.address[1].low <= address && brk.address[1].high >= address) */

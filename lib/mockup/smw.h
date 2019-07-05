@@ -11,13 +11,14 @@ typedef struct {
     GFXStore     gfx_pages;
     Wdc65816Cpu  cpu;
     Arena        arena;
-    Arena        temp_arena;
+    Arena*       temp_arena;
+    FreeList     free_list;
 } SMW;
 
-void smw_init(SMW* smw, Wdc65816MapperBuilder* rom, Arena* arena);
+void smw_init(SMW* smw, Wdc65816MapperBuilder* rom, Arena* arena, Arena* temp_arena);
 void smw_deinit(SMW* smw);
 
-void smw_init_all(SMW* smw, Wdc65816MapperBuilder* rom, Arena* arena);
+void smw_init_all(SMW* smw, Wdc65816MapperBuilder* rom, Arena* arena, Arena* temp_arena);
 void smw_clear(SMW* smw);
 LevelPC* smw_get_level(SMW* smw, u16 level_num);
 

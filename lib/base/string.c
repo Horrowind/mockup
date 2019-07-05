@@ -1,3 +1,7 @@
+String string(char* data, ulong length) {
+    return (String){ .data = data, .length = length };
+}
+
 Buffer buffer_from_string(String string) {
     return (Buffer){
         .begin = string.data,
@@ -14,13 +18,13 @@ String string_from_buffer(Buffer buffer) {
 
 
 void lowcase_string(String s) {
-    for(int i = 0; i < s.length; i++) {
+    for(ulong i = 0; i < s.length; i++) {
         if((uint)s.data[i] - 'A' < 26) s.data[i] |= 0x20;
     }
 }
 
 void upcase_string(String s) {
-    for(int i = 0; i < s.length; i++) {
+    for(ulong i = 0; i < s.length; i++) {
         if((uint)s.data[i] - 'a' < 26) s.data[i] &= 0x5f;
     }
 }
@@ -52,7 +56,7 @@ String string_from_builder(StringBuilder builder) {
 
 b32 string_equal(String s1, String s2) {
     if(s1.length != s2.length) return 0;
-    for(int i = 0; i < s1.length; i++) {
+    for(ulong i = 0; i < s1.length; i++) {
         if(s1.data[i] != s2.data[i]) return 0;
     }
     return 1;
@@ -60,7 +64,7 @@ b32 string_equal(String s1, String s2) {
 
 u64 string_to_u64_base(String s, int base) {
     u64 num = 0;
-    for(int i = 0; i < s.length; i++) {
+    for(ulong i = 0; i < s.length; i++) {
         int digit = 0;
         if(s.data[i] >= '0' && s.data[i] <= '9') {
             digit = s.data[i] - '0';
@@ -199,11 +203,12 @@ void f64_to_ascii(FormatDestination* dest, f64 value, u32 precision) {
 #define read_var_arg_signed_integer(length, arg_list) ((length) == 8) ? variable_argument_get(arg_list, i64) : (i64)variable_argument_get(arg_list, i32)
 #define read_var_arg_float(length, arg_list) variable_argument_get(arg_list, f64)
 
-int c_string_format_list(char* dest_init, int dest_size, char* format, VariableArgumentList arg_list) {
-    FormatDestination dest = { .size = dest_size, .at = dest_init };
+int string_format_list(Buffer buffer, String format, VariableArgumentList arg_list) {
+    char* end = format.data + format.length;
+    FormatDestination dest = { .size = buffer.end - buffer.begin, .at = buffer.begin };
     if(dest.size) {
-        char* at = format;
-        while(at[0]) {
+        char* at = format.data;
+        while(at < end) {
             if(*at == '%') {
                 at++;
                 
@@ -252,7 +257,7 @@ int c_string_format_list(char* dest_init, int dest_size, char* format, VariableA
                 // NOTE(casey): Handle the precision
                 //
                 b32 precision_specified = 0;
-                i32 precision = 0;
+                u32 precision = 0;
                 if(*at == '.') {
                     at++;
                     
@@ -408,14 +413,14 @@ int c_string_format_list(char* dest_init, int dest_size, char* format, VariableA
                 }
                     
                 case 'p': {
-                    void* value = variable_argument_get(arg_list, void*);
-                    u64_to_ascii(&temp_dest, *(uptr*)&value, 16, lower_hex_chars);
+                    uptr value = (uptr)variable_argument_get(arg_list, void*);
+                    u64_to_ascii(&temp_dest, value, 16, lower_hex_chars);
                     break;
                 }
                     
                 case 'n': {
                     int* tab_dest = variable_argument_get(arg_list, int*);
-                    *tab_dest = (int)(dest.at - dest_init);
+                    *tab_dest = (int)(dest.at - (char*)buffer.begin);
                     break;
                 }
                     
@@ -489,42 +494,40 @@ int c_string_format_list(char* dest_init, int dest_size, char* format, VariableA
                 out_char(&dest, *at++);
             }
         }
-    
-        if(dest.size) {
-            dest.at[0] = 0;
-        } else {
-            dest.at[-1] = 0;
-        }
     }
     
-    int result = dest.at - dest_init + 1;
-    return result;
-}
-int c_string_format(char* buffer, int length, char* format, ...) {
-    VariableArgumentList arg_list;
-    
-    variable_argument_begin(arg_list, format);
-    int result = c_string_format_list(buffer, length, format, arg_list);
-    variable_argument_end(arg_list);
-    
+    int result = dest.at - (char*)buffer.begin;
     return result;
 }
 
-int c_string_format_unsafe(char* buffer, char* format, ...) {
+int c_string_format(char* raw_buffer, int length, char* format, ...) {
     VariableArgumentList arg_list;
     
     variable_argument_begin(arg_list, format);
-    int result = c_string_format_list(buffer, INT_MAX, format, arg_list);
+    int result = string_format_list(buffer(raw_buffer, length), string_from_c_string(format), arg_list);
     variable_argument_end(arg_list);
     
     return result;
 }
 
 ulong c_string_length(const char* s) {
-    ulong result = 0;
-    while(*s++) result++;
+    if(!s) return 0;
+    const char* begin = s;
+    while(*s) s++;
+    return s - begin;
+}
+
+
+int c_string_format_unsafe(char* raw_buffer, char* format, ...) {
+    VariableArgumentList arg_list;
+    
+    variable_argument_begin(arg_list, format);
+    int result = string_format_list(buffer(raw_buffer, INT_MAX), string_from_c_string(format), arg_list);
+    variable_argument_end(arg_list);
+    
     return result;
 }
+
 
 int c_string_equal(const char* restrict s1, const char* restrict s2) {
     do {
@@ -536,7 +539,7 @@ int c_string_equal(const char* restrict s1, const char* restrict s2) {
 
 void c_string_copy(char* restrict dest, const char* restrict src, uint n) {
     if(n == 0) return;
-    int i = 0;
+    uint i = 0;
     for(; i < n - 1 && src[i]; i++) {
         dest[i] = src[i];
     }

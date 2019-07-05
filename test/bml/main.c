@@ -6,13 +6,13 @@ int main() {
     /* char bml[] = */
     /*     "node=test\n" */
     /*     "  child"; */
+#if 0
     char bml[] =
         "node=test attr1=1 attr2=2\n"
         "    child1 attr1=1\n"
         "    child2\n";
     Buffer bml_buffer = buffer(bml, sizeof(bml) - 1);
     BmlParser parser;
-#if 0
     bml_parse_init(buffer, &parser);
     
     BmlNode node;
@@ -40,7 +40,6 @@ int main() {
             return 1;
         }
     } while(node.type != BML_NODE_EOF);
-#endif
     bml_parser_init(&parser, bml_buffer);
     bml_parse(&parser);
     for(BmlIter iter = bml_node(L("node"), &parser);
@@ -51,4 +50,5 @@ int main() {
             printf("child1 = %.*s\n", iter.value.length, iter.value.data);
         }
     }    
+#endif
 }

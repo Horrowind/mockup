@@ -15,8 +15,6 @@ typedef struct {
     Wdc65816MapProperties map_properties[256];
 } Wdc65816Board;
 
-extern Wdc65816Board board_shvc_1a1b_06;
-
 void wdc65816_load_board(Wdc65816Board* board, String board_name);
 
 #endif //WDC65816_BOARD_H

@@ -10,30 +10,42 @@
 #define S 4
 #define D 5
 
-#define wdc65816_op_read_const_gen(op)                          \
-    void wdc65816_op_read_const_##op##_b(Wdc65816Cpu* cpu) {    \
-        cpu->rd.l = wdc65816_op_readpc(cpu);                    \
-        wdc65816_op_##op##_b(cpu);                              \
-    }                                                           \
-                                                                \
-    void wdc65816_op_read_const_##op##_w(Wdc65816Cpu* cpu) {    \
-        cpu->rd.l = wdc65816_op_readpc(cpu);                    \
-        cpu->rd.h = wdc65816_op_readpc(cpu);                    \
-        wdc65816_op_##op##_w(cpu);                              \
+#define wdc65816_op_read_const_b_gen(op)                                        \
+    void wdc65816_op_read_const_##op##_b(Wdc65816Cpu* cpu) {                    \
+        cpu->rd.l = wdc65816_op_readpc(cpu);                                    \
+        wdc65816_op_##op##_b(cpu);                                              \
     }
 
-wdc65816_op_read_const_gen(ora);
-wdc65816_op_read_const_gen(bit);
-wdc65816_op_read_const_gen(and);
-wdc65816_op_read_const_gen(eor);
-wdc65816_op_read_const_gen(adc);
-wdc65816_op_read_const_gen(ldy);
-wdc65816_op_read_const_gen(lda);
-wdc65816_op_read_const_gen(ldx);
-wdc65816_op_read_const_gen(cpy);
-wdc65816_op_read_const_gen(cmp);
-wdc65816_op_read_const_gen(cpx);
-wdc65816_op_read_const_gen(sbc);
+#define wdc65816_op_read_const_w_gen(op)                                        \
+    void wdc65816_op_read_const_##op##_w(Wdc65816Cpu* cpu) {                    \
+        cpu->rd.l = wdc65816_op_readpc(cpu);                                    \
+        cpu->rd.h = wdc65816_op_readpc(cpu);                                    \
+        wdc65816_op_##op##_w(cpu);                                              \
+    }
+
+wdc65816_op_read_const_b_gen(ora);
+wdc65816_op_read_const_b_gen(and);
+wdc65816_op_read_const_b_gen(eor);
+wdc65816_op_read_const_b_gen(adc);
+wdc65816_op_read_const_b_gen(ldy);
+wdc65816_op_read_const_b_gen(lda);
+wdc65816_op_read_const_b_gen(ldx);
+wdc65816_op_read_const_b_gen(cpy);
+wdc65816_op_read_const_b_gen(cmp);
+wdc65816_op_read_const_b_gen(cpx);
+wdc65816_op_read_const_b_gen(sbc);
+
+wdc65816_op_read_const_w_gen(ora);
+wdc65816_op_read_const_w_gen(and);
+wdc65816_op_read_const_w_gen(eor);
+wdc65816_op_read_const_w_gen(adc);
+wdc65816_op_read_const_w_gen(ldy);
+wdc65816_op_read_const_w_gen(lda);
+wdc65816_op_read_const_w_gen(ldx);
+wdc65816_op_read_const_w_gen(cpy);
+wdc65816_op_read_const_w_gen(cmp);
+wdc65816_op_read_const_w_gen(cpx);
+wdc65816_op_read_const_w_gen(sbc);
 
 #undef wdc65816_op_read_const_gen
 

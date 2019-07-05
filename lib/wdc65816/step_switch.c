@@ -1,5 +1,4 @@
 #include "algorithms.h"
-#include "disassembler.h"
 #include "memory.h"
 #include "table.h"
 
